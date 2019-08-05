@@ -67,7 +67,27 @@ namespace Grid_Maker
 		semiconductor_triang.refine_global(n_global_refine);
 		electrolyte_triang.refine_global(n_global_refine);
 		Poisson_triang.refine_global(n_global_refine);
-	
+
+		// set Dirichlet boundary conditions
+		make_Dirichlet_boundaries(semiconductor_triang);
+		make_Dirichlet_boundaries(electrolyte_triang);
+		make_Dirichlet_boundaries(Poisson_triang);
+
+		// make insulating conditions.  Handled in input file
+		if(insulated)
+		{
+			make_Neumann_boundaries(Poisson_triang);
+			make_Neumann_boundaries(semiconductor_triang);
+			make_Neumann_boundaries(electrolyte_triang);
+		}
+
+		// make Schottky conditions.
+		if(schottky)
+		{
+			make_Schottky_boundaries(semiconductor_triang);
+			make_Schottky_boundaries(Poisson_triang);
+		}
+
 		// locally refine now
 		for(unsigned int refine_num=0; refine_num < n_local_refine; refine_num++)
 		{
@@ -109,26 +129,6 @@ namespace Grid_Maker
 			Poisson_triang.execute_coarsening_and_refinement();
 
 		} // refine_num
-		
-		// set Dirichlet boundary conditions
-		make_Dirichlet_boundaries(semiconductor_triang);
-		make_Dirichlet_boundaries(electrolyte_triang);
-		make_Dirichlet_boundaries(Poisson_triang);
-
-		// make insulating conditions.  Handled in input file
-		if(insulated)
-		{
-			make_Neumann_boundaries(Poisson_triang);
-			make_Neumann_boundaries(semiconductor_triang);
-			make_Neumann_boundaries(electrolyte_triang);
-		}
-
-		// make Schottky conditions. 
-		if(schottky)
-		{
-			make_Schottky_boundaries(semiconductor_triang);
-			make_Schottky_boundaries(Poisson_triang);
-		}
 
 	} // make grids
 
@@ -151,7 +151,7 @@ namespace Grid_Maker
 		const unsigned int n_vertices_1 = 
 				sizeof(vertices_1)/sizeof(vertices_1[0]);
 
-		const std::vector<Point<dim>> vertices_list_1(&vertices_1[0],	
+		const std::vector<Point<dim>> vertices_list_1(&vertices_1[0],
 			  				      &vertices_1[n_vertices_1]);
 
 		static const int cell_vertices_1[][GeometryInfo<dim>::vertices_per_cell]
@@ -357,7 +357,7 @@ namespace Grid_Maker
 				{
 					//NOTE: Default is 0, which implies Interface
 
-					//sets only the non-interface boundary to be Dirichlet	
+					//sets only the non-interface boundary to be Dirichlet
 					if((cell->face(face_no)->center()[0] == 0.0) ||
 					  (cell->face(face_no)->center()[0] == scaled_domain_length) ||
 					  (cell->face(face_no)->center()[1] == 0.0) ||
@@ -391,19 +391,21 @@ namespace Grid_Maker
 				if(cell->face(face_no)->at_boundary() )
 				{
 					// top of the domain
-					if(cell->face(face_no)->center()[1] == scaled_domain_height)
+					if(cell->face(face_no)->center()[1] == scaled_domain_height || cell->face(face_no)->center()[1] == 0)
 					{
-						// electrolyte portion 
+						cell->face(face_no)->set_boundary_id(Neumann);
+/*						// electrolyte portion
 						if(cell->face(face_no)->center()[0] > scaled_radius_one)
-						{ 
+						{
 							cell->face(face_no)->set_boundary_id(Neumann);
 						}
 						else // in semiconductor
 						{
 							cell->face(face_no)->set_boundary_id(Dirichlet);
-						}
+						}*/
 					} // if top
 
+/*
 					// bottom of the domain
 					if(cell->face(face_no)->center()[1] == 0.0)	
 					{
@@ -417,10 +419,11 @@ namespace Grid_Maker
 							cell->face(face_no)->set_boundary_id(Dirichlet);
 						}
 					} // if bottom 
+*/
 
-					// left side of the domain
+/*					// left side of the domain
 					if(cell->face(face_no)->center()[0] == 0.0)
-							cell->face(face_no)->set_boundary_id(Neumann);
+							cell->face(face_no)->set_boundary_id(Neumann);*/
 		
 				} // end if on boundary
 			} // for face_no
@@ -448,9 +451,9 @@ namespace Grid_Maker
 				{
 					//NOTE: Default is 0, which implies Interface
 
-					//sets only the non-interface boundary to be Dirichlet	
+					//sets only the non-interface boundary to be Dirichlet
 					if(// (cell->face(face_no)->center()[1] == 0) ||
-					  (cell->face(face_no)->center()[1] == scaled_domain_height) )
+					  (cell->face(face_no)->center()[0] == scaled_radius_one) )
 					{
 						cell->face(face_no)->set_boundary_id(Schottky);
 					}
