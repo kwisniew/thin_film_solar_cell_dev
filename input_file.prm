@@ -2,16 +2,16 @@
 # ---------------------
 subsection computational
   # time to steady state (in terms of characteristic time)
-  set end time           = 5e1
+  set end time           = 10.0
 
   # 2nd end time for restarting if the simulation hasn't converged by end of previous time
-  set end time 2         = 1e5
+  set end time 2         = 100e5
 
   # number of global refinements
   set global refinements = 4
 
   # number of local refinements in predefined critical areas
-  set local refinements  = 0
+  set local refinements  = 2
 
   # if restarting, the end of last run is used as start for this one
   set restart status     = false
@@ -26,13 +26,13 @@ end
 
 subsection electrons
   # electron mobility [v/cm^{2}]
-  set mobility               = 1350.0
+  set mobility               = 0.02
 
   # Recombination rate/time of electrons [s]
   set recombination time     = 5e-5
 
   # Recombination velocity of electrons [cm/s]
-  set recombination velocity = 3e5
+  set recombination velocity = 3e4
 
   # transfer rate of electrons [cm^{4} s^{-1}]
   set transfer rate          = 1e-19
@@ -41,13 +41,13 @@ end
 
 subsection holes
   # hole mobility [v/cm^{2}]
-  set mobility               = 480.0
+  set mobility               = 0.02
 
   # Recombination rate/time of holes [s]
   set recombination time     = 5e-5
 
   # Recombination velocity of holes [cm/s]
-  set recombination velocity = 2.9e5
+  set recombination velocity = 2.9e4
 
   # transfer rate of holes [cm^{4} s^{-1}]
   set transfer rate          = 1e-14
@@ -56,19 +56,25 @@ end
 
 subsection mesh
   # width of boundary layer
-  set boundary layer = 0.1
+  set boundary layer = 0.6
 
   # scaled domain height in y coordinate
-  set mesh height    = 1
+  set mesh height    = 5.0
 
   # scaled domain length in x coordinate
-  set mesh length    = 1.0
+  set mesh length    = 5.2
 
   # top radius of wire
-  set radius one     = 0.3
+  set radius one     = 4.6
 
   # bottom radius of wire
-  set radius two     = 0.3
+  set radius two     = 4.6
+  
+  # n-type width
+  set n_type width   = 0.6
+  
+  # p_type width     
+  set p_type width   = 4.0 
 end
 
 
@@ -90,9 +96,18 @@ subsection physical
 
   # the characteristic density scale [cm^{-3}]
   set characteristic density     = 1.0e16
+  
+  # scaled n type doping [cm^{-3}]
+  set n_type doping     = 1.0e18
+
+  # scaled p type doping [cm^{-3}]
+  set p_type doping     = 1.0e15
+  
+  # efective hole density Nv [cm^{-3}]
+  set effective density     = 2.54e19  
 
   # the characteristic length scale [cm]
-  set characteristic length      = 1.0e-4
+  set characteristic length      = 1.0e-6
 
   # the characteristic time scale [s]
   set characteristic time        = 1.0e-12
@@ -101,10 +116,10 @@ subsection physical
   set electrolyte permittivity   = 1000
 
   # true means that the cell is illuminated, false means its not.
-  set illumination status        = true
+  set illumination status        = false
 
   # whether device is insulated. See Grid::make_Neumann_boundaries
-  set insulated                  = true
+  set insulated                  = false
 
   # the intrinsic density scale [cm^{-3}]
   set intrinsic density          = 2.564e9
@@ -113,10 +128,10 @@ subsection physical
   set photon flux                = 1.2e17
 
   # the Schottky barrier/applied  bias [V]
-  set schottky bias              = 0.0
+  set schottky bias              = 0.1
 
   # whether to have schottky contact. See Grid::make_Schottky_boundaries
-  set schottky status            = false
+  set schottky status            = true
 
   # semiconductor permittivity const []
   set semiconductor permittivity = 11.9
@@ -127,5 +142,4 @@ subsection reductants
   # reductant mobility [v/cm^{2}]
   set mobility = 1.0
 end
-
 
