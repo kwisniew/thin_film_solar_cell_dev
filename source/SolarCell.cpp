@@ -1048,11 +1048,11 @@ namespace SOLARCELL
 
 		electron_hole_pair.mass_matrix.vmult(electron_hole_pair.carrier_1.system_rhs,
 						 electron_hole_pair.carrier_1.solution);
-		std::cout<<"1.1"<<std::endl;
+		//std::cout<<"1.1"<<std::endl;
 
 		electron_hole_pair.mass_matrix.vmult(electron_hole_pair.carrier_2.system_rhs,
 						 electron_hole_pair.carrier_2.solution);
-		std::cout<<"1.2"<<std::endl;
+		//std::cout<<"1.2"<<std::endl;
 		// now run through the semiconductor cells and assemble rhs for the 
 		// LDG equations.
 		WorkStream::run(semiconductor_dof_handler.begin_active(),
@@ -1927,8 +1927,7 @@ namespace SOLARCELL
 //		grid_maker.print_grid(Poisson_triangulation,
 //					"Grid.eps");
 
-//		grid_maker.print_grid(semiconductor_triangulation,
-//													"Semi.eps");
+		grid_maker.print_grid(semiconductor_triangulation,"Semi.eps");
 
 //		grid_maker.print_grid(electrolyte_triangulation,
 //													"Elec.eps");
@@ -2062,7 +2061,7 @@ namespace SOLARCELL
 			while(time < timeStamps[k])
 			{
 				timer.enter_subsection("Assemble semiconductor rhs");
-				std::cout<<"1"<<std::endl;
+				//std::cout<<"1"<<std::endl;
 				assemble_semiconductor_rhs();
 				timer.leave_subsection("Assemble semiconductor rhs");
 
@@ -2072,7 +2071,7 @@ namespace SOLARCELL
 				assemble_electrolyte_rhs();
 				timer.leave_subsection("Assemble electrolyte rhs");
 */
-				std::cout<<"2"<<std::endl;
+				//std::cout<<"2"<<std::endl;
 				timer.enter_subsection("Solve LDG Systems");
 				solve_full_system();
 				timer.leave_subsection("Solve LDG Systems");
