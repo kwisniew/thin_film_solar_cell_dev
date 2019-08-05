@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>main-Release@PECS-master_dev</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<name>org.eclipse.cdt.managedbuilder.core.genmakebuilder</name>
+			<triggers>clean,full,incremental,</triggers>
+			<arguments>
+			</arguments>
+		</buildCommand>
+		<buildCommand>
+			<name>org.eclipse.cdt.managedbuilder.core.ScannerConfigBuilder</name>
+			<triggers>full,incremental,</triggers>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>org.eclipse.cdt.core.ccnature</nature>
+		<nature>org.eclipse.cdt.core.cnature</nature>
+		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
+		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
+	</natures>
+	<linkedResources>
+		<link>
+			<name>[Subprojects]</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>[Targets]</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/CMake Rules</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/Header Files</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/Object Files</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/Object Libraries</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/Resources</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/Source Files</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/Source Files/Assembly.cpp</name>
+			<type>1</type>
+			<location>/home/kon/symulacje/michigan/moje_zbawienie/Solar_cell/PECS-master_dev/source/Assembly.cpp</location>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/Source Files/BiasValues.cpp</name>
+			<type>1</type>
+			<location>/home/kon/symulacje/michigan/moje_zbawienie/Solar_cell/PECS-master_dev/source/BiasValues.cpp</location>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/Source Files/Carrier.cpp</name>
+			<type>1</type>
+			<location>/home/kon/symulacje/michigan/moje_zbawienie/Solar_cell/PECS-master_dev/source/Carrier.cpp</location>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/Source Files/CarrierPair.cpp</name>
+			<type>1</type>
+			<location>/home/kon/symulacje/michigan/moje_zbawienie/Solar_cell/PECS-master_dev/source/CarrierPair.cpp</location>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/Source Files/Generation.cpp</name>
+			<type>1</type>
+			<location>/home/kon/symulacje/michigan/moje_zbawienie/Solar_cell/PECS-master_dev/source/Generation.cpp</location>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/Source Files/Grid.cpp</name>
+			<type>1</type>
+			<location>/home/kon/symulacje/michigan/moje_zbawienie/Solar_cell/PECS-master_dev/source/Grid.cpp</location>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/Source Files/InitialConditions.cpp</name>
+			<type>1</type>
+			<location>/home/kon/symulacje/michigan/moje_zbawienie/Solar_cell/PECS-master_dev/source/InitialConditions.cpp</location>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/Source Files/LDG.cpp</name>
+			<type>1</type>
+			<location>/home/kon/symulacje/michigan/moje_zbawienie/Solar_cell/PECS-master_dev/source/LDG.cpp</location>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/Source Files/MixedFEM.cpp</name>
+			<type>1</type>
+			<location>/home/kon/symulacje/michigan/moje_zbawienie/Solar_cell/PECS-master_dev/source/MixedFEM.cpp</location>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/Source Files/ParameterReader.cpp</name>
+			<type>1</type>
+			<location>/home/kon/symulacje/michigan/moje_zbawienie/Solar_cell/PECS-master_dev/source/ParameterReader.cpp</location>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/Source Files/Poisson.cpp</name>
+			<type>1</type>
+			<location>/home/kon/symulacje/michigan/moje_zbawienie/Solar_cell/PECS-master_dev/source/Poisson.cpp</location>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/Source Files/PostProcessor.cpp</name>
+			<type>1</type>
+			<location>/home/kon/symulacje/michigan/moje_zbawienie/Solar_cell/PECS-master_dev/source/PostProcessor.cpp</location>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/Source Files/SolarCell.cpp</name>
+			<type>1</type>
+			<location>/home/kon/symulacje/michigan/moje_zbawienie/Solar_cell/PECS-master_dev/source/SolarCell.cpp</location>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/Source Files/main.cpp</name>
+			<type>1</type>
+			<location>/home/kon/symulacje/michigan/moje_zbawienie/Solar_cell/PECS-master_dev/source/main/main.cpp</location>
+		</link>
+		<link>
+			<name>[Targets]/[exe] main/Source Files/test_functions.cpp</name>
+			<type>1</type>
+			<location>/home/kon/symulacje/michigan/moje_zbawienie/Solar_cell/PECS-master_dev/source/test_functions.cpp</location>
+		</link>
+	</linkedResources>
+	<filteredResources>
+		<filter>
+			<id>1564933523983</id>
+			<name></name>
+			<type>6</type>
+			<matcher>
+				<id>org.eclipse.ui.ide.multiFilter</id>
+				<arguments>1.0-name-matches-false-false-*.vtu</arguments>
+			</matcher>
+		</filter>
+	</filteredResources>
+</projectDescription>
