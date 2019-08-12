@@ -24,8 +24,8 @@ namespace Grid_Maker
 		
 		if(n_local_refine == 0)
 		{
-			use_boundary_layer = false;
-			scaled_boundary_layer = 0.0;
+			use_boundary_layer = true;
+			//scaled_boundary_layer = 0.0;
 		}
 		else if((n_local_refine > 0)
 						&&
@@ -64,13 +64,15 @@ namespace Grid_Maker
 
 
 		// globally refine now
-		semiconductor_triang.refine_global(n_global_refine);
-		electrolyte_triang.refine_global(n_global_refine);
-		Poisson_triang.refine_global(n_global_refine);
-
+		if(n_global_refine>0)
+		{
+			semiconductor_triang.refine_global(n_global_refine);
+	//		electrolyte_triang.refine_global(n_global_refine);
+			Poisson_triang.refine_global(n_global_refine);
+		}
 		// set Dirichlet boundary conditions
 		make_Dirichlet_boundaries(semiconductor_triang);
-		make_Dirichlet_boundaries(electrolyte_triang);
+//		make_Dirichlet_boundaries(electrolyte_triang);
 		make_Dirichlet_boundaries(Poisson_triang);
 
 		// make insulating conditions.  Handled in input file
@@ -78,7 +80,7 @@ namespace Grid_Maker
 		{
 			make_Neumann_boundaries(Poisson_triang);
 			make_Neumann_boundaries(semiconductor_triang);
-			make_Neumann_boundaries(electrolyte_triang);
+//			make_Neumann_boundaries(electrolyte_triang);
 		}
 
 		// make Schottky conditions.
@@ -88,6 +90,10 @@ namespace Grid_Maker
 			make_Schottky_boundaries(Poisson_triang);
 		}
 
+
+
+
+
 		// locally refine now
 		for(unsigned int refine_num=0; refine_num < n_local_refine; refine_num++)
 		{
@@ -96,10 +102,37 @@ namespace Grid_Maker
 					cell = semiconductor_triang.begin_active(),
 					endc = semiconductor_triang.end();
 			// loop over all the cells and mark for refinement
+/*
 			for(; cell != endc; cell++)
-				if(cell->material_id() == semi_boundary_layer_id)
+			{
+				// loop over all the faces of the cell and find which are on the boundary
+				for(unsigned int face_no=0;
+						face_no < GeometryInfo<dim>::faces_per_cell;
+						face_no++)
+				{
+					if
+					(
+//						cell->face(face_no)->boundary_id() == Schottky
+						cell->material_id() == semiconductor_id
+
+
+					)
+					{
+						cell->set_refine_flag();
+					} // end if on boundary
+				} // for face_no
+			} // for cell
+*/
+			for(; cell != endc; cell++)
+				if
+				(
+					//cell->material_id() == semi_boundary_layer_id
+					//||
+					cell->material_id() == semiconductor_id
+				)
 					cell->set_refine_flag();
 		
+/*
 			// electrolyte
 			cell = electrolyte_triang.begin_active(),
 			endc = electrolyte_triang.end();
@@ -108,24 +141,48 @@ namespace Grid_Maker
 			for(; cell != endc; cell++)
 				if(cell->material_id() == elec_boundary_layer_id)
 					cell->set_refine_flag();
+*/
 
 			// Poisson
 			cell = Poisson_triang.begin_active(),
 			endc = Poisson_triang.end();
-	
+			/*for(; cell != endc; cell++)
+			{
+				// loop over all the faces of the cell and find which are on the boundary
+				for(unsigned int face_no=0;
+						face_no < GeometryInfo<dim>::faces_per_cell;
+						face_no++)
+				{
+					if
+					(
+//						cell->face(face_no)->boundary_id() == Schottky
+						cell->material_id() == semiconductor_id
+
+
+					)
+					{
+						cell->set_refine_flag();
+					} // end if on boundary
+				} // for face_no
+			}*/
+
+
 			// loop over all the cells and mark for refinement
 			for(; cell != endc; cell++)
 			{
-				if((cell->material_id() == semi_boundary_layer_id)
-						||
-					 (cell->material_id() == elec_boundary_layer_id) )
+				if
+				(
+						//cell->material_id() == semi_boundary_layer_id
+						//||
+						cell->material_id() == semiconductor_id
+				)
 				{
 					cell->set_refine_flag();
 				}
 			}
 
 			semiconductor_triang.execute_coarsening_and_refinement();
-			electrolyte_triang.execute_coarsening_and_refinement();
+//			electrolyte_triang.execute_coarsening_and_refinement();
 			Poisson_triang.execute_coarsening_and_refinement();
 
 		} // refine_num
@@ -176,8 +233,8 @@ namespace Grid_Maker
 	static const Point<2> vertices_2[]
 			= { Point<2>(scaled_radius_two - scaled_boundary_layer, 0),
 			Point<2>(scaled_radius_two, 0),
-			Point<2>(scaled_radius_one - scaled_boundary_layer, scaled_domain_height),
-			Point<2>(scaled_radius_one, scaled_domain_height)
+			Point<2>(scaled_radius_two - scaled_boundary_layer, scaled_domain_height),
+			Point<2>(scaled_radius_two, scaled_domain_height)
 			};
 
 		const unsigned int n_vertices_2 = sizeof(vertices_2)/sizeof(vertices_2[0]);
@@ -359,7 +416,7 @@ namespace Grid_Maker
 
 					//sets only the non-interface boundary to be Dirichlet
 					if((cell->face(face_no)->center()[0] == 0.0) ||
-					  (cell->face(face_no)->center()[0] == scaled_domain_length) ||
+					  (cell->face(face_no)->center()[0] == scaled_radius_two) ||
 					  (cell->face(face_no)->center()[1] == 0.0) ||
 					  (cell->face(face_no)->center()[1] == scaled_domain_height) )
 					{
@@ -453,7 +510,7 @@ namespace Grid_Maker
 
 					//sets only the non-interface boundary to be Dirichlet
 					if(// (cell->face(face_no)->center()[1] == 0) ||
-					  (cell->face(face_no)->center()[0] == scaled_radius_one) )
+					  (cell->face(face_no)->center()[0] == 0) )
 					{
 						cell->face(face_no)->set_boundary_id(Schottky);
 					}
