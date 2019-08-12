@@ -50,9 +50,9 @@ namespace MixedPoisson
 		scratch.Poisson_fe_values.reinit(cell);
 		data.local_matrix=0;
 		
-		if(	(cell->material_id() == semiconductor_id)
+		if(	(cell->material_id() == p_type_id)
 				||
-				(cell->material_id() == semi_boundary_layer_id))
+				(cell->material_id() == n_type_id))
 		{
 			// loop over all the quadrature points in this cell
 			for(unsigned int q=0; q<n_q_points; q++)

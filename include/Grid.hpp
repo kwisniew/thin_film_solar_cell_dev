@@ -76,7 +76,7 @@ namespace Grid_Maker
 
 			///\brief Subroutine that tags boundaries to be Dirichlet portions.
 			/** This subroutine loops over all the cells in <code>triangulation<code/h>
-			* and finds which subroutines are on the boundary.  It then
+			* and finds which faces are on the boundary.  It then
 			* flags these faces on the boundary to be <code>Dirichlet<code/>
 			* portions of boundary.  
 	 		*/
@@ -97,6 +97,9 @@ namespace Grid_Maker
 
 			/// \brief Tags boundaries of the semiconductor as Schottky portions.
 			void make_Schottky_boundaries(Triangulation<dim> & triangulation);
+
+			/// \brief Tags boundaries between n_type and p_type region.
+			void mark_interface_boundaries(Triangulation<dim> & triangulation);
 	
 	 		/** \brief Creates a simple cubic grid with mixed boundaries. */
 			/** Takes <code>triangulation<code/> object and creates a mesh on it.
@@ -141,6 +144,7 @@ namespace Grid_Maker
 			enum
 			{
 				Interface_0,
+				PN_Interface,
 				Dirichlet,
 				Neumann,
 				Schottky
@@ -152,7 +156,9 @@ namespace Grid_Maker
 				semiconductor_id,
 				semi_boundary_layer_id,
 				electrolyte_id,
-				elec_boundary_layer_id
+				elec_boundary_layer_id,
+				n_type_id,
+				p_type_id
 			};
 
 			/// Set in constructor.			
@@ -163,6 +169,10 @@ namespace Grid_Maker
 			double scaled_radius_one;
 			/// Set in constructor.			
 			double scaled_radius_two;
+
+			double scaled_n_type_width;
+
+			double scaled_p_type_width;
 			/// Set in constructor.			
 			double scaled_boundary_layer;
 			/// Set in constructor.			
