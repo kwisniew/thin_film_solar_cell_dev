@@ -183,7 +183,7 @@ namespace SOLARCELL
 				{
 					typename DoFHandler<dim>::face_iterator	face = semi_cell->face(face_no);
 				
-					if(face->boundary_id() == Interface)
+					if(face->boundary_id() == 666/*Interface*/)
 					{
 						semi_interface_cells.push_back(
 								std::pair<unsigned int, unsigned int>(semi_cell->level(),
@@ -213,7 +213,7 @@ namespace SOLARCELL
 				{
 					typename DoFHandler<dim>::face_iterator	face = elec_cell->face(face_no);
 				
-					if(face->boundary_id() == Interface)
+					if(face->boundary_id() == 666/*Interface*/)
 					{
 						temp_elec_interface_cells.push_back(
 							std::pair<unsigned int, unsigned int>(elec_cell->level(),
@@ -830,6 +830,15 @@ namespace SOLARCELL
 	assemble_LDG_system(const double & transient_or_steady)
 	{	
 		// assemble mass matrix for the electron_hole pair
+		std::cout<<std::endl;
+		std::cout<<std::endl;
+		std::cout<<std::endl;
+		std::cout<<std::endl;
+//		std::cout<<"MACIERZ PRZED"<<std::endl;
+//
+//		electron_hole_pair.carrier_1.system_matrix.print_formatted(std::cout,0);
+
+		std::cout << "Czy chodzi o bulk?" << std::endl;
 		WorkStream::run(semiconductor_dof_handler.begin_active(),
 				semiconductor_dof_handler.end(),
 				std_cxx11::bind(&LDG_System::LDG<dim>::
@@ -849,8 +858,15 @@ namespace SOLARCELL
 							  QGauss<dim-1>(degree+2)),
 				Assembly::DriftDiffusion::CopyData<dim>(carrier_fe)
 				);
-
+		std::cout<<std::endl;
+		std::cout<<std::endl;
+		std::cout<<std::endl;
+		std::cout<<std::endl;
+//		std::cout<<"MACIERZ Po BULKU"<<std::endl;
+//
+//		electron_hole_pair.carrier_1.system_matrix.print_formatted(std::cout,0);
 		// system matrix for the electron_hole pair
+		std::cout << "Czy o boundary condition?" << std::endl;
 		WorkStream::run(semiconductor_dof_handler.begin_active(),
 				semiconductor_dof_handler.end(),
 				std_cxx11::bind(&LDG_System::LDG<dim>::
@@ -874,11 +890,35 @@ namespace SOLARCELL
 							 QGauss<dim-1>(degree+2)),
 				Assembly::DriftDiffusion::CopyData<dim>(carrier_fe)
 				);
+		std::cout<<std::endl;
+		std::cout<<std::endl;
+		std::cout<<std::endl;
+		std::cout<<std::endl;
+//		std::cout<<"MACIERZ PO BOUNDARY CONDITION"<<std::endl;
+//
+//		electron_hole_pair.carrier_1.system_matrix.print_formatted(std::cout,0);
+
+
+
+
+
+		std::cout << "A może to dopiero fluxy?" << std::endl;
 		// LDG FLLUXES
 		LDG_Assembler.assemble_flux_terms(semiconductor_dof_handler,
 						electron_hole_pair,
 						Poisson_fe,
 						carrier_fe);	
+		std::cout << "A może wszystko działa" << std::endl;
+
+
+		std::cout<<std::endl;
+		std::cout<<std::endl;
+		std::cout<<std::endl;
+		std::cout<<std::endl;
+		std::cout<<"MACIERZ PO FLUXACH"<<std::endl;
+
+		electron_hole_pair.carrier_1.system_matrix.print_formatted(std::cout,0);
+
 
 		if(full_system)
 		{
@@ -1216,7 +1256,7 @@ namespace SOLARCELL
 				//boundary conditions
 				scratch.carrier_fe_face_values.reinit(cell, face_no);
 			
-				if(face->boundary_id() == Dirichlet || face->boundary_id() == Interface)
+				if(face->boundary_id() == Dirichlet || face->boundary_id() == 666/*Interface*/)
 				{
 					// Get the doping profile values for the boundary conditions
 					electrons_e.value_list(
@@ -1635,7 +1675,7 @@ namespace SOLARCELL
 						} // for i
 					}	// for q
 				} // end Dirichlet
-				else if(face->boundary_id() == Interface)
+				else if(face->boundary_id() == 666/*Interface*/)
 				{
 
 					// get the reductant and oxidant densities at the pevious time step
@@ -1743,8 +1783,12 @@ namespace SOLARCELL
 	SolarCellProblem<dim>::
 	set_solvers()
 	{
+		std::cout << "Poisson" << std::endl;
 		Poisson_object.set_solver();
+		std::cout << "Elektrony" << std::endl;
+		//electron_hole_pair.carrier_1.system_matrix.print_formatted(std::cout,0);
 		electron_hole_pair.carrier_1.set_solver();
+		std::cout << "Dziury" << std::endl;
 		electron_hole_pair.carrier_2.set_solver();
 		
 		if(full_system)
@@ -1924,8 +1968,7 @@ namespace SOLARCELL
 					Poisson_triangulation,
 					full_system);
 
-//		grid_maker.print_grid(Poisson_triangulation,
-//					"Grid.eps");
+		grid_maker.print_grid(Poisson_triangulation,"Grid.eps");
 
 		grid_maker.print_grid(semiconductor_triangulation,"Semi.eps");
 
@@ -2367,7 +2410,7 @@ namespace SOLARCELL
 						} // for i
 					}	// for q
 				} // end Dirichlet
-				else if(face->boundary_id() == Interface)
+				else if(face->boundary_id() == 666/*Interface*/)
 				{
 				}
 				else if(face->boundary_id() == Neumann)
@@ -2502,7 +2545,7 @@ namespace SOLARCELL
 						} // for i
 					}	// for q
 				} // end Dirichlet
-				else if(face->boundary_id() == Interface)
+				else if(face->boundary_id() == 666/*Interface*/)
 				{
 					// get this carriers density values on the interface
 					scratch.carrier_fe_face_values[Density].get_function_values(
@@ -2683,7 +2726,7 @@ namespace SOLARCELL
 						} // for i
 					}	// for q
 				} // end Dirichlet
-				else if(face->boundary_id() == Interface)
+				else if(face->boundary_id() == 666/*Interface*/)
 				{	
 					// get this carriers density value on the interface
 					scratch.carrier_fe_face_values[Density].get_function_values(
