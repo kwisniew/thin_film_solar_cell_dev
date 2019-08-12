@@ -8,10 +8,10 @@ subsection computational
   set end time 2         = 100e5
 
   # number of global refinements
-  set global refinements = 4
+  set global refinements = 0
 
   # number of local refinements in predefined critical areas
-  set local refinements  = 2
+  set local refinements  = 1
 
   # if restarting, the end of last run is used as start for this one
   set restart status     = false
@@ -98,10 +98,10 @@ subsection physical
   set characteristic density     = 1.0e16
   
   # scaled n type doping [cm^{-3}]
-  set n_type doping     = 1.0e18
+  set n_type doping     = 1.0e16
 
   # scaled p type doping [cm^{-3}]
-  set p_type doping     = 1.0e15
+  set p_type doping     = 1.0e16
   
   # efective hole density Nv [cm^{-3}]
   set effective density     = 2.54e19  
@@ -134,7 +134,7 @@ subsection physical
   set schottky status            = true
 
   # semiconductor permittivity const []
-  set semiconductor permittivity = 11.9
+  set semiconductor permittivity = 13.0
 end
 
 
