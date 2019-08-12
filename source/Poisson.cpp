@@ -82,8 +82,8 @@ namespace Poisson
 
 		std::cout << "Number of DOFS Poisson: "
 				  << dof_handler.n_dofs()
-				  << " (" << n_electric_field 
-				  << " + " << n_potential << ")"
+				  << " (electric field: " << n_electric_field
+				  << " + potential:  " << n_potential << ")"
 				  << std::endl;
 	}
 
