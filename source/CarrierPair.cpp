@@ -82,7 +82,7 @@ namespace ChargeCarrierSpace
 		std::cout << "Number of DOFS carrier: "
 				  << 2 * dof_handler.n_dofs()
 				  << " = 2 x ( " << dof_handler.n_dofs() << " ) "
-				  << " = 2 x (" << n_current << " + " << n_density << ")"
+				  << " = 2 x ( current:  " << n_current << " + density:  " << n_density << ")"
 				  << std::endl;
 	}
 
