@@ -275,6 +275,16 @@ namespace LDG_System
 				Assembly::DriftDiffusion::CopyData<dim> & data,
 				const double 				    		& penalty);
 
+			/** \brief Assemble the local LDG flux matrices WITH local refinement
+ 			*  This corresponds to the case for two cells where they are NOT on the same
+ 			*  refinement level. */
+			void
+			assemble_local_flux_terms(
+				Assembly::AssemblyScratch<dim>		    & scratch,
+				Assembly::DriftDiffusion::CopyData<dim> & data,
+				const double 				    		& penalty,
+				const bool 								& refinement_mismatch);
+
 			/** \brief Function which distributes local fluxes to global matrices.*/
 			/*
 			* In this function we use the ConstraintMatrix to distribute
