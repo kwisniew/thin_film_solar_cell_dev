@@ -311,7 +311,7 @@ namespace LDG_System
 		// loop over all cells 
 		for(; cell != endc; cell++)
 		{
-			std::cout<<"Id naszej komórki:  " << cell->id() << std::endl;
+//			std::cout<<"Id naszej komórki:  " << cell->id() << std::endl;
 			// get the map for the local dofs to global dofs for this cell
 			cell->get_dof_indices(data.local_dof_indices);
 
@@ -342,12 +342,12 @@ namespace LDG_System
 					// this cell is so we have to deal with that case
 					if(face->has_children())
 					{
-						std::cout<<"MAMY DZIECIAKA!!!!!" << std::endl;
+//						std::cout<<"MAMY DZIECIAKA!!!!!" << std::endl;
 						// get the face such that 
 						// neighbor->face(neighbor_face_no) = cell->face(face_no)
 						const unsigned int neighbor_face_no = 
 										cell->neighbor_of_neighbor(face_no);
-						std::cout << "Dla sąsiada ta ścianka ma numer: " << neighbor_face_no << std::endl;
+//						std::cout << "Dla sąsiada ta ścianka ma numer: " << neighbor_face_no << std::endl;
 	
 						// loop over all the subfaces of this face
 						for(unsigned int subface_no=0;
@@ -363,9 +363,9 @@ namespace LDG_System
 
 							//std::cout << "Index ścianki dzieciaka: " << neighbor_face_no << std::endl;
 
-							   if(cell->has_children()) std::cout << "The present cell must not have children!" <<std::endl;
-							   if(cell->at_boundary(face_no)) std::cout << "The present cell must have a valid neighbor!"<<std::endl;
-							   if(cell->neighbor(face_no)->has_children() == false) std::cout << "The neighbor must have children!"<<std::endl;
+//							   if(cell->has_children()) std::cout << "The present cell must not have children!" <<std::endl;
+//							   if(cell->at_boundary(face_no)) std::cout << "The present cell must have a valid neighbor!"<<std::endl;
+//							   if(cell->neighbor(face_no)->has_children() == false) std::cout << "The neighbor must have children!"<<std::endl;
 
 
 							typename DoFHandler<dim>::cell_iterator	neighbor_child =
@@ -375,10 +375,10 @@ namespace LDG_System
 							// parent can't be more than one refinement level above
 							// the child
 							Assert(!neighbor_child->has_children(), ExcInternalError());
-							if(neighbor_child->has_children()) std::cout<<"znowy mamy niestety dzieciaka...." << std::endl;
+//							if(neighbor_child->has_children()) std::cout<<"znowy mamy niestety dzieciaka...." << std::endl;
 //							std::cout<<"Id naszej komórki:  " << cell->id() << std::endl;
-							std::cout<<"Id sąsiada:  " << cell->neighbor(face_no)->id() << std::endl;
-							std::cout<<"Id dzieciaka naszego sasiada:  " << neighbor_child->id() << std::endl;
+//							std::cout<<"Id sąsiada:  " << cell->neighbor(face_no)->id() << std::endl;
+//							std::cout<<"Id dzieciaka naszego sasiada:  " << neighbor_child->id() << std::endl;
 
 
 							// reinitialize the fe_subface_values to this cell's subface and
@@ -393,9 +393,9 @@ namespace LDG_System
 							// get the smaller of the h's
 							double h = std::min(cell->diameter(), 
 												neighbor->diameter());
-							std::cout<<"przekątna komórki  " << cell->diameter() << std::endl;
-							std::cout<<"przekątna sąsiada  " << neighbor->diameter() << std::endl;
-							std::cout<<"przekątna dzieciaka  " << neighbor_child->diameter() << std::endl;
+//							std::cout<<"przekątna komórki  " << cell->diameter() << std::endl;
+//							std::cout<<"przekątna sąsiada  " << neighbor->diameter() << std::endl;
+//							std::cout<<"przekątna dzieciaka  " << neighbor_child->diameter() << std::endl;
 
 							assemble_local_flux_terms(scratch,
 											data,
@@ -413,7 +413,7 @@ namespace LDG_System
 					} // if face has children
 					else
 					{
-						std::cout<<"NIE MA DZIECIAKA !!!!!" << std::endl;
+//						std::cout<<"NIE MA DZIECIAKA !!!!!" << std::endl;
 						// we now know that the neighbor cell of this cell's face 
 						// is on the the same refinement level and therefore
 						// cell with the lower index does the work
@@ -451,14 +451,14 @@ namespace LDG_System
 						}	// end if index() >
 						else
 						{
-							std::cout << "TEN SAM LEVEL I BEZ DZIECIAKA!!!!" << std::endl;
+//							std::cout << "TEN SAM LEVEL I BEZ DZIECIAKA!!!!" << std::endl;
 						}
 
 					} // else cell not have children
 				} // end if interior
 			}	// end face_no
 		} // for cell
-		std::cout<<"liczba wewnetrznych scianek:  " << liczba_wewnetrznych_scianek <<std::endl;
+//		std::cout<<"liczba wewnetrznych scianek:  " << liczba_wewnetrznych_scianek <<std::endl;
 	} // asssemble_flux_terms
 	
 
@@ -479,9 +479,9 @@ namespace LDG_System
 		const unsigned int dofs_neighbor_cell =
 					scratch.carrier_fe_neighbor_face_values.dofs_per_cell;	
 
-		std::cout<<"n_face_points  " << n_face_points << std::endl;
-		std::cout<<"dofs_this_cell " << dofs_this_cell << std::endl;
-		std::cout<<"dofs_neighbor_cell  " << dofs_neighbor_cell << std::endl;
+//		std::cout<<"n_face_points  " << n_face_points << std::endl;
+//		std::cout<<"dofs_this_cell " << dofs_this_cell << std::endl;
+//		std::cout<<"dofs_neighbor_cell  " << dofs_neighbor_cell << std::endl;
 
 		const FEValuesExtractors::Vector Current(0);
 		const FEValuesExtractors::Scalar Density(dim);
@@ -715,9 +715,9 @@ namespace LDG_System
 			const unsigned int dofs_neighbor_cell =
 						scratch.carrier_fe_neighbor_face_values.dofs_per_cell;
 
-			std::cout<<"n_face_points  " << n_face_points << std::endl;
-			std::cout<<"dofs_this_cell " << dofs_this_cell << std::endl;
-			std::cout<<"dofs_neighbor_cell  " << dofs_neighbor_cell << std::endl;
+//			std::cout<<"n_face_points  " << n_face_points << std::endl;
+//			std::cout<<"dofs_this_cell " << dofs_this_cell << std::endl;
+//			std::cout<<"dofs_neighbor_cell  " << dofs_neighbor_cell << std::endl;
 
 			const FEValuesExtractors::Vector Current(0);
 			const FEValuesExtractors::Scalar Density(dim);

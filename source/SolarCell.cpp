@@ -830,15 +830,11 @@ namespace SOLARCELL
 	assemble_LDG_system(const double & transient_or_steady)
 	{	
 		// assemble mass matrix for the electron_hole pair
-		std::cout<<std::endl;
-		std::cout<<std::endl;
-		std::cout<<std::endl;
-		std::cout<<std::endl;
 //		std::cout<<"MACIERZ PRZED"<<std::endl;
 //
 //		electron_hole_pair.carrier_1.system_matrix.print_formatted(std::cout,0);
 
-		std::cout << "Czy chodzi o bulk?" << std::endl;
+//		std::cout << "Czy chodzi o bulk?" << std::endl;
 		WorkStream::run(semiconductor_dof_handler.begin_active(),
 				semiconductor_dof_handler.end(),
 				std_cxx11::bind(&LDG_System::LDG<dim>::
@@ -858,15 +854,11 @@ namespace SOLARCELL
 							  QGauss<dim-1>(degree+2)),
 				Assembly::DriftDiffusion::CopyData<dim>(carrier_fe)
 				);
-		std::cout<<std::endl;
-		std::cout<<std::endl;
-		std::cout<<std::endl;
-		std::cout<<std::endl;
 //		std::cout<<"MACIERZ Po BULKU"<<std::endl;
 //
 //		electron_hole_pair.carrier_1.system_matrix.print_formatted(std::cout,0);
 		// system matrix for the electron_hole pair
-		std::cout << "Czy o boundary condition?" << std::endl;
+//		std::cout << "Czy o boundary condition?" << std::endl;
 		WorkStream::run(semiconductor_dof_handler.begin_active(),
 				semiconductor_dof_handler.end(),
 				std_cxx11::bind(&LDG_System::LDG<dim>::
@@ -890,10 +882,6 @@ namespace SOLARCELL
 							 QGauss<dim-1>(degree+2)),
 				Assembly::DriftDiffusion::CopyData<dim>(carrier_fe)
 				);
-		std::cout<<std::endl;
-		std::cout<<std::endl;
-		std::cout<<std::endl;
-		std::cout<<std::endl;
 //		std::cout<<"MACIERZ PO BOUNDARY CONDITION"<<std::endl;
 //
 //		electron_hole_pair.carrier_1.system_matrix.print_formatted(std::cout,0);
@@ -902,23 +890,15 @@ namespace SOLARCELL
 
 
 
-		std::cout << "A może to dopiero fluxy?" << std::endl;
+//		std::cout << "A może to dopiero fluxy?" << std::endl;
 		// LDG FLLUXES
 		LDG_Assembler.assemble_flux_terms(semiconductor_dof_handler,
 						electron_hole_pair,
 						Poisson_fe,
 						carrier_fe);	
-		std::cout << "A może wszystko działa" << std::endl;
-
-
-		std::cout<<std::endl;
-		std::cout<<std::endl;
-		std::cout<<std::endl;
-		std::cout<<std::endl;
-		std::cout<<"MACIERZ PO FLUXACH"<<std::endl;
-
-		electron_hole_pair.carrier_1.system_matrix.print_formatted(std::cout,0);
-
+//		std::cout << "A może wszystko działa" << std::endl;
+//		std::cout<<"MACIERZ PO FLUXACH"<<std::endl;
+//		electron_hole_pair.carrier_1.system_matrix.print_formatted(std::cout,0);
 
 		if(full_system)
 		{
@@ -1783,12 +1763,12 @@ namespace SOLARCELL
 	SolarCellProblem<dim>::
 	set_solvers()
 	{
-		std::cout << "Poisson" << std::endl;
+		std::cout << "Ustawiam Solver: Poisson" << std::endl;
 		Poisson_object.set_solver();
-		std::cout << "Elektrony" << std::endl;
+		std::cout << "Ustawim Solver: Elektrony" << std::endl;
 		//electron_hole_pair.carrier_1.system_matrix.print_formatted(std::cout,0);
 		electron_hole_pair.carrier_1.set_solver();
-		std::cout << "Dziury" << std::endl;
+		std::cout << "Usatwiam Solver: Dziury" << std::endl;
 		electron_hole_pair.carrier_2.set_solver();
 		
 		if(full_system)
