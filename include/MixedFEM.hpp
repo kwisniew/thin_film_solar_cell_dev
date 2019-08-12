@@ -213,7 +213,7 @@ namespace MixedPoisson
 			enum
 			{
 				/// Marker for cells's face to be on the Interface.	
-				Interface,
+				Interface_1,
 				/// Marker for cells's face to be on the Dirichlet boundary.
 				Dirichlet,
 				/// Marker for cells's face to be on the Neumann boundary.

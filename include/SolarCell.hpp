@@ -315,7 +315,7 @@ namespace SOLARCELL
 			enum
 			{
 				/// Interface boundary id set in Grid_Maker::Grid.
-				Interface,
+				Interface_3,
 				/// Dirichlet boundary id set in Grid_Maker::Grid.
 				Dirichlet,
 				/// Neumann boundary id set in Grid_Maker::Grid.

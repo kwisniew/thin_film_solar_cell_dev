@@ -76,7 +76,7 @@ namespace Poisson
 		private:
 			enum
 			{
-				Interface,
+				Interface_2,
 				Dirichlet,
 				Neumann
 			};

@@ -140,7 +140,7 @@ namespace Grid_Maker
 		private:
 			enum
 			{
-				Interface,
+				Interface_0,
 				Dirichlet,
 				Neumann,
 				Schottky
