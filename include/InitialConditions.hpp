@@ -3,21 +3,26 @@
 
 #include<deal.II/base/function.h>
 
-	using namespace dealii;
+using namespace dealii;
 
-	/** \brief Initial/Boundary conditions for electrons, \f$ \rho_{n}^{e} \f$.*/
-	template<int dim>
-	class Electrons_Equilibrium : public Function<dim>
-	{
-		public:
-			/** \brief Default constructor. */
-			Electrons_Equilibrium() : Function<dim>(dim+1)
-			{}
+/** \brief Initial/Boundary conditions for electrons, \f$ \rho_{n}^{e} \f$.*/
+template<int dim>
+class Electrons_Equilibrium : public Function<dim>
+{
+	public:
+		/** \brief Default constructor. */
+		Electrons_Equilibrium() : Function<dim>(dim+1)
+		{}
 
-			/** \brief Returns value of \f$\rho_{n}^{e}\f$ at point p.*/
-			virtual double value(const Point<dim> & p,
-					     const unsigned int component=0) const;
-	};
+		void set_value(const double & doping_value);
+
+		/** \brief Returns value of \f$\rho_{n}^{e}\f$ at point p.*/
+		virtual double value(const Point<dim> &p,
+					 const unsigned int component = 0) const;
+
+	private:
+		double doping_profile;
+};
 
 	/** \brief Initial/Boundary conditions for holes, \f$ \rho_{p}^{e} \f$.*/
 	template<int dim>
@@ -28,9 +33,14 @@
 			Holes_Equilibrium() : Function<dim>(dim+1)
 			{}
 
+			void set_value(const double & doping_value);
+
 			/** \brief Returns value of \f$\rho_{p}^{e}\f$ at point p.*/
 			virtual double value(const Point<dim> & p,
 					     const unsigned int component=0) const;
+
+		private:
+			double doping_profile;
 	};
 
 	/** \brief Initial/Boundary conditions for reductants, \f$ \rho_{r}^{\infty} \f$.*/

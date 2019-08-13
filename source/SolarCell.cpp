@@ -18,6 +18,7 @@ namespace SOLARCELL
 			 ParameterHandler & param)
 	:
 	degree(degree),
+	delta_t(0.05),
 	full_system(false),
 	prm(param),
 	Poisson_dof_handler(Poisson_triangulation),
@@ -31,17 +32,17 @@ namespace SOLARCELL
 	carrier_fe(FESystem<dim>(FE_DGQ<dim>(degree), dim), 1,
 		   FE_DGQ<dim>(degree), 		   1),
 	Mixed_Assembler(),
-	electrons_e(),
-	holes_e(),
-	reductants_e(),
-	oxidants_e(),
+/*	n_type_electrons_eq(),
+	n_type_holes_eq(),
+	p_type_electrons_eq(),
+	p_type_holes_eq(),
+	schottky_p_type_electrons_eq(),
+	schottky_p_type_holes_eq(),*/
 	built_in_bias(),
 	applied_bias(),
 	bulk_bias(),
-	schottky_bias()/*,
-	generation(),
-	delta_t(0.05),
-	full_system(0)*/
+	schottky_bias(),
+	generation()
 	{
 		// set the parameters
 		sim_params.parse_and_scale_parameters(prm);
@@ -51,6 +52,8 @@ namespace SOLARCELL
 		built_in_bias.set_value(sim_params.scaled_built_in_bias);
 		schottky_bias.set_value(sim_params.scaled_domain_height);
 		schottky_bias.set_value(sim_params.scaled_schottky_bias);
+		electrons_e.set_value(sim_params.scaled_n_type_doping);
+		holes_e.set_value(0.0);
 
 		// set the charges name, charge sign, and mobility
 		electron_hole_pair.carrier_1.set_name("Electrons");
