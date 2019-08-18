@@ -43,7 +43,7 @@ namespace ParameterSpace
 				Patterns::Double(0,1),
 				"scaled time step size of both subdomains");
 
-		prm.declare_entry("end time", "10",
+		prm.declare_entry("end time", "13",
 				Patterns::Double(0),
 				"time to steady state (in terms of characteristic time)");
 

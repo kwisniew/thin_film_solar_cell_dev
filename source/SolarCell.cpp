@@ -32,12 +32,10 @@ namespace SOLARCELL
 	carrier_fe(FESystem<dim>(FE_DGQ<dim>(degree), dim), 1,
 		   FE_DGQ<dim>(degree), 		   1),
 	Mixed_Assembler(),
-/*	n_type_electrons_eq(),
-	n_type_holes_eq(),
-	p_type_electrons_eq(),
-	p_type_holes_eq(),
+	electrons_eq(),
+	holes_eq(),
 	schottky_p_type_electrons_eq(),
-	schottky_p_type_holes_eq(),*/
+	schottky_p_type_holes_eq(),
 	built_in_bias(),
 	applied_bias(),
 	bulk_bias(),
@@ -49,11 +47,12 @@ namespace SOLARCELL
 	
 		// set the voltage bias functions
 		applied_bias.set_value(sim_params.scaled_applied_bias);
+		std::cout<<"applied bias:  " << sim_params.scaled_applied_bias << std::endl;
 		built_in_bias.set_value(sim_params.scaled_built_in_bias);
 		schottky_bias.set_value(sim_params.scaled_domain_height);
 		schottky_bias.set_value(sim_params.scaled_schottky_bias);
-		electrons_e.set_value(sim_params.scaled_n_type_doping);
-		holes_e.set_value(0.0);
+		electrons_eq.set_values(sim_params.scaled_n_type_doping, 0.0                            , sim_params.scaled_p_type_width);
+		holes_eq.set_values(     0.0                            , sim_params.scaled_p_type_doping, sim_params.scaled_p_type_width);
 
 		// set the charges name, charge sign, and mobility
 		electron_hole_pair.carrier_1.set_name("Electrons");
@@ -547,11 +546,11 @@ namespace SOLARCELL
 	
 
 		// get doping profiles values on this cell
-		electrons_e.value_list(scratch.carrier_fe_values.get_quadrature_points(),
+		electrons_eq.value_list(scratch.carrier_fe_values.get_quadrature_points(),
 					scratch.donor_doping_values,
 					dim); // calls the density values of the donor profile
 
-		holes_e.value_list(scratch.carrier_fe_values.get_quadrature_points(),
+		holes_eq.value_list(scratch.carrier_fe_values.get_quadrature_points(),
 				scratch.acceptor_doping_values,
 				dim); // calls the density values of the donor profile
 
@@ -610,6 +609,16 @@ namespace SOLARCELL
 					built_in_bias.value_list(
 							scratch.Poisson_fe_face_values.get_quadrature_points(),
 							scratch.Poisson_bi_values);
+
+
+/*					for (auto i: scratch.Poisson_bi_values)
+					{
+						if(i > 0)
+						{
+							std::cout << i << ' ';
+						}
+
+					}*/
 
 					applied_bias.value_list(
 							scratch.Poisson_fe_face_values.get_quadrature_points(),
@@ -1242,12 +1251,12 @@ namespace SOLARCELL
 				if(face->boundary_id() == Dirichlet || face->boundary_id() == 666/*Interface*/)
 				{
 					// Get the doping profile values for the boundary conditions
-					electrons_e.value_list(
+					electrons_eq.value_list(
 								scratch.carrier_fe_face_values.get_quadrature_points(),
 								scratch.carrier_1_bc_values,
 								dim); // calls the density values of the donor profile
 								     // not the current ones
-					holes_e.value_list(
+					holes_eq.value_list(
 								scratch.carrier_fe_face_values.get_quadrature_points(),
 								scratch.carrier_2_bc_values,
 								dim); // calls the density values of the donor profile
@@ -1380,12 +1389,12 @@ namespace SOLARCELL
 				else if(face->boundary_id() == Schottky)
 				{
 					// Get the doping profile values for the boundary conditions
-					electrons_e.value_list(
+					electrons_eq.value_list(
 								scratch.carrier_fe_face_values.get_quadrature_points(),
 								scratch.carrier_1_bc_values,
 								dim); // calls the density values of the donor profile
 									  // not the current ones
-					holes_e.value_list(
+					holes_eq.value_list(
 								scratch.carrier_fe_face_values.get_quadrature_points(),
 								scratch.carrier_2_bc_values,
 								dim); // calls the density values of the donor profile
@@ -1603,12 +1612,14 @@ namespace SOLARCELL
 				if(face->boundary_id() == Dirichlet)
 				{
 					// Get the doping profile values for the boundary conditions
-					reductants_e.value_list(
+					//REMOVE IT!!!
+					electrons_eq.value_list(
 						scratch.carrier_fe_face_values.get_quadrature_points(),
 						scratch.carrier_1_bc_values,
 						dim); // calls the density values of the donor profile
 										  // not the current ones
-					oxidants_e.value_list(
+					//REMOVE IT!!!
+					holes_eq.value_list(
 						scratch.carrier_fe_face_values.get_quadrature_points(),
 						scratch.carrier_2_bc_values,
 						dim); // calls the density values of the donor profile
@@ -1686,12 +1697,12 @@ namespace SOLARCELL
 									semi_interface_faces[interface_index]);
 
 					// Get the doping profile values for the interface conditions
-					electrons_e.value_list(
+					electrons_eq.value_list(
 						scratch.carrier_fe_neighbor_face_values.get_quadrature_points(),
 						scratch.carrier_1_bc_values,
 						dim); // calls the density values of the donor profile
 						 // not the current ones
-					holes_e.value_list(
+					holes_eq.value_list(
 						scratch.carrier_fe_neighbor_face_values.get_quadrature_points(),
 						scratch.carrier_2_bc_values,
 						dim); // calls the density values of the donor profile
@@ -1767,6 +1778,7 @@ namespace SOLARCELL
 	set_solvers()
 	{
 		std::cout << "Ustawiam Solver: Poisson" << std::endl;
+		//Poisson_object.system_matrix.print_formatted(std::cout,0);
 		Poisson_object.set_solver();
 		std::cout << "Ustawim Solver: Elektrony" << std::endl;
 		//electron_hole_pair.carrier_1.system_matrix.print_formatted(std::cout,0);
@@ -2012,7 +2024,7 @@ namespace SOLARCELL
 		if(sim_params.restart_status)
 		{
 			electron_hole_pair.read_dofs();
-			redox_pair.read_dofs();
+			//redox_pair.read_dofs();
 
 			// make the time stamps
 			for(unsigned int i=0; i<number_outputs; i++)
@@ -2031,13 +2043,13 @@ namespace SOLARCELL
 			VectorTools::project(semiconductor_dof_handler,
 						electron_hole_pair.constraints,
 						QGauss<dim>(degree+1),
-						electrons_e,
+						electrons_eq,
 						electron_hole_pair.carrier_1.solution);
 
 			VectorTools::project(semiconductor_dof_handler,
 						electron_hole_pair.constraints,
 						QGauss<dim>(degree+1),
-						holes_e,
+						holes_eq,
 						electron_hole_pair.carrier_2.solution);
 
 /*			VectorTools::project(electrolyte_dof_handler,
@@ -2062,13 +2074,23 @@ namespace SOLARCELL
 		}
 
 		// get the intitial potential and electric field
+		//std::cout<<"Jedziemy Poissona!"<<std::endl;
 		assemble_Poisson_rhs();
 		solve_Poisson();
 	
 	
 		// print the initial values
 		print_results(time_step_number);
-	 	time_step_number++;	
+
+/*		for (auto i: Poisson_object.solution)
+		{
+			if(i > 0)
+			{
+				std::cout << i << ' ' << std::endl;
+			}
+
+		}
+	 	time_step_number++;	*/
 
 		// for testing convergence to steady state
 		diff_electrons = electron_hole_pair.carrier_1.solution;
@@ -2102,6 +2124,7 @@ namespace SOLARCELL
 				solve_full_system();
 				timer.leave_subsection("Solve LDG Systems");
 	
+				//std::cout<<"Jedziemy Poissona!"<<std::endl;
 				timer.enter_subsection("Assemble Poisson rhs");
 				assemble_Poisson_rhs();
 				timer.leave_subsection("Assemble Poisson rhs");

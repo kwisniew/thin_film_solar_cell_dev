@@ -316,12 +316,24 @@ namespace SOLARCELL
 			{
 				/// Interface boundary id set in Grid_Maker::Grid.
 				Interface_3,
+				/// Interface between P and N type
+				PN_Interface,
 				/// Dirichlet boundary id set in Grid_Maker::Grid.
 				Dirichlet,
 				/// Neumann boundary id set in Grid_Maker::Grid.
 				Neumann,
 				/// Shottky boundary id set in Grid_Maker::Grid.
 				Schottky
+			};
+
+			enum
+			{
+				semiconductor_id,
+				semi_boundary_layer_id,
+				electrolyte_id,
+				elec_boundary_layer_id,
+				n_type_id,
+				p_type_id
 			};
 	
 			/** sim_parms holds all the parameter values.*/
@@ -410,13 +422,13 @@ namespace SOLARCELL
 			/*	Initial Conditions										   */
  			/*-------------------------------------------------------------*/
 			/// \f$ \rho_{n}^{e}(\textbf{x}) \f$
-			Electrons_Equilibrium<dim>			electrons_e;
+			Electrons_Equilibrium<dim>			electrons_eq;
 			/// \f$ \rho_{p}^{e} (\textbf{x}) \f$
-			Holes_Equilibrium<dim>				holes_e;
-			/// \f$ \rho_{r}^{\infty}(\textbf{x})  \f$
-			const Reductants_Equilibrium<dim>			reductants_e;
-			/// \f$ \rho_{o}^{\infty} (\textbf{x}) \f$
-			const Oxidants_Equilibrium<dim>				oxidants_e;
+			Holes_Equilibrium<dim>				holes_eq;
+			/// \f$ \rho_{n}^{e}(\textbf{x}) \f$
+			Electrons_Equilibrium<dim>			schottky_p_type_electrons_eq;
+			/// \f$ \rho_{p}^{e} (\textbf{x}) \f$
+			Holes_Equilibrium<dim>				schottky_p_type_holes_eq;
 
 			/*-------------------------------------------------------------*/
 			/* The potential functions					*/

@@ -12,16 +12,22 @@ class Electrons_Equilibrium : public Function<dim>
 	public:
 		/** \brief Default constructor. */
 		Electrons_Equilibrium() : Function<dim>(dim+1)
-		{}
+		{};
 
-		void set_value(const double & doping_value);
+		void set_values(const double & n_type_donor_doping, const double & p_type_donor_doping, const double & p_type_width);
 
 		/** \brief Returns value of \f$\rho_{n}^{e}\f$ at point p.*/
+		/**
+		 * Right now the component work only for value of "dim" - look at the function .value_list() eg. in
+		 * assemble_local_semiconductor_rhs()
+		 */
 		virtual double value(const Point<dim> &p,
 					 const unsigned int component = 0) const;
 
 	private:
-		double doping_profile;
+		double scaled_n_type_donor_doping;
+		double scaled_p_type_donor_doping;
+		double scaled_p_type_width;
 };
 
 	/** \brief Initial/Boundary conditions for holes, \f$ \rho_{p}^{e} \f$.*/
@@ -33,14 +39,16 @@ class Electrons_Equilibrium : public Function<dim>
 			Holes_Equilibrium() : Function<dim>(dim+1)
 			{}
 
-			void set_value(const double & doping_value);
+			void set_values(const double & n_type_acceptor_doping, const double & p_type_acceptor_doping, const double & p_type_width);
 
 			/** \brief Returns value of \f$\rho_{p}^{e}\f$ at point p.*/
 			virtual double value(const Point<dim> & p,
 					     const unsigned int component=0) const;
 
 		private:
-			double doping_profile;
+			double scaled_n_type_acceptor_doping;
+			double scaled_p_type_acceptor_doping;
+			double scaled_p_type_width;
 	};
 
 	/** \brief Initial/Boundary conditions for reductants, \f$ \rho_{r}^{\infty} \f$.*/

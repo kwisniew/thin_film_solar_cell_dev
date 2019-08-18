@@ -16,19 +16,22 @@
 		}
 		else //(component == dim)
 		{
-//			if(p[0] < 0.2)
-				return doping_profile;
-//			else 
-//				return 0;
+			if(p[0] < scaled_p_type_width)
+				return scaled_p_type_donor_doping;
+			else
+				return scaled_n_type_donor_doping;
 		}
 	}
 
 	template <int dim>
 	void
 	Electrons_Equilibrium<dim>::
-	set_value(const double & doping_value)
+	set_values(const double & n_type_donor_doping, const double & p_type_donor_doping, const double & p_type_width)
 	{
-		doping_profile = doping_value;
+		scaled_n_type_donor_doping = n_type_donor_doping;
+		scaled_p_type_donor_doping = p_type_donor_doping;
+		scaled_p_type_width  = p_type_width;
+
 	}
 
 
@@ -47,10 +50,10 @@
 		}
 		else //(component == dim)
 		{
-//			if(p[0] > 0.2)'
-//				return 2; 
-//			else
-				return doping_profile;
+			if(p[0] < scaled_p_type_width)
+				return scaled_p_type_acceptor_doping;
+			else
+				return scaled_n_type_acceptor_doping;
 		}
 	}
 
@@ -58,9 +61,12 @@
 	template <int dim>
 	void
 	Holes_Equilibrium<dim>::
-	set_value(const double & doping_value)
+	set_values(const double & n_type_acceptor_doping, const double & p_type_acceptor_doping, const double & p_type_width)
 	{
-		doping_profile = doping_value;
+		scaled_n_type_acceptor_doping = n_type_acceptor_doping;
+		scaled_p_type_acceptor_doping = p_type_acceptor_doping;
+		scaled_p_type_width  = p_type_width;
+
 	}
 
 	template <int dim>

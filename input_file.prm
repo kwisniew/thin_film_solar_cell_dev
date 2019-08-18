@@ -2,13 +2,13 @@
 # ---------------------
 subsection computational
   # time to steady state (in terms of characteristic time)
-  set end time           = 10.0
+  set end time           = 10
 
   # 2nd end time for restarting if the simulation hasn't converged by end of previous time
   set end time 2         = 100e5
 
   # number of global refinements
-  set global refinements = 0
+  set global refinements = 1
 
   # number of local refinements in predefined critical areas
   set local refinements  = 1
@@ -98,10 +98,10 @@ subsection physical
   set characteristic density     = 1.0e16
   
   # scaled n type doping [cm^{-3}]
-  set n_type doping     = 1.0e16
+  set n_type doping     = 1.0e18
 
   # scaled p type doping [cm^{-3}]
-  set p_type doping     = 1.0e16
+  set p_type doping     = 1.0e15
   
   # efective hole density Nv [cm^{-3}]
   set effective density     = 2.54e19  
@@ -131,7 +131,7 @@ subsection physical
   set schottky bias              = 0.1
 
   # whether to have schottky contact. See Grid::make_Schottky_boundaries
-  set schottky status            = true
+  set schottky status            = false
 
   # semiconductor permittivity const []
   set semiconductor permittivity = 13.0

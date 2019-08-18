@@ -208,7 +208,7 @@ namespace ParameterSpace
 				// scale the parameters
 				this->characteristic_denisty =
 				// MAX(a, b) == ((a > b) ? a : b)
-				(this->scaled_p_type_doping > this->scaled_n_type_doping ? this->scaled_p_type_doping : this->scaled_n_type_doping);
+				(this->scaled_p_type_doping < this->scaled_n_type_doping ? this->scaled_p_type_doping : this->scaled_n_type_doping);
 
 				this->scaled_n_type_doping             /= this->characteristic_denisty;
 				this->scaled_p_type_doping             /= this->characteristic_denisty;
