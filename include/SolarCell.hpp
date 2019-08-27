@@ -93,7 +93,7 @@ namespace SOLARCELL
 				electron_density * hole_density) /
 				(params.scaled_hole_recombo_t * (electron_density +
 				 params.scaled_intrinsic_density) + 
-				(params.scaled_electron_recombo_t * (hole_density -
+				(params.scaled_electron_recombo_t * (hole_density +
 				 params.scaled_intrinsic_density)) ) );
 
 	}
@@ -635,7 +635,7 @@ namespace SOLARCELL
 			/**	This function loops through all the cells in the semiconductor
  			*	triangulation. It does so by using semiconductor_dof_handler and 
  			*	calling SOLARCELL::SolarCellProblem::assemble_local_semiconductor_rhs 
- 			*	uising workstream. For more information on the LDG method used in this 
+ 			*	using workstream. For more information on the LDG method used in this
  			*	caee see LDG_System::LDG.  */
 			void
 			assemble_semiconductor_rhs();
