@@ -416,7 +416,8 @@ namespace LDG_System
 		private:
 			enum
 			{
-				Interface,
+				Interface_30,
+				PN_Interface,
 				Dirichlet,
 				Neumann,
 				Schottky

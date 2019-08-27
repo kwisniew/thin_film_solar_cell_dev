@@ -11,6 +11,7 @@
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_renumbering.h>
 #include <deal.II/dofs/dof_tools.h>
+#include <deal.II/numerics/vector_tools.h>
 
 namespace Poisson
 {
@@ -77,8 +78,10 @@ namespace Poisson
 			enum
 			{
 				Interface_2,
+				PN_Interface,
 				Dirichlet,
-				Neumann
+				Neumann,
+				Schottky
 			};
 
 	};
