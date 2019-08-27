@@ -168,7 +168,7 @@ namespace MixedPoisson
 				Assembly::AssemblyScratch<dim>			     & scratch,
 				Assembly::Poisson::CopyData<dim>		     & data,
 				const double 	   				     & semi_permittivity,
-				const double 		  			     & elec_permittivity,
+				//const double 		  			     & elec_permittivity,
 				const double 	 				     & scaled_debye_length);
 	
 			/** Assembles the local cell's right hand side for the test problem. */

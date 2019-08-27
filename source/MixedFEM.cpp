@@ -34,7 +34,7 @@ namespace MixedPoisson
 		Assembly::AssemblyScratch<dim>			& scratch,
 		Assembly::Poisson::CopyData<dim>		& data,
 		const double 							& semi_permittivity,
-		const double 							& elec_permittivity,
+//		const double 							& elec_permittivity,
 		const double 							& scaled_debye_length)
 	{
 		const unsigned int	dofs_per_cell =	scratch.Poisson_fe_values.dofs_per_cell;
@@ -50,9 +50,12 @@ namespace MixedPoisson
 		scratch.Poisson_fe_values.reinit(cell);
 		data.local_matrix=0;
 		
-		if(	(cell->material_id() == p_type_id)
-				||
-				(cell->material_id() == n_type_id))
+		if
+		(
+			(cell->material_id() == p_type_id)
+			||
+			(cell->material_id() == n_type_id)
+		)
 		{
 			// loop over all the quadrature points in this cell
 			for(unsigned int q=0; q<n_q_points; q++)
@@ -91,13 +94,13 @@ namespace MixedPoisson
 						// build whole matrix at once, not blocks individually.
 						// \int (P * k^{-1} D - div P * phi - v * D ) dx
 						data.local_matrix(i,j) += (psi_i_field * 
-									(1.0/semi_permittivity) * 
+									( 1.0/(semi_permittivity*scaled_debye_length) ) *
 									 psi_j_field 
 									 - div_psi_i_field * psi_j_potential
-									 - psi_i_potential *
-									  scaled_debye_length * div_psi_j_field	
+									 + psi_i_potential * div_psi_j_field
 									) * scratch.Poisson_fe_values.JxW(q);
- 						
+
+						//std::cout<< i << "  " << j << "   " << data.local_matrix(i,j) << std::endl;
 					} // for j
 				} // for i
 			} // for q
@@ -106,7 +109,8 @@ namespace MixedPoisson
 							||
 				(cell->material_id() == elec_boundary_layer_id))
 		{
-			// loop over all the quadrature points in this cell
+			std::cout << "CELL TYPE NOT SEMICONDUCTOR\n";
+/*			// loop over all the quadrature points in this cell
 			for(unsigned int q=0; q<n_q_points; q++)
 			{
 				//  loop over test functions dofs for this cell
@@ -149,10 +153,10 @@ namespace MixedPoisson
 									- psi_i_potential *
 									scaled_debye_length * div_psi_j_field	
 									) * scratch.Poisson_fe_values.JxW(q);
- 						
+
 					} // for j
 				} // for i
-			} // for q			
+			}*/ // for q
 		} // end material_id() == electrolyte
 		else
 		{
@@ -311,9 +315,11 @@ namespace MixedPoisson
 				+ 
 				Utilities::int_to_string(time_step_number,3) 
 				+ 
+				/*".gp"*/
 				".vtu";
 		std::ofstream output(file.c_str());
 		data_out.write_vtu(output);
+		//data_out.write_gnuplot(output);
 		output.close();
 	}
 
