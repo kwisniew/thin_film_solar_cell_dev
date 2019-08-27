@@ -236,7 +236,7 @@ namespace LDG_System
 						} // end for i
 					} // for q
 				} // if Dirichlet
-				else if((face->boundary_id() == Interface) ||
+				else if(/*(face->boundary_id() == Interface) ||*/
 						(face->boundary_id() == Neumann)   ||
 						(face->boundary_id() == Schottky) )
 				{
@@ -1259,7 +1259,7 @@ namespace LDG_System
 						} // for i
 					}	// for q
 				} // end Dirichlet
-				else if(face->boundary_id() == Interface)
+/*				else if(face->boundary_id() == Interface)
 				{
 					test_LDG_interface.value_list(
 							scratch.carrier_fe_face_values.get_quadrature_points(),
@@ -1283,7 +1283,7 @@ namespace LDG_System
 		
 						} // for i
 					} // for q
-				}
+				}*/
 				else if(face->boundary_id() == Neumann)
 				{
 					// NOTHIN TO DO IF INSULATING
