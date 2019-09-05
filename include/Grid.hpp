@@ -38,9 +38,8 @@ namespace Grid_Maker
  			*	boundary layer.
  			*/
 			void make_grids(Triangulation<dim> & semiconductor_triang,
-					Triangulation<dim> & electrolyte_triang,
-					Triangulation<dim> & Poisson_triang,
-					const bool	   & full_system);
+					Triangulation<dim> & Poisson_triang
+					);
 
 			/** Makes a grid which is of the form, \image html semiconductor-grid.png
 			*	The top radius is <code> radius one <code/> while the top radius is 
@@ -52,15 +51,6 @@ namespace Grid_Maker
 			*/
 			void make_semiconductor_grid(Triangulation<dim>  & triangulation);
 
-			/** Makes a grid which is of the form, \image html electrolyte-grid.png
-			*	The top radius is <code> radius one <code/> while the top radius is 
-			*	<code> radius two <code/>.  It first makes a temporary triangulation
-			* refines it, and then prints it out as "temp.msh", then reads it
-			* it in again and attaches it to the passed triangulation.  The reason
-			* for doing this is so that I can merge this triangulation with another
-			* since in order to do that, they must be on the most refined level.
-			*/
-			void make_electrolyte_grid(Triangulation<dim> 	 & triangulation);
 			/** Makes a grid which is of the form, \image html Poisson-grid.png 
 			*	The top radius is <code> radius one <code/> while the top radius is 
 			*	<code> radius two <code/>.   It does so by merging the two provided grids.*/
@@ -68,8 +58,6 @@ namespace Grid_Maker
 			/**	@param semiconductor_triang which looks like 
 			*	\image html semiconductor-grid.png */ 
 
-			/** @param electrolyte_triang which looks like
- 				* \image html electrolyte-grid.png. */	
 			void make_merged_grid(const Triangulation<dim>	& semiconductor_triang,
 					      const Triangulation<dim>	& electrolyte_triang,
 					      Triangulation<dim>	& merged_triangulation);			
