@@ -13,7 +13,7 @@ namespace Grid_Maker
 	Grid(const ParameterSpace::Parameters & sim_params)
 	{
 		scaled_domain_height	= sim_params.scaled_domain_height;
-		scaled_domain_length	= sim_params.scaled_domain_length;
+		scaled_domain_length	= 0;//sim_params.scaled_domain_length;
 		scaled_radius_one	= sim_params.scaled_radius_one;
 		scaled_radius_two	= sim_params.scaled_radius_two;
 		scaled_n_type_width = sim_params.scaled_n_type_width;
@@ -47,22 +47,12 @@ namespace Grid_Maker
 	void 
 	Grid<dim>::
 	make_grids(Triangulation<dim> & semiconductor_triang,
-               Triangulation<dim> & electrolyte_triang,
-               Triangulation<dim> & Poisson_triang,
-               const bool	      & full_system)
+               Triangulation<dim> & Poisson_triang
+			   )
 	{
 		// make grids
 		make_semiconductor_grid(semiconductor_triang);
-		make_electrolyte_grid(electrolyte_triang);
-
-		if(full_system)
-		{
-			make_merged_grid(semiconductor_triang,
-					electrolyte_triang,
-					Poisson_triang);
-		}
-		else
-			make_semiconductor_grid(Poisson_triang);
+		make_semiconductor_grid(Poisson_triang);
 
 
 		// globally refine now
@@ -75,7 +65,6 @@ namespace Grid_Maker
 
 		// set Dirichlet boundary conditions
 		make_Dirichlet_boundaries(semiconductor_triang);
-//		make_Dirichlet_boundaries(electrolyte_triang);
 		make_Dirichlet_boundaries(Poisson_triang);
 
 		// make insulating conditions.  Handled in input file
@@ -83,7 +72,6 @@ namespace Grid_Maker
 		{
 			make_Neumann_boundaries(Poisson_triang);
 			make_Neumann_boundaries(semiconductor_triang);
-//			make_Neumann_boundaries(electrolyte_triang);
 		}
 
 		// make Schottky conditions.
@@ -268,97 +256,6 @@ namespace Grid_Maker
 							 cells_1,
 							 SubCellData());*/
 
-	}
-
-	template<int dim>
-	void
-	Grid<dim>::
-	make_electrolyte_grid(Triangulation<dim>  & triangulation)
-	{
-//		const unsigned int dim = 2;
-
-		//	boundary layer vertices
-		static const Point<2> vertices_1[]
-		= {	Point<2>(scaled_radius_two, 0),
-			Point<2>(scaled_radius_two + scaled_boundary_layer, 0),
-			Point<2>(scaled_radius_one, scaled_domain_height),
-			Point<2>(scaled_radius_one + scaled_boundary_layer, scaled_domain_height)
-		};
-
-		const unsigned int n_vertices_1 = sizeof(vertices_1)/sizeof(vertices_1[0]);
-
-		const std::vector<Point<dim>> vertices_list_1(&vertices_1[0],												      &vertices_1[n_vertices_1]);
-
-		static const int cell_vertices_1[][GeometryInfo<dim>::vertices_per_cell]
-			= {  {0,1,2,3}};
-
-		const unsigned int n_cells_1 = sizeof(cell_vertices_1)/sizeof(cell_vertices_1[0]);
-
-		// boundary layer 		
-		std::vector<CellData<dim> > cells_1(n_cells_1, CellData<dim>() );
-		for(unsigned int i=0; i<n_cells_1; i++)
-		{
-			for(unsigned int j=0;
-					j<GeometryInfo<dim>::vertices_per_cell;
-					j++)
-			{
-				cells_1[i].vertices[j] = cell_vertices_1[i][j];
-			}
-			cells_1[i].material_id = elec_boundary_layer_id;
-		}
-
-		// bulk layer vetrices
-		static const Point<2> vertices_2[]
-		= {	Point<2>(scaled_radius_two + scaled_boundary_layer, 0),
-			Point<2>(scaled_domain_length, 0),
-			Point<2>(scaled_radius_one + scaled_boundary_layer, scaled_domain_height),
-			Point<2>(scaled_domain_length, scaled_domain_height)
-		};
-
-		const unsigned int n_vertices_2 = sizeof(vertices_2)/sizeof(vertices_2[0]);
-
-
-		const std::vector<Point<dim>> vertices_list_2(&vertices_2[0],												      &vertices_2[n_vertices_2]);
-
-
-		static const int cell_vertices_2[][GeometryInfo<dim>::vertices_per_cell]
-			= {  {0,1,2,3}};
-
-		const unsigned int n_cells_2 = sizeof(cell_vertices_2)/sizeof(cell_vertices_2[0]);
-
-		std::vector<CellData<dim> > cells_2(n_cells_2, CellData<dim>() );
-		for(unsigned int i=0; i<n_cells_2; i++)
-		{
-			for(unsigned int j=0;
-					j<GeometryInfo<dim>::vertices_per_cell;
-					j++)
-			{
-				cells_2[i].vertices[j] = cell_vertices_2[i][j];
-			}
-			cells_2[i].material_id = electrolyte_id;
-		}
-
-		if(use_boundary_layer)
-		{
-			// create boundary layer triangulation
-			Triangulation<dim>	temp_boundary_layer_triangulation;
-			temp_boundary_layer_triangulation.create_triangulation(vertices_list_1,												   cells_1,
-									   SubCellData());
-
-			// create bulk layer triangulation
-			Triangulation<dim>	temp_bulk_triangulation;
-			temp_bulk_triangulation.create_triangulation(vertices_list_2,
-								 cells_2,
-								 SubCellData());
-	
-			GridGenerator::merge_triangulations(temp_boundary_layer_triangulation,
-							temp_bulk_triangulation,
-							triangulation);
-		}	
-		else
-			triangulation.create_triangulation(vertices_list_2,
-							 cells_2,
-							 SubCellData());
 	}
 
 	template <int dim>
