@@ -31,6 +31,7 @@ namespace ParameterSpace
 	declare_parameters()
 	{
 		prm.enter_subsection("computational");
+
 		prm.declare_entry("global refinements", "4",
 				 Patterns::Integer(0,10),
 				 "number of global refinements");
@@ -61,15 +62,96 @@ namespace ParameterSpace
 
 		prm.leave_subsection();				
 
-		prm.enter_subsection("physical");
 
+
+
+		prm.enter_subsection("mesh");
+
+		prm.declare_entry("mesh height", "1",
+				Patterns::Double(0),
+				"scaled domain height in y coordinate");
+
+		prm.declare_entry("radius one", "0.5",
+				Patterns::Double(0),
+				"top radius of wire");
+
+		prm.declare_entry("radius two", "0.5",
+				Patterns::Double(0),
+				"bottom radius of wire");
+
+		prm.declare_entry("boundary layer", "0.1",
+				Patterns::Double(0),
+				"width of boundary layer");
+
+		prm.declare_entry("n_type width", "0.6",
+						Patterns::Double(0),
+						"width of n type layer");
+
+		prm.declare_entry("p_type width", "4.0",
+						Patterns::Double(0),
+						"width of p type layer");
+
+		prm.leave_subsection();
+
+
+
+		prm.enter_subsection("electrons");
+		prm.declare_entry("mobility", "1350.0",
+				Patterns::Double(0),
+				"electron mobility [v/cm^{2}]");
+
+		prm.declare_entry("recombination time", "5e-5",
+				Patterns::Double(0),
+				"Recombination rate/time of electrons [s]");
+
+		prm.declare_entry("recombination velocity", "3e5",
+				 Patterns::Double(0),
+				 "Recombination velocity of electrons [cm/s]");
+
+		prm.declare_entry("electron effective mass", "0.2",
+				 Patterns::Double(0),
+				 "electron effective mass in conduction band [cm/s]");
+
+		prm.leave_subsection();
+
+
+
+
+		prm.enter_subsection("holes");
+		prm.declare_entry("mobility", "480.0",
+				Patterns::Double(0),
+				"hole mobility [v/cm^{2}]");
+
+		prm.declare_entry("recombination time", "5e-5",
+				Patterns::Double(0),
+				"Recombination rate/time of holes [s]");
+
+		prm.declare_entry("recombination velocity", "2.9e-2",
+				Patterns::Double(0),
+				"Recombination velocity of holes [cm/s]");
+
+		prm.declare_entry("hole effective mass", "0.2",
+				 Patterns::Double(0),
+				 "hole effective mass in valence band [cm/s]");
+		prm.leave_subsection();
+
+
+		prm.enter_subsection("physical");
 		prm.declare_entry("applied bias", "0.0",
 				Patterns::Double(0),
 				"the applied bias [v]");
 
-		prm.declare_entry("built in bias", "0.41",
+		prm.declare_entry("band gap", "1.1",
 				Patterns::Double(0),
-				"the built in / SCR  bias [V]");
+				"the band gap of semiconductor [eV]");
+
+		prm.declare_entry("defect energy level", "0.3",
+				Patterns::Double(0.0,1.0),
+				"defect level [in faction of band gap]");
+
+		prm.declare_entry("temperature", "300.0",
+				Patterns::Double(0),
+				"temperature of the device [K]");
 
 		prm.declare_entry("schottky bias", "0.0",
 				Patterns::Double(0),
@@ -91,21 +173,21 @@ namespace ParameterSpace
 				Patterns::Double(0),
 				"the characteristic length scale [cm]");
 
-		prm.declare_entry("characteristic density", "1.0e16",
-				Patterns::Double(0),
-				"the characteristic density scale [cm^{-3}]");
-
-		prm.declare_entry("n_type doping", "1.0e18",
+		prm.declare_entry("n_type donor density", "1.0e18",
 				Patterns::Double(0),
 				"doping in n type region [cm^{-3}]");
 
-		prm.declare_entry("p_type doping", "1.0e15",
+		prm.declare_entry("n_type acceptor density", "0.0",
+				Patterns::Double(0),
+				"doping in n type region [cm^{-3}]");
+
+		prm.declare_entry("p_type donor density", "0.0",
 				Patterns::Double(0),
 				"doping in p type region [cm^{-3}]");
 
-		prm.declare_entry("effective density", "2.54e19",
+		prm.declare_entry("p_type acceptor density", "1.0e15",
 				Patterns::Double(0),
-				"effective hole density Nv mh/m0 = 1 [cm^{-3}]");
+				"doping in p type region [cm^{-3}]");
 
 		prm.declare_entry("characteristic time", "1.0e-12",
 				Patterns::Double(0),
@@ -132,99 +214,9 @@ namespace ParameterSpace
 				"absoprtion coefficient averaged over all energies  [cm^{-1} ]");
 
 		prm.leave_subsection();
-
-		prm.enter_subsection("mesh");
-		prm.declare_entry("mesh length", "1.0",
-				Patterns::Double(0),
-				"scaled domain length in x coordinate");
-
-		prm.declare_entry("mesh height", "1",
-				Patterns::Double(0),
-				"scaled domain height in y coordinate");
-	
-		prm.declare_entry("radius one", "0.5",
-				Patterns::Double(0),
-				"top radius of wire");
-
-		prm.declare_entry("radius two", "0.5",
-				Patterns::Double(0),
-				"bottom radius of wire");
-
-		prm.declare_entry("boundary layer", "0.1",
-				Patterns::Double(0),
-				"width of boundary layer");
-
-		prm.declare_entry("n_type width", "0.6",
-						Patterns::Double(0),
-						"width of n type layer");
-
-		prm.declare_entry("p_type width", "4.0",
-						Patterns::Double(0),
-						"width of p type layer");
-
-		prm.leave_subsection();	
-
-		prm.enter_subsection("electrons");
-
-		prm.declare_entry("mobility", "1350.0", 
-				Patterns::Double(0),
-				"electron mobility [v/cm^{2}]");	
-
-		prm.declare_entry("transfer rate", "1e-19",
-				Patterns::Double(0),
-				"transfer rate of electrons [cm^{4} s^{-1}]");
-
-
-		prm.declare_entry("recombination time", "5e-5",
-				Patterns::Double(0),
-				"Recombination rate/time of electrons [s]");
-
-
-		prm.declare_entry("recombination velocity", "3e5",
-				 Patterns::Double(0),
-				 "Recombination velocity of electrons [cm/s]");
-
-
-		prm.leave_subsection();	
-	
-		prm.enter_subsection("holes");
-
-		prm.declare_entry("mobility", "480.0", 
-				Patterns::Double(0),
-				"hole mobility [v/cm^{2}]");	
-
-		prm.declare_entry("transfer rate", "1e-16",
-				Patterns::Double(0),
-				"transfer rate of holes [cm^{4} s^{-1}]");
-
-		prm.declare_entry("recombination time", "5e-5",
-				Patterns::Double(0),
-				"Recombination rate/time of holes [s]");
-
-		prm.declare_entry("recombination velocity", "2.9e-2",
-				Patterns::Double(0),
-				"Recombination velocity of holes [cm/s]");
-		prm.leave_subsection();	
-
-		prm.enter_subsection("reductants");
-
-		prm.declare_entry("mobility", "1.0", 
-				Patterns::Double(0),
-				"reductant mobility [v/cm^{2}]");	
-	
-		prm.leave_subsection();
-	
-		prm.enter_subsection("oxidants");
-
-		prm.declare_entry("mobility", "1.0", 
-				Patterns::Double(0),
-				"oxidant mobility [v/cm^{2}]");	
-	
-		prm.leave_subsection();
-	
-
-
 	}
+	
+	
 	void 
 	ParameterReader::
 	declare_test_parameters()
