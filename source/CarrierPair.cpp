@@ -136,8 +136,8 @@ namespace ChargeCarrierSpace
 	set_electrolyte_for_testing(const ParameterSpace::Parameters & sim_params)
 	{
 		penalty = 1.0;
-		carrier_1.scaled_mobility = sim_params.scaled_reductant_mobility;
-		carrier_2.scaled_mobility = sim_params.scaled_oxidant_mobility;	
+//		carrier_1.scaled_mobility = sim_params.scaled_reductant_mobility;
+//		carrier_2.scaled_mobility = sim_params.scaled_oxidant_mobility;
 	}
 
 	template<int dim>

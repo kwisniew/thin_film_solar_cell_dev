@@ -93,75 +93,22 @@ namespace MixedPoisson
 
 						// build whole matrix at once, not blocks individually.
 						// \int (P * k^{-1} D - div P * phi - v * D ) dx
-						data.local_matrix(i,j) += (psi_i_field * 
-									( 1.0/(semi_permittivity*scaled_debye_length) ) *
-									 psi_j_field 
-									 - div_psi_i_field * psi_j_potential
-									 + psi_i_potential * div_psi_j_field
-									) * scratch.Poisson_fe_values.JxW(q);
+						data.local_matrix(i,j) += (    psi_i_field
+													   * ( 1.0/(semi_permittivity*scaled_debye_length) )
+													   * psi_j_field
+													 - div_psi_i_field * psi_j_potential
+													 + psi_i_potential * div_psi_j_field
+												   ) * scratch.Poisson_fe_values.JxW(q);
 
 						//std::cout<< i << "  " << j << "   " << data.local_matrix(i,j) << std::endl;
 					} // for j
 				} // for i
 			} // for q
 		} // end if cell == semiconductor
-		else if(	(cell->material_id() == electrolyte_id)
-							||
-				(cell->material_id() == elec_boundary_layer_id))
-		{
-			std::cout << "CELL TYPE NOT SEMICONDUCTOR\n";
-/*			// loop over all the quadrature points in this cell
-			for(unsigned int q=0; q<n_q_points; q++)
-			{
-				//  loop over test functions dofs for this cell
-				for(unsigned int i=0; i<dofs_per_cell; i++)
-				{
-					// i-th VectorField basis functions at point q
-					const Tensor<1, dim>	psi_i_field = 
-								scratch.Poisson_fe_values[VectorField].value(i,q);
-					
-					// div. of the i-th VectorField basis functions at the point q
-					const double	div_psi_i_field =	
-								scratch.Poisson_fe_values[VectorField].divergence(i,q);
-		
-					// i-th potential basis functions at the point q
-					const double psi_i_potential = 
-								scratch.Poisson_fe_values[Potential].value(i,q);
-		
-					// loop over all the trial functions dofs for this cell
-					for(unsigned int j=0; j<dofs_per_cell; j++)	
-					{
-						// j-th VectorField basis functions at point q
-						const Tensor<1, dim>	psi_j_field = 
-									scratch.Poisson_fe_values[VectorField].value(j,q);
-					
-						// div. of the j-th VectorField basis functions at the point q
-						const double	div_psi_j_field =	
-									scratch.Poisson_fe_values[VectorField].divergence(j,q);
-		
-	
-						// i-th potential basis functions at the point q
-						const double psi_j_potential = 
-									scratch.Poisson_fe_values[Potential].value(j,q);
-
-						// build whole matrix at once, not blocks individually.
-						// \int (P * k^{-1} D - div P * phi - v * D ) dx
-						data.local_matrix(i,j) += (psi_i_field * 
-									(1.0/elec_permittivity) * 
-									psi_j_field 
-									- div_psi_i_field * psi_j_potential
-									- psi_i_potential *
-									scaled_debye_length * div_psi_j_field	
-									) * scratch.Poisson_fe_values.JxW(q);
-
-					} // for j
-				} // for i
-			}*/ // for q
-		} // end material_id() == electrolyte
 		else
 		{
-			// meed soemthing better
-			std::cerr << "CELL TYPE NOT SEMICONDUCTOR OR ELECTROLYTE\n";
+			// Need something better
+			std::cerr << "CELL TYPE NOT SEMICONDUCTOR \n";
 			Assert(false, ExcNotImplemented() );
 		}
 		
