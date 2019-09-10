@@ -69,7 +69,7 @@ namespace SOLARCELL
 	using namespace dealii;
 
 	/** \brief The recombination model.*/
-	/** Schockley-Reed-Hall Recombination functional
+	/** (minus) Schockley-Reed-Hall Recombination functional
 	* \f[ \begin{equation}
 	*	R(\rho_{n}, \rho_{p})
 	* \; = \;
@@ -79,7 +79,8 @@ namespace SOLARCELL
  	* \f]
  	* 
  	* The term \f$\rho_{i}\f$ is the intrinsic electron density and can be spatially varying. 
- 	* \f$\tau_{n}, \ \tau_{p} \f$ are constants called the electron and hole lifetimes.  
+ 	* \f$\tau_{n}, \ \tau_{p} \f$ are constants called the electron and hole lifetimes.
+ 	* note: this is SRH functional with minus sign on the front, compare: Selbelherr p.105
 	* @param Holds the intrinsic density and recombination times.
 	* @param electron_density \f$\rho_{n}^{k-1}\f$.
 	* @param hole_density \f$\rho_{p}^{k-1}\f$.
@@ -88,13 +89,16 @@ namespace SOLARCELL
 					 const double & hole_density,
 					 const ParameterSpace::Parameters & params)
 	{
-		return /*0.0;*/ ((params.scaled_intrinsic_density *
-				params.scaled_intrinsic_density - 
-				electron_density * hole_density) /
-				(params.scaled_hole_recombo_t * (electron_density +
-				 params.scaled_intrinsic_density) + 
-				(params.scaled_electron_recombo_t * (hole_density +
-				 params.scaled_intrinsic_density)) ) );
+		return  (params.scaled_intrinsic_density *
+				 params.scaled_intrinsic_density -
+				 electron_density * hole_density)
+				 /
+				 ( params.scaled_hole_recombo_t *
+				  (electron_density + params.scaled_srh_electron_density)
+				  +
+				   params.scaled_electron_recombo_t *
+				  (hole_density     + params.scaled_srh_hole_density    )
+				 );
 
 	}
 
@@ -422,13 +426,19 @@ namespace SOLARCELL
 			/*	Initial Conditions										   */
  			/*-------------------------------------------------------------*/
 			/// \f$ \rho_{n}^{e}(\textbf{x}) \f$
-			Electrons_Equilibrium<dim>			electrons_eq;
+			Doping_profile_donors<dim>			donor_doping_profile;
 			/// \f$ \rho_{p}^{e} (\textbf{x}) \f$
-			Holes_Equilibrium<dim>				holes_eq;
+			Doping_profile_acceptors<dim>		acceptor_doping_profile;
 			/// \f$ \rho_{n}^{e}(\textbf{x}) \f$
-			Electrons_Equilibrium<dim>			schottky_p_type_electrons_eq;
+			Doping_profile_donors<dim>			schottky_p_type_electrons_eq;
 			/// \f$ \rho_{p}^{e} (\textbf{x}) \f$
-			Holes_Equilibrium<dim>				schottky_p_type_holes_eq;
+			Doping_profile_acceptors<dim>		schottky_p_type_holes_eq;
+
+			Initial_condition_electrons<dim>    electrons_initial_condition;
+			Initial_condition_holes<dim>		holes_initial_condition;
+
+			LDG_Dirichlet_electron_density_bc<dim>  electron_density_bc;
+			LDG_Dirichlet_hole_density_bc<dim>		hole_density_bc;
 
 			/*-------------------------------------------------------------*/
 			/* The potential functions					*/

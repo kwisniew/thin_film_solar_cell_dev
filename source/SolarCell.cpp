@@ -7,6 +7,7 @@
 #include "InitialConditions.cpp"
 #include "BiasValues.cpp"
 #include "CarrierPair.cpp"
+#include<numeric>
 
 namespace SOLARCELL
 {
@@ -18,7 +19,7 @@ namespace SOLARCELL
 			 ParameterHandler & param)
 	:
 	degree(degree),
-	delta_t(0.05),
+	delta_t(0.1),
 	full_system(false),
 	prm(param),
 	Poisson_dof_handler(Poisson_triangulation),
@@ -32,10 +33,14 @@ namespace SOLARCELL
 	carrier_fe(FESystem<dim>(FE_DGQ<dim>(degree), dim), 1,
 		   FE_DGQ<dim>(degree), 		   1),
 	Mixed_Assembler(),
-	electrons_eq(),
-	holes_eq(),
+	donor_doping_profile(),
+	acceptor_doping_profile(),
 	schottky_p_type_electrons_eq(),
 	schottky_p_type_holes_eq(),
+	electrons_initial_condition(),
+	holes_initial_condition(),
+	electron_density_bc(),
+	hole_density_bc(),
 	built_in_bias(),
 	applied_bias(),
 	bulk_bias(),
@@ -47,12 +52,46 @@ namespace SOLARCELL
 	
 		// set the voltage bias functions
 		applied_bias.set_value(sim_params.scaled_applied_bias);
-		std::cout<<"applied bias:  " << sim_params.scaled_applied_bias << std::endl;
+		//std::cout<<"applied bias:  " << sim_params.scaled_applied_bias << std::endl;
 		built_in_bias.set_value(sim_params.scaled_built_in_bias);
 		schottky_bias.set_value(sim_params.scaled_domain_height);
 		schottky_bias.set_value(sim_params.scaled_schottky_bias);
-		electrons_eq.set_values(sim_params.scaled_n_type_doping, 0.0                            , sim_params.scaled_p_type_width);
-		holes_eq.set_values(     0.0                            , sim_params.scaled_p_type_doping, sim_params.scaled_p_type_width);
+
+		donor_doping_profile.set_values(
+								sim_params.scaled_n_type_donor_density,
+								sim_params.scaled_n_type_acceptor_density,
+								sim_params.scaled_p_type_width);
+
+		acceptor_doping_profile.set_values(
+								sim_params.scaled_p_type_donor_density,
+								sim_params.scaled_p_type_acceptor_density,
+								sim_params.scaled_p_type_width);
+
+		electrons_initial_condition.set_values(
+									sim_params.scaled_n_type_donor_density,
+									sim_params.scaled_p_type_donor_density,
+									sim_params.scaled_p_type_width,
+									sim_params.scaled_n_type_depletion_width,
+									sim_params.scaled_p_type_depletion_width);
+
+		holes_initial_condition.set_values(
+									sim_params.scaled_n_type_acceptor_density,
+									sim_params.scaled_p_type_acceptor_density,
+									sim_params.scaled_p_type_width,
+									sim_params.scaled_n_type_depletion_width,
+									sim_params.scaled_p_type_depletion_width);
+
+		electron_density_bc.set_values(
+									sim_params.scaled_n_type_donor_density,
+									sim_params.scaled_p_type_donor_density,
+									sim_params.scaled_p_type_width,
+									sim_params.scaled_n_type_width);
+
+		hole_density_bc.set_values(
+									sim_params.scaled_n_type_acceptor_density,
+									sim_params.scaled_p_type_acceptor_density,
+									sim_params.scaled_p_type_width,
+									sim_params.scaled_n_type_width);
 
 		// set the charges name, charge sign, and mobility
 		electron_hole_pair.carrier_1.set_name("Electrons");
@@ -71,23 +110,6 @@ namespace SOLARCELL
 		// set the material permittivities
 		electron_hole_pair.material_permittivity = 
 						sim_params.semiconductor_permittivity;
-
-		redox_pair.carrier_1.set_name("Reductants");
-		redox_pair.carrier_1.charge_number = -1.0;
-		redox_pair.carrier_1.scaled_mobility =
-						sim_params.scaled_reductant_mobility;
-
-		redox_pair.carrier_2.set_name("Oxidants");
-		redox_pair.carrier_2.charge_number = 1.0;
-		redox_pair.carrier_2.scaled_mobility =
-						sim_params.scaled_oxidant_mobility;
-
-		// set material name
-		redox_pair.set_name("Electrolyte-");
-
-		// set the material permittivities
-		redox_pair.material_permittivity = 
-						sim_params.electrolyte_permittivity;
 
 		// set the generation function to be on or off
 		if(sim_params.illum_or_dark)
@@ -150,8 +172,6 @@ namespace SOLARCELL
 	
 		Poisson_object.print_info(Poisson_dof_handler);
 		electron_hole_pair.print_info(semiconductor_dof_handler);
-		if(full_system)
-			redox_pair.print_info(electrolyte_dof_handler);
 	}
 
 	/////////////////////////////////////////////////////////////////////////////
@@ -163,111 +183,8 @@ namespace SOLARCELL
 	SolarCellProblem<dim>::
 	setup_mappings()
 	{
-	
-		/*----------------------------------------------------------------------*/
-		/*	Semiconductor-Electrolyte Mappings				*/
-		/*----------------------------------------------------------------------*/
-		if(full_system)
-		{
-			// make vector of interface cells and vector of the faces of those cell's
-			// face that lies on the interface as well as a vector of the center point
-			// of that face
-			std::vector<Point<dim>>	  semi_interface_centers;	
-			typename DoFHandler<dim>::active_cell_iterator
-			semi_cell	=	semiconductor_dof_handler.begin_active(),
-			semi_endc	=	semiconductor_dof_handler.end();
-		
-			for(; semi_cell != semi_endc; semi_cell++)	
-			{
-				for(unsigned int face_no=0;
-						face_no < GeometryInfo<dim>::faces_per_cell;
-						face_no++)
-				{
-					typename DoFHandler<dim>::face_iterator	face = semi_cell->face(face_no);
-				
-					if(face->boundary_id() == 666/*Interface*/)
-					{
-						semi_interface_cells.push_back(
-								std::pair<unsigned int, unsigned int>(semi_cell->level(),
-								semi_cell->index()));
-						semi_interface_faces.push_back(face_no);
-						semi_interface_centers.push_back(face->center());
-					}
-				}
-			} // end semi_cell
-	
-			// make vector of interface cells and vector of the faces of those cell's
-			// face that lies on the interface as well as a vector of the center point
-			// of that face.
-			std::vector<std::pair<unsigned int, unsigned int>> temp_elec_interface_cells;
-			std::vector<unsigned int>	temp_elec_interface_faces;
-			std::vector<Point<dim>>		temp_elec_interface_centers;
-	
-			typename DoFHandler<dim>::active_cell_iterator
-			elec_cell	=	electrolyte_dof_handler.begin_active(),
-			elec_endc	=	electrolyte_dof_handler.end();
-
-			for(; elec_cell != elec_endc; elec_cell++)	
-			{
-				for(unsigned int face_no=0;
-						face_no < GeometryInfo<dim>::faces_per_cell;
-						face_no++)
-				{
-					typename DoFHandler<dim>::face_iterator	face = elec_cell->face(face_no);
-				
-					if(face->boundary_id() == 666/*Interface*/)
-					{
-						temp_elec_interface_cells.push_back(
-							std::pair<unsigned int, unsigned int>(elec_cell->level(),
-											      elec_cell->index()));
-						temp_elec_interface_faces.push_back(face_no);
-						temp_elec_interface_centers.push_back(face->center());
-					}
-				}
-			} // end elec_cell
-		
-			elec_interface_cells.resize(semi_interface_cells.size());
-			elec_interface_faces.resize(semi_interface_faces.size());
-
-			// find the matching cells and faces that lie along the interface.
-			// We copy over this data so that cells which lie across from one another
-			// are ordered in the same manner
-			for(unsigned int i=0; i < semi_interface_cells.size(); i++)
-			{
-				for(unsigned int j=0; j < temp_elec_interface_cells.size(); j++)
-				{
-					if(semi_interface_centers[i].distance(temp_elec_interface_centers[j]) < 1e-13)
-					{
-						elec_interface_cells[i] = temp_elec_interface_cells[j];
-						elec_interface_faces[i] = temp_elec_interface_faces[j];
-					}
-				}
-			} // end i
-
-
-			std::pair<std::pair<unsigned int, unsigned int>, unsigned int> semi_mapping_pair;
-			std::pair<std::pair<unsigned int, unsigned int>, unsigned int> elec_mapping_pair;
-
-			// create bijective mapping so that we can get a global interface face index
-			// so that when we are on a semiconductor cell's interface face we can get the
-			// corresponding face on the electrolyte triangulation from elec_interface_cell
-			// and elec_interface_face
-			// and vice versa
-			for(unsigned int i=0; i < semi_interface_cells.size(); i++)
-			{
-				semi_mapping_pair.first = semi_interface_cells[i];
-				semi_mapping_pair.second = i;
-				semi_interface_map.insert(semi_mapping_pair);
-		
-				elec_mapping_pair.first = elec_interface_cells[i];
-				elec_mapping_pair.second = i;
-				elec_interface_map.insert(elec_mapping_pair);
-			}
-		
-		} // if full system
-
 		/*---------------------------------------------------------------------*/
-		/* Semiconductor-Poisson Mapping and Electrolyte-Poisson Mapping	 */
+		/*                   Semiconductor-Poisson Mapping                 	 */
 		/*---------------------------------------------------------------------*/
 
 		std::vector<std::pair<unsigned int, unsigned int>> semiconductor_cells;
@@ -332,48 +249,6 @@ namespace SOLARCELL
 				} // if
 			} // end j
 		} // end i
-
-		if(full_system)
-		{
-			// make list of electrolyte cells
-			typename DoFHandler<dim>::active_cell_iterator
-			elec_cell = electrolyte_dof_handler.begin_active(),
-			elec_endc	=	electrolyte_dof_handler.end();
-			for(; elec_cell != elec_endc; elec_cell++)
-			{
-				electrolyte_cells.push_back(
-						std::pair<unsigned int, unsigned int>(elec_cell->level(),
-										      elec_cell->index()));
-				electrolyte_cell_centers.push_back(elec_cell->center());
-			}
-
-			std::pair<unsigned int,	unsigned int>	elec_pair;
-
-			// find cells which are in the electrolyte and poisson and make mapping between them
-			for(unsigned int i=0; i < Poisson_cells.size(); i++)
-			{
-				for(unsigned int j=0; j < electrolyte_cells.size(); j++)
-				{
-					if(Poisson_cell_centers[i].distance(electrolyte_cell_centers[j]) < 1e-13)
-					{
-						elec_pair = std::pair<unsigned int, unsigned int>(
-									electrolyte_cells[j].first, // level
-									electrolyte_cells[j].second); // index
-					
-						Poisson_pair = std::pair<unsigned int, unsigned int>(
-									Poisson_cells[i].first,	// level
-									Poisson_cells[i].second); // index
-
-						// mapping from electrolyte cell to Poisson cell
-						mapping_pair.first  = elec_pair;				
-						mapping_pair.second = Poisson_pair;				
-						e_2_p_map.insert(mapping_pair);
-					
-					} // if
-				} // end j
-			} // end i
-		} // end full system
-
 	} // setup_mappings
 
 	////////////////////////////////////////////////////////////////////////////////
@@ -396,8 +271,8 @@ namespace SOLARCELL
 						std_cxx11::_2,
 						std_cxx11::_3,
 						sim_params.semiconductor_permittivity,
-						sim_params.electrolyte_permittivity,
-						sim_params.scaled_debeye_length), 
+						//sim_params.electrolyte_permittivity,
+						sim_params.scaled_debye_length), 
 						std_cxx11::bind(&SOLARCELL::SolarCellProblem<dim>::
 						copy_local_to_global_Poisson_matrix,
 						this, // this object
@@ -430,6 +305,26 @@ namespace SOLARCELL
 		Poisson_object.constraints.distribute_local_to_global(data.local_rhs,
 						  data.local_dof_indices,
 						  Poisson_object.system_rhs);
+/*		if(std::accumulate(data.local_rhs.begin(),data.local_rhs.end(),0)>30)
+		{
+			for (auto i: Poisson_object.system_rhs)
+			{
+					std::cout << i << "   ";
+			}
+			for (auto i: data.local_rhs)
+			{
+					std::cout << i << "   ";
+			}
+			std::cout<<std::endl;
+			for (auto i: data.local_dof_indices)
+			{
+					std::cout << i << "   ";
+			}
+			std::cout<<std::endl;
+			std::cout<<"Wartość elementu lokalnie: " << data.local_rhs[0] << ", a globalnie:  " <<Poisson_object.system_rhs[data.local_dof_indices[0]]<<std::endl;
+			std::cout<<std::endl;
+			std::cout<<std::endl;
+		}*/
 	}	
 
 	template <int dim>
@@ -500,6 +395,7 @@ namespace SOLARCELL
 				Assembly::Poisson::CopyData<dim>			& data)
 	{
 		const unsigned int	dofs_per_cell = scratch.Poisson_fe_values.dofs_per_cell;
+		//std::cout<<"stopnie swobody w komórce Poisson:   " << dofs_per_cell <<std::endl;
 
 		const unsigned int 	n_q_points    = scratch.Poisson_fe_values.n_quadrature_points;
 
@@ -546,13 +442,13 @@ namespace SOLARCELL
 	
 
 		// get doping profiles values on this cell
-		electrons_eq.value_list(scratch.carrier_fe_values.get_quadrature_points(),
+		donor_doping_profile.value_list(scratch.carrier_fe_values.get_quadrature_points(),
 					scratch.donor_doping_values,
 					dim); // calls the density values of the donor profile
 
-		holes_eq.value_list(scratch.carrier_fe_values.get_quadrature_points(),
+		acceptor_doping_profile.value_list(scratch.carrier_fe_values.get_quadrature_points(),
 				scratch.acceptor_doping_values,
-				dim); // calls the density values of the donor profile
+				dim); // calls the density values of the acceptor profile
 
 		// Loop over all the quadrature points in this cell
 		for(unsigned int q=0; q<n_q_points; q++)
@@ -568,7 +464,7 @@ namespace SOLARCELL
 		
 				// get the local RHS values for this cell
 				// = -int_{Omega_{e}} (1/lambda^{2}) v	(N_{D} - N_{A}) - (n - p) d
-				data.local_rhs(i) += -scratch.psi_i_potential[i] * //-psi_i_potential *
+				data.local_rhs(i) += scratch.psi_i_potential[i] * //-psi_i_potential *
 						(
 						(scratch.donor_doping_values[q] 
 						- 
@@ -580,7 +476,9 @@ namespace SOLARCELL
 						electron_hole_pair.carrier_2.charge_number *
 						scratch.old_carrier_2_density_values[q])
 						) * scratch.Poisson_fe_values.JxW(q);
-		
+				if(i==4){
+					//std::cout<<"Numer q-pointa:   " << q <<"   Numer wierzchołka: " << i <<"Wartości potensjału:   "<< scratch.psi_i_potential[i] <<std::endl;
+				}
 			} // for i
 		} // for q
 
@@ -601,6 +499,7 @@ namespace SOLARCELL
 			{
 				if(face->boundary_id() == Dirichlet)
 				{	
+					//std::cout<< "Dirichlet!" <<std::endl;
 					// get the values of the shape functions at this boundary face
 					scratch.Poisson_fe_face_values.reinit(Poisson_cell,face_no);
 			
@@ -641,7 +540,7 @@ namespace SOLARCELL
 						// loop over all the test function dofs of this face
 						for(unsigned int i=0; i<dofs_per_cell; i++)
 						{
-							// - \int_{face} p * n * (phi_{Dichlet}) dx
+							// - \int_{face} p * n * (phi_{Dirichlet}) dx
 							data.local_rhs(i) +=	
 									-(scratch.psi_i_field[i] *
 									scratch.normals[q] *
@@ -649,7 +548,15 @@ namespace SOLARCELL
 									-
 									scratch.Poisson_bc_values[q]) *
 									scratch.Poisson_fe_face_values.JxW(q));
+							//std::cout<<"Numer q-pointa:   " << q <<"   Numer wierzchołka: " << i << "  wartość W: "  << scratch.psi_i_field[i] << std::endl;
+							/*std::cout<< -(scratch.psi_i_field[i] *
+									scratch.normals[q] *
+									(scratch.Poisson_bi_values[q]
+									-
+									scratch.Poisson_bc_values[q]) *
+									scratch.Poisson_fe_face_values.JxW(q)) <<std::endl;*/
 						} // for i
+						//std::cout<<scratch.Poisson_bi_values[q] << "   " << scratch.normals[q] <<std::endl;
 					} // for q
 				} // end if dirichlet
 
@@ -698,139 +605,8 @@ namespace SOLARCELL
 				} // end if schottky
 			} // if boundary
 		} // end for face_no
+		//std::cout<< data.local_rhs <<std::endl;
 	} // assemble_local_Poisson_rhs_for_semiconductor
-
-	template <int dim>
-	void 
-	SolarCellProblem<dim>::
-	assemble_local_Poisson_rhs_for_electrolyte(
-				const typename DoFHandler<dim>::active_cell_iterator 	& cell,
-				Assembly::AssemblyScratch<dim>				& scratch,
-				Assembly::Poisson::CopyData<dim>			& data)	
-	{
-		const unsigned int	dofs_per_cell 	= scratch.Poisson_fe_values.dofs_per_cell;
-
-		const unsigned int 	n_q_points 	= scratch.Poisson_fe_values.n_quadrature_points;
-
-		const unsigned int	n_face_q_points =
-							scratch.Poisson_fe_face_values.n_quadrature_points;
-
-		// Get the actual values for vector field and potential from FEValues
-		// Use Extractors instead of having to deal with shapefunctions directly
-		const FEValuesExtractors::Vector VectorField(0); // Vector as in Vector field
-		const FEValuesExtractors::Scalar Potential(dim);
-		const FEValuesExtractors::Scalar Density(dim);
-
-		// reset the local_rhs vector to be zero
-		data.local_rhs=0;
-
-		// get the Poisson cell info
-		std::pair<unsigned int, unsigned int> Poisson_cell_info = 
-					e_2_p_map[std::pair<unsigned int, unsigned int>(cell->level(),
-											cell->index())];
-
-		// get the Poisson cell
-		typename DoFHandler<dim>::active_cell_iterator
-					Poisson_cell(&Poisson_triangulation,
-						Poisson_cell_info.first,
-						Poisson_cell_info.second,
-						&Poisson_dof_handler);
-
-
-		Poisson_cell->get_dof_indices(data.local_dof_indices);
-		scratch.Poisson_fe_values.reinit(Poisson_cell);
-		// get the test rhs for poisson
-		// Assemble the right hand side on semiconductor side
-		scratch.carrier_fe_values.reinit(cell);
-
-		// get the reductant density values at the previous time step
-		scratch.carrier_fe_values[Density].get_function_values(
-						redox_pair.carrier_1.solution,
-						scratch.old_carrier_1_density_values);
-
-		// get the oxidant density values at the previous time step
-		scratch.carrier_fe_values[Density].get_function_values(
-						redox_pair.carrier_2.solution,
-						scratch.old_carrier_2_density_values);
-
-
-		// Loop over all the quadrature points in this cell
-		for(unsigned int q=0; q<n_q_points; q++)
-		{
-			// copy over the test functions
-			for(unsigned int k = 0; k < dofs_per_cell; k++)
-				scratch.psi_i_potential[k] = scratch.Poisson_fe_values[Potential].value(k,q);
-
-			// loop over the test function dofs for this cell
-			for(unsigned int i=0; i<dofs_per_cell; i++)
-			{
-				// i-th potential basis functions at the point q
-		
-				// get the local RHS values for this cell
-				// = - 1/\lambda^{2} \int v (-\rho_{r} + \rho_{o} )dx
-				data.local_rhs(i) += -scratch.psi_i_potential[i] * 
-						(redox_pair.carrier_1.charge_number *
-						scratch.old_carrier_1_density_values[q]	
-						+
-						redox_pair.carrier_2.charge_number *
-						scratch.old_carrier_2_density_values[q]
-						) * scratch.Poisson_fe_values.JxW(q);
-			} // for i
-		} // for q
-	// No need to apply Dirichlet boundary conditions as the potential is zero
-		
-		// loop over all the faces of this cell to calculate the vector
-		// from the dirichlet boundary conditions if the face is on the 
-		// Dirichlet portion of the boundary
-		for(unsigned int face_no=0;
-				face_no<GeometryInfo<dim>::faces_per_cell;
-				face_no++)
-		{
-			// obtain the face_no-th face of this cell
-			typename DoFHandler<dim>::face_iterator face = Poisson_cell->face(face_no);
-
-			// apply Dirichlet boundary conditions.. 
-			// Since we are in a semicondcutor cell we know to apply the 
-			// biases
-			if((face->at_boundary()) && (face->boundary_id() == Dirichlet))
-			{	
-				// get the values of the shape functions at this boundary face
-				scratch.Poisson_fe_face_values.reinit(Poisson_cell,face_no);
-			
-				// get the values of the dirichlet boundary conditions evaluated
-				// on the quadrature points of this face
-				bulk_bias.value_list(scratch.Poisson_fe_face_values.get_quadrature_points(),
-									scratch.Poisson_bc_values);
-
-				// copy over normal vectors
-				for(unsigned int k=0; k < n_face_q_points; k++)
-					scratch.normals[k] = scratch.Poisson_fe_face_values.normal_vector(k);
-
-				// loop over all the quadrature points of this face
-				for(unsigned int q=0; q<n_face_q_points; q++)
-				{
-					// copy over the test functions
-					for(unsigned int k = 0; k < dofs_per_cell; k++)
-					{
-						scratch.psi_i_field[k] = 
-							scratch.Poisson_fe_face_values[VectorField].value(k,q);
-					}
-					// loop over all the test function dofs of this face
-					for(unsigned int i=0; i<dofs_per_cell; i++)
-					{
-						// - \int_{face} p * n * (phi_{Dichlet}) dx
-						//scratch.Poisson_fe_face_values[VectorField].value(i,q) *
-						data.local_rhs(i)	+=	
-								-scratch.psi_i_field[i] * 
-								scratch.normals[q] *
-								scratch.Poisson_bc_values[q] *
-								scratch.Poisson_fe_face_values.JxW(q);
-						} // for i
-					} // for q
-				} // end if
-			} // end for face_no
-	} // end assemble_local_Poisson_rhs_for_electrolyte
-
 
 	/////////////////////////////////////////////////////////////////////////////////
 	// 		LOCAL DISCONTINUOUS GALERKIN ROUTINES
@@ -858,7 +634,7 @@ namespace SOLARCELL
 						delta_t),
 				std_cxx11::bind(&SOLARCELL::SolarCellProblem<dim>::
 						copy_local_to_global_semiconductor_mass_matrix,
-						this, 			// tthis object
+						this, 			// this object
 						std_cxx11::_1),
 				Assembly::AssemblyScratch<dim>(Poisson_fe,
 							  carrier_fe,
@@ -898,10 +674,6 @@ namespace SOLARCELL
 //
 //		electron_hole_pair.carrier_1.system_matrix.print_formatted(std::cout,0);
 
-
-
-
-
 //		std::cout << "A może to dopiero fluxy?" << std::endl;
 		// LDG FLLUXES
 		LDG_Assembler.assemble_flux_terms(semiconductor_dof_handler,
@@ -912,60 +684,6 @@ namespace SOLARCELL
 //		std::cout<<"MACIERZ PO FLUXACH"<<std::endl;
 //		electron_hole_pair.carrier_1.system_matrix.print_formatted(std::cout,0);
 
-		if(full_system)
-		{
-			// assemble the mass matrix for redox pair
-			WorkStream::run(electrolyte_dof_handler.begin_active(),
-					electrolyte_dof_handler.end(),
-					std_cxx11::bind(&LDG_System::LDG<dim>::
-							assemble_local_LDG_mass_matrix,
-							LDG_Assembler, // the Assembler object
-							std_cxx11::_1,
-							std_cxx11::_2,
-							std_cxx11::_3,
-							delta_t),
-					std_cxx11::bind(&SOLARCELL::SolarCellProblem<dim>::
-							copy_local_to_global_electrolyte_mass_matrix,
-							this, 			// tthis object
-							std_cxx11::_1),
-					Assembly::AssemblyScratch<dim>(Poisson_fe,
-									carrier_fe,
-									QGauss<dim>(degree+2),
-									QGauss<dim-1>(degree+2)),
-					Assembly::DriftDiffusion::CopyData<dim>(carrier_fe)
-					);
-	
-			// assemble the mass matrix for redox pair
-			WorkStream::run(electrolyte_dof_handler.begin_active(),
-					electrolyte_dof_handler.end(),
-					std_cxx11::bind(&LDG_System::LDG<dim>::
-							assemble_local_LDG_cell_and_bc_terms,
-							LDG_Assembler, // the Assembler object
-							std_cxx11::_1,
-							std_cxx11::_2,
-							std_cxx11::_3,
-							redox_pair.carrier_1.scaled_mobility,
-							redox_pair.carrier_2.scaled_mobility,
-							delta_t,
-							transient_or_steady,
-							redox_pair.penalty),
-					std_cxx11::bind(&SOLARCELL::SolarCellProblem<dim>::
-							copy_local_to_global_electrolyte_system_matrix,
-							this, 			// tthis object
-							std_cxx11::_1),
-					Assembly::AssemblyScratch<dim>(Poisson_fe,
-									carrier_fe,
-									QGauss<dim>(degree+2),
-									QGauss<dim-1>(degree+2)),
-					Assembly::DriftDiffusion::CopyData<dim>(carrier_fe)
-					);
-
-			// LDG FLUXES
-			LDG_Assembler.assemble_flux_terms(electrolyte_dof_handler,
-							redox_pair,
-							Poisson_fe,
-							carrier_fe);
-		} // end if
 	}
 
 	template<int dim>
@@ -984,20 +702,6 @@ namespace SOLARCELL
 	template<int dim>
 	void
 	SolarCellProblem<dim>::
-	copy_local_to_global_electrolyte_mass_matrix(
-				const Assembly::DriftDiffusion::CopyData<dim>	& data)
-	{
-		// copy local mass matrix into the global mass matrix.. 
-		redox_pair.constraints.distribute_local_to_global(
-							data.local_mass_matrix,
-							data.local_dof_indices,
-							redox_pair.mass_matrix);
-	}
-
-
-	template<int dim>
-	void
-	SolarCellProblem<dim>::
 	copy_local_to_global_semiconductor_system_matrix(
 				const Assembly::DriftDiffusion::CopyData<dim>	& data)
 	{
@@ -1012,25 +716,6 @@ namespace SOLARCELL
 								data.local_matrix_2,
 								data.local_dof_indices,
 								electron_hole_pair.carrier_2.system_matrix);
-	}
-
-	template<int dim>
-	void
-	SolarCellProblem<dim>::
-	copy_local_to_global_electrolyte_system_matrix(
-				const Assembly::DriftDiffusion::CopyData<dim>	& data)
-	{
-		// copy local system matrix into the global system matrix.. 
-		redox_pair.constraints.distribute_local_to_global(
-							data.local_matrix_1,
-							data.local_dof_indices,
-							redox_pair.carrier_1.system_matrix);
-
-		// copy local syste, matrix into the global system matrix.. 
-		redox_pair.constraints.distribute_local_to_global(
-							data.local_matrix_2,
-							data.local_dof_indices,
-							redox_pair.carrier_2.system_matrix);
 	}
 
 	template<int dim>
@@ -1055,29 +740,9 @@ namespace SOLARCELL
 	template<int dim>
 	void
 	SolarCellProblem<dim>::
-	copy_local_to_global_electrolyte_system_rhs(						
-				const Assembly::DriftDiffusion::CopyData<dim>	& data)
-	{
-		// copy local system rhs into the global system rhs.. 
-		redox_pair.constraints.distribute_local_to_global(
-							data.local_carrier_1_rhs,
-							data.local_dof_indices,
-							redox_pair.carrier_1.system_rhs);
-
-		// copy local syste, matrix into the global system matrix.. 
-		redox_pair.constraints.distribute_local_to_global(
-							data.local_carrier_2_rhs,
-							data.local_dof_indices,
-							redox_pair.carrier_2.system_rhs);
-	}
-
-	template<int dim>
-	void
-	SolarCellProblem<dim>::
 	assemble_semiconductor_rhs()
 	{
 		// set carrier_system_rhs = M * u^{n-1}
-
 		electron_hole_pair.mass_matrix.vmult(electron_hole_pair.carrier_1.system_rhs,
 						 electron_hole_pair.carrier_1.solution);
 		//std::cout<<"1.1"<<std::endl;
@@ -1128,6 +793,8 @@ namespace SOLARCELL
 		// carrier at the previous time step
 		const unsigned int dofs_per_cell	= 
 							scratch.carrier_fe_values.dofs_per_cell;
+
+		//std::cout<< "stopnie swobody LDG!:  " << dofs_per_cell << std::endl;
 		const unsigned int n_q_points		=  
 							scratch.carrier_fe_values.n_quadrature_points;
 		const unsigned int n_face_q_points	=	
@@ -1162,7 +829,7 @@ namespace SOLARCELL
 		const FEValuesExtractors::Vector ElectricField(0);
 
 		// get the values of carrier_1 and carrier_2 densities at 
-		// the pevious time step
+		// the previous time step
 		scratch.carrier_fe_values[Density].get_function_values(
 							electron_hole_pair.carrier_1.solution,
 							scratch.old_carrier_1_density_values);
@@ -1179,7 +846,8 @@ namespace SOLARCELL
 									Poisson_object.solution,
 									scratch.electric_field_values);
 
-		const double inverse_perm	=	1.0/sim_params.semiconductor_permittivity;
+		const double inverse_perm		  =	1.0/sim_params.semiconductor_permittivity;
+		const double inverse_debye_length = 1.0/sim_params.scaled_debye_length;
 
 		// loop over all the quadrature points in this cell and compute body integrals
 		for(unsigned int q=0; q<n_q_points; q++)
@@ -1201,32 +869,32 @@ namespace SOLARCELL
 						+
 						(scratch.psi_i_density[i] *
 						SRH_Recombination(scratch.old_carrier_1_density_values[q],
-								  scratch.old_carrier_2_density_values[q],
-								  sim_params))
+										  scratch.old_carrier_2_density_values[q],
+										  sim_params))
 						+
 						electron_hole_pair.carrier_1.charge_number *
 				   	  	scratch.psi_i_current[i] *
 						inverse_perm *
+						inverse_debye_length *
 						scratch.electric_field_values[q] *
 						scratch.old_carrier_1_density_values[q]
-						) *
-						scratch.carrier_fe_values.JxW(q);
+						) * scratch.carrier_fe_values.JxW(q);
 
 				data.local_carrier_2_rhs(i) += ( 
 						(scratch.psi_i_density[i] * scratch.generation_values[q])
 						+
 						(scratch.psi_i_density[i] *
 						SRH_Recombination(scratch.old_carrier_1_density_values[q],
-								    scratch.old_carrier_2_density_values[q],
-					  			    sim_params))
+									      scratch.old_carrier_2_density_values[q],
+										  sim_params))
 		 			  	+
 					  	electron_hole_pair.carrier_2.charge_number *
 					  	scratch.psi_i_current[i] *
-					       inverse_perm *	
+					    inverse_perm *
+						inverse_debye_length *
 						scratch.electric_field_values[q] *
 						scratch.old_carrier_2_density_values[q]
-						) *
-						scratch.carrier_fe_values.JxW(q);
+						) * scratch.carrier_fe_values.JxW(q);
 
 			} // for i
 		}	// for q
@@ -1248,15 +916,15 @@ namespace SOLARCELL
 				//boundary conditions
 				scratch.carrier_fe_face_values.reinit(cell, face_no);
 			
-				if(face->boundary_id() == Dirichlet || face->boundary_id() == 666/*Interface*/)
+				if(face->boundary_id() == Dirichlet)
 				{
 					// Get the doping profile values for the boundary conditions
-					electrons_eq.value_list(
+					electron_density_bc.value_list(
 								scratch.carrier_fe_face_values.get_quadrature_points(),
 								scratch.carrier_1_bc_values,
 								dim); // calls the density values of the donor profile
 								     // not the current ones
-					holes_eq.value_list(
+					hole_density_bc.value_list(
 								scratch.carrier_fe_face_values.get_quadrature_points(),
 								scratch.carrier_2_bc_values,
 								dim); // calls the density values of the donor profile
@@ -1389,12 +1057,12 @@ namespace SOLARCELL
 				else if(face->boundary_id() == Schottky)
 				{
 					// Get the doping profile values for the boundary conditions
-					electrons_eq.value_list(
+					electron_density_bc.value_list(
 								scratch.carrier_fe_face_values.get_quadrature_points(),
 								scratch.carrier_1_bc_values,
 								dim); // calls the density values of the donor profile
 									  // not the current ones
-					holes_eq.value_list(
+					hole_density_bc.value_list(
 								scratch.carrier_fe_face_values.get_quadrature_points(),
 								scratch.carrier_2_bc_values,
 								dim); // calls the density values of the donor profile
@@ -1453,321 +1121,6 @@ namespace SOLARCELL
 		} // end for face_no
 	} // end assemble_local_semiconductor_rhs
 
-
-	template<int dim>
-	void
-	SolarCellProblem<dim>::
-	assemble_electrolyte_rhs()
-	{
-		// set carrier_system_rhs = M * u^{n-1}
-		redox_pair.mass_matrix.vmult(redox_pair.carrier_1.system_rhs,
-					redox_pair.carrier_1.solution);
-
-		redox_pair.mass_matrix.vmult(redox_pair.carrier_2.system_rhs,
-					redox_pair.carrier_2.solution);
-
-		WorkStream::run(electrolyte_dof_handler.begin_active(),
-				electrolyte_dof_handler.end(),
-				std_cxx11::bind(&SOLARCELL::SolarCellProblem<dim>::
-						assemble_local_electrolyte_rhs,
-						this, // this object
-						std_cxx11::_1,
-						std_cxx11::_2,
-						std_cxx11::_3,
-						redox_pair.penalty),
-				std_cxx11::bind(&SOLARCELL::SolarCellProblem<dim>::
-						copy_local_to_global_electrolyte_system_rhs,
-						this, // this object
-						std_cxx11::_1),
-				Assembly::AssemblyScratch<dim>(Poisson_fe,
-								 carrier_fe,
-								 QGauss<dim>(degree+2),
-								 QGauss<dim-1>(degree+2)),
-				Assembly::DriftDiffusion::CopyData<dim>(carrier_fe)
-				);
-
-	}
-
-	template<int dim>
-	void 
-	SolarCellProblem<dim>::
-	assemble_local_electrolyte_rhs(
-					const typename DoFHandler<dim>::active_cell_iterator & cell,
-					Assembly::AssemblyScratch<dim>			 & scratch,
-					Assembly::DriftDiffusion::CopyData<dim>		 & data,
-					const double					 & penalty)									
-	{	
-		/*-------------------------------------------------------------------*/
-		// This is for the case of a coupled Poisson's equation and
-		// reactive interface
-		/*-------------------------------------------------------------------*/
-
-		// this assembles the drift term in the ldg formulation.  it uses the 
-		// electric field at the current iteration and the density of the 
-		// carrier at the previous time step
-		const unsigned int dofs_per_cell = scratch.carrier_fe_values.dofs_per_cell;
-		const unsigned int n_q_points	 =  scratch.carrier_fe_values.n_quadrature_points;
-		const unsigned int n_face_q_points = 	
-						scratch.carrier_fe_face_values.n_quadrature_points;
-
-		cell->get_dof_indices(data.local_dof_indices);
-
-		// get the Poisson cell info
-		std::pair<unsigned int, unsigned int> Poisson_cell_info = 
-					e_2_p_map[std::pair<unsigned int, unsigned int>(cell->level(),
-											cell->index())];
-
-		// get the Poisson cell
-		typename DoFHandler<dim>::active_cell_iterator
-						Poisson_cell(&Poisson_triangulation,
-							Poisson_cell_info.first,
-							Poisson_cell_info.second,
-							&Poisson_dof_handler);
-
-		// reinitialize the fe_values 
-		scratch.carrier_fe_values.reinit(cell);
-		scratch.Poisson_fe_values.reinit(Poisson_cell);
-	
-		double h =  cell->diameter();
-	
-		// reset the local_rhs to be zero
-		data.local_carrier_1_rhs=0;
-		data.local_carrier_2_rhs=0;
-	
-		const FEValuesExtractors::Vector Current(0);
-		const FEValuesExtractors::Scalar Density(dim);
-
-		const FEValuesExtractors::Vector ElectricField(0);
-
-		// get the values of carrier_1 and carrier_2 densities at the pevious time step
-		scratch.carrier_fe_values[Density].get_function_values(
-								redox_pair.carrier_1.solution,
-								scratch.old_carrier_1_density_values);
-
-		scratch.carrier_fe_values[Density].get_function_values(
-								redox_pair.carrier_2.solution,
-								scratch.old_carrier_2_density_values);
-
-		// get the electric field values at the previous time step
-		scratch.Poisson_fe_values[ElectricField].get_function_values(
-								Poisson_object.solution,
-								scratch.electric_field_values);
-
-		const double inverse_perm	=	1.0/sim_params.electrolyte_permittivity;
-
-		// loop over all the quadrature points in this cell and compute body integrals
-		for(unsigned int q=0; q<n_q_points; q++)
-		{
-			// copy over the test functions
-			for(unsigned int k=0; k<dofs_per_cell; k++)
-				scratch.psi_i_density[k] = scratch.carrier_fe_values[Density].value(k,q);
-
-			for(unsigned int k=0; k<dofs_per_cell; k++)
-				scratch.psi_i_current[k] = scratch.carrier_fe_values[Current].value(k,q);
-
-			// loop over all the test function dofs and get the test functions
-			for(unsigned int i=0; i<dofs_per_cell; i++)
-			{
-
-				// contribution from RHS function + Drift
-				// int_{Omega} v * R dx
-				data.local_carrier_1_rhs(i) += ( 
-							redox_pair.carrier_1.charge_number *
-							scratch.psi_i_current[i] *
-							inverse_perm *	
-							scratch.electric_field_values[q] *
-							scratch.old_carrier_1_density_values[q]
-							) *
-							scratch.carrier_fe_values.JxW(q);
-
-				data.local_carrier_2_rhs(i) += ( 
-							redox_pair.carrier_2.charge_number *
-							scratch.psi_i_current[i] *
-							inverse_perm *
-							scratch.electric_field_values[q] *
-							scratch.old_carrier_2_density_values[q]
-							) *
-							scratch.carrier_fe_values.JxW(q);
-	
-			} // for i
-		}	// for q
-		
-		// loop over all the faces of this cell and compute the contribution 
-		// from the boundary conditions
-		for(unsigned int face_no=0; 
-				face_no< GeometryInfo<dim>::faces_per_cell;
-				face_no++)
-		{
-			// get the face_no-th face of this cell
-			typename DoFHandler<dim>::face_iterator 	face = cell->face(face_no);
-			
-			// if on boundary apply boundayr conditions	
-			if(face->at_boundary() )
-			{
-				// reinitialize the fe_face_values for this cell ONLY if it is as the
-				//boundary otherwise its a waste.  then assemble the appropriate
-				//boundary conditions
-				scratch.carrier_fe_face_values.reinit(cell, face_no);
-			
-				if(face->boundary_id() == Dirichlet)
-				{
-					// Get the doping profile values for the boundary conditions
-					//REMOVE IT!!!
-					electrons_eq.value_list(
-						scratch.carrier_fe_face_values.get_quadrature_points(),
-						scratch.carrier_1_bc_values,
-						dim); // calls the density values of the donor profile
-										  // not the current ones
-					//REMOVE IT!!!
-					holes_eq.value_list(
-						scratch.carrier_fe_face_values.get_quadrature_points(),
-						scratch.carrier_2_bc_values,
-						dim); // calls the density values of the donor profile
-									 	// not the current ones
-						// copy over normal vectors
-					for(unsigned int k=0; k<n_face_q_points; k++)
-					{
-						scratch.normals[k] = scratch.carrier_fe_face_values.normal_vector(k);
-					}
-					// loop over all the quadrature points on this face
-					for(unsigned int q=0; q<n_face_q_points; q++)
-					{
-						// copy over the test functions
-						for(unsigned int k=0; k<dofs_per_cell; k++)
-						{
-							scratch.psi_i_density[k] = 
-								scratch.carrier_fe_face_values[Density].value(k,q);
-						}
-						for(unsigned int k=0; k<dofs_per_cell; k++)
-						{
-							scratch.psi_i_current[k] = 
-								scratch.carrier_fe_face_values[Current].value(k,q);
-						}
-						// loop over all the test function dofs on this face
-						for(unsigned int i=0; i<dofs_per_cell; i++)
-						{
-
-							// int_{\Gamma_{D}} (-p^{-} n^{-} + penalty * v^{-}) *u_{D} ds
-							data.local_carrier_1_rhs(i) += 
-									(-1.0 * scratch.psi_i_current[i] *
-									scratch.normals[q]
-									 +
-									(penalty/h) *
-									scratch.psi_i_density[i]) *
-									scratch.carrier_1_bc_values[q] *
-									scratch.carrier_fe_face_values.JxW(q);				
-					
-							data.local_carrier_2_rhs(i) +=  
-									(-1.0 * scratch.psi_i_current[i] *
-									scratch.normals[q]
-	  								 +
-									(penalty/h) * scratch.psi_i_density[i]) *
-									scratch.carrier_2_bc_values[q] *
-									scratch.carrier_fe_face_values.JxW(q);				
-
-
-						} // for i
-					}	// for q
-				} // end Dirichlet
-				else if(face->boundary_id() == 666/*Interface*/)
-				{
-
-					// get the reductant and oxidant densities at the pevious time step
-					scratch.carrier_fe_face_values[Density].get_function_values(
-									redox_pair.carrier_1.solution,
-									scratch.reductant_interface_values);
-
-					scratch.carrier_fe_face_values[Density].get_function_values(
-									redox_pair.carrier_2.solution,
-									scratch.oxidant_interface_values);
-
-				  // get neighboring semiconductor cell
-					unsigned interface_index = elec_interface_map[
-							std::pair<unsigned int, unsigned>(cell->level(),
-											     cell->index())];
-					typename DoFHandler<dim>::active_cell_iterator
-							neighbor_cell(&semiconductor_triangulation,
-								 semi_interface_cells[interface_index].first, // level
-								 semi_interface_cells[interface_index].second, // index
-								 &semiconductor_dof_handler);
-
-					// update fe_neigbors_face_values for this face
-					scratch.carrier_fe_neighbor_face_values.reinit(
-									neighbor_cell,
-									semi_interface_faces[interface_index]);
-
-					// Get the doping profile values for the interface conditions
-					electrons_eq.value_list(
-						scratch.carrier_fe_neighbor_face_values.get_quadrature_points(),
-						scratch.carrier_1_bc_values,
-						dim); // calls the density values of the donor profile
-						 // not the current ones
-					holes_eq.value_list(
-						scratch.carrier_fe_neighbor_face_values.get_quadrature_points(),
-						scratch.carrier_2_bc_values,
-						dim); // calls the density values of the donor profile
-							 // not the current ones
-					
-	
-					// get the electrona and hole densities at the pevious time step
-					scratch.carrier_fe_neighbor_face_values[Density].get_function_values(
-									electron_hole_pair.carrier_1.solution,
-									scratch.electron_interface_values);
-
-					scratch.carrier_fe_neighbor_face_values[Density].get_function_values(
-									electron_hole_pair.carrier_2.solution,
-									scratch.hole_interface_values);
-
-					// loop over all the quadrature points on this face
-					for(unsigned int q=0; q<n_face_q_points; q++)
-					{
-						// copy over the test functions
-						for(unsigned int k=0; k<dofs_per_cell; k++)
-						{
-							scratch.psi_i_density[k] =
-								 scratch.carrier_fe_face_values[Density].value(k,q);
-						}
-						// loop over all the test function dofs on this face
-						for(unsigned int i=0; i<dofs_per_cell; i++)
-						{
-							// get the test function
-							const double current = -1.0 * scratch.psi_i_density[i] *
-										sim_params.scaled_k_et *
-										(scratch.electron_interface_values[q]
-										-
-										scratch.carrier_1_bc_values[q]) * 
-										scratch.oxidant_interface_values[q] *
-										scratch.carrier_fe_face_values.JxW(q) 
-										+1.0 * scratch.psi_i_density[i] *
-										sim_params.scaled_k_ht *
-										(scratch.hole_interface_values[q]
-										-
-										scratch.carrier_2_bc_values[q]) *
-										scratch.reductant_interface_values[q] *
-										scratch.carrier_fe_face_values.JxW(q);				
-		
-	
-							// int_{\Sigma} -v^{-} ket (rho_n - rho_n^e) rho_o ds 
-							// 	+
-							// int_{\Sigma}  v^{-} kht (rho_p - rho_p^e) rho_r ds
-							data.local_carrier_1_rhs(i) += current;
-							data.local_carrier_2_rhs(i) += -1.0 *current;
-		
-						} // for i
-					} // for j
-				}
-				else if(face->boundary_id() == Neumann)
-				{
-					// NOTHIN TO DO IF INSULATING
-				}
-				else
-					Assert(false, ExcNotImplemented() );
-			} // end at boundary
-		} // end for face_no
-	
-	} ///
-
-
 	////////////////////////////////////////////////////////////////////////
 	//			SOLVERS
 	////////////////////////////////////////////////////////////////////////
@@ -1778,7 +1131,10 @@ namespace SOLARCELL
 	set_solvers()
 	{
 		std::cout << "Ustawiam Solver: Poisson" << std::endl;
-		//Poisson_object.system_matrix.print_formatted(std::cout,0);
+//		freopen("output.txt","w",stdout);
+//		Poisson_object.system_matrix.print_formatted(std::cout,0);
+		//fclose(stdout);
+
 		Poisson_object.set_solver();
 		std::cout << "Ustawim Solver: Elektrony" << std::endl;
 		//electron_hole_pair.carrier_1.system_matrix.print_formatted(std::cout,0);
@@ -1845,24 +1201,6 @@ namespace SOLARCELL
 		task_group.join_all();
 	} // solve_semiconductor_system
 
-	template<int dim>
-	void
-	SolarCellProblem<dim>::
-	solve_electrolyte_system()
-	{
-		Threads::TaskGroup<void> task_group;
-
-		task_group += Threads::new_task(&ChargeCarrierSpace::
-						 Carrier<dim>::solve,
-						 redox_pair.carrier_1);
-
-		task_group += Threads::new_task(&ChargeCarrierSpace::
-						 Carrier<dim>::solve,
-						 redox_pair.carrier_2);
-
-		task_group.join_all();
-	} // solve_electrolyte_system
-
 	////////////////////////////////////////////////////////////////////////
 	//			PRINTING
 	////////////////////////////////////////////////////////////////////////
@@ -1889,7 +1227,7 @@ namespace SOLARCELL
 						electron_hole_pair,
 						sim_params,
 						time_step_number);
-		if(full_system)
+/*		if(full_system)
 		{
 			task_group += Threads::new_task(&LDG_System::
 						LDG<dim>::output_rescaled_results,
@@ -1898,7 +1236,7 @@ namespace SOLARCELL
 						redox_pair,
 						sim_params,
 						time_step_number);
-		}
+		}*/
 
 		task_group.join_all();
 	} // print_results
@@ -1918,7 +1256,7 @@ namespace SOLARCELL
 						electron_hole_pair,
 		//				sim_params,
 						time_step_number);
-		if(full_system)
+/*		if(full_system)
 		{
 			task_group += Threads::new_task(&LDG_System::
 						LDG<dim>::output_unscaled_results_on_boundary,
@@ -1927,7 +1265,7 @@ namespace SOLARCELL
 						redox_pair,
 //						sim_params,
 						time_step_number);
-		}
+		}*/
 
 		task_group.join_all();
 		}
@@ -1959,16 +1297,12 @@ namespace SOLARCELL
 
 		// make the grids and set the boundary conditions
 		grid_maker.make_grids(semiconductor_triangulation,
-					electrolyte_triangulation,
-					Poisson_triangulation,
-					full_system);
+					Poisson_triangulation
+					);
 
 		grid_maker.print_grid(Poisson_triangulation,"Grid.eps");
 
 		grid_maker.print_grid(semiconductor_triangulation,"Semi.eps");
-
-//		grid_maker.print_grid(electrolyte_triangulation,
-//													"Elec.eps");
 
 		timer.leave_subsection("Make Grids");
 
@@ -1986,7 +1320,7 @@ namespace SOLARCELL
 
 		// dont remove
 		electron_hole_pair.penalty = 1.0; 
-		redox_pair.penalty = 1.0;
+		//redox_pair.penalty = 1.0;
 	
 		
 		// assemble the global matrices
@@ -2009,7 +1343,6 @@ namespace SOLARCELL
 		timer.leave_subsection("Factor Matrices");
 	
 
-
 		// make time stepping stuff... 
 		unsigned int counter 	= 0;
 		unsigned int time_step_number;
@@ -2024,7 +1357,6 @@ namespace SOLARCELL
 		if(sim_params.restart_status)
 		{
 			electron_hole_pair.read_dofs();
-			//redox_pair.read_dofs();
 
 			// make the time stamps
 			for(unsigned int i=0; i<number_outputs; i++)
@@ -2043,26 +1375,19 @@ namespace SOLARCELL
 			VectorTools::project(semiconductor_dof_handler,
 						electron_hole_pair.constraints,
 						QGauss<dim>(degree+1),
-						electrons_eq,
+						electrons_initial_condition,
 						electron_hole_pair.carrier_1.solution);
+
+/*			for (auto i: electron_hole_pair.carrier_1.solution)
+			{
+					std::cout << i << ' ' << std::endl;
+			}*/
 
 			VectorTools::project(semiconductor_dof_handler,
 						electron_hole_pair.constraints,
 						QGauss<dim>(degree+1),
-						holes_eq,
+						holes_initial_condition,
 						electron_hole_pair.carrier_2.solution);
-
-/*			VectorTools::project(electrolyte_dof_handler,
-					 redox_pair.constraints,
-					 QGauss<dim>(degree+1),
-					 reductants_e,
-					 redox_pair.carrier_1.solution);
-
-			VectorTools::project(electrolyte_dof_handler,
-					redox_pair.constraints,
-					QGauss<dim>(degree+1),
-					oxidants_e,
-					redox_pair.carrier_2.solution);*/
 
 			// make the time stamps
 			for(unsigned int i=0; i<number_outputs; i++)
@@ -2076,8 +1401,49 @@ namespace SOLARCELL
 		// get the intitial potential and electric field
 		//std::cout<<"Jedziemy Poissona!"<<std::endl;
 		assemble_Poisson_rhs();
+
+/*		int rhs_index_count=0;
+		std::cout<<"Przed zmianami!"<<std::endl;
+		for (auto i: Poisson_object.system_rhs)
+		{
+//			if(i > 0)
+//			{
+				std::cout << rhs_index_count << ":  " << i << ' ' << std::endl;
+//			}
+			++rhs_index_count;
+		}
+		rhs_index_count=0;
+		Vector<double> tmp_data(5);
+		tmp_data(0)=30.0;
+		tmp_data(1)=0.0;
+		tmp_data(2)=0.0;
+		tmp_data(3)=0.0;
+		tmp_data(4)=30.0;
+		std::vector<unsigned int> tmp_index{0,5,2,3,7};
+		Poisson_object.constraints.distribute_local_to_global(tmp_data,
+								  tmp_index,
+								  Poisson_object.system_rhs);
+
+		for (auto i: tmp_data)
+		{
+				std::cout << i << "   ";
+		}
+		std::cout<<std::endl;
+		for (auto i: tmp_index)
+		{
+				std::cout << i << "   ";
+		}
+		std::cout<<std::endl;
+
+		std::cout<<"Po zmianach!"<<std::endl;*/
+/*		for (auto i: Poisson_object.system_rhs)
+		{
+			std::cout << rhs_index_count << ":  " << i << ' ' << std::endl;
+			++rhs_index_count;
+		}*/
+
+
 		solve_Poisson();
-	
 	
 		// print the initial values
 		print_results(time_step_number);
@@ -2095,8 +1461,6 @@ namespace SOLARCELL
 		// for testing convergence to steady state
 		diff_electrons = electron_hole_pair.carrier_1.solution;
 		diff_holes =  electron_hole_pair.carrier_2.solution;
-/*		diff_reductants = redox_pair.carrier_1.solution;
-		diff_oxidants =  redox_pair.carrier_2.solution;*/
 		diff_Poisson	=	Poisson_object.solution;
 
 		// time stepping until the semiconductor converges at time 
@@ -2141,14 +1505,13 @@ namespace SOLARCELL
 
 			// print the results
 			timer.enter_subsection("Printing");
-			print_results(time_step_number);
 			time_step_number++;
+			print_results(time_step_number);
 			timer.leave_subsection("Printing");
 		} // end for
 
 		// print the dofs of the end state
 		electron_hole_pair.print_dofs();
-//		redox_pair.print_dofs();
 
 
 	} // run
