@@ -47,11 +47,11 @@ class PostProcessor : public DataPostprocessor<dim>
 		virtual UpdateFlags get_needed_update_flags() const;
 
 	private:
-		double scale_density;
+		//double scale_density;
 		double scale_current;
 		double scale_potential;
 		double scale_elec_field;
-		double material_permittivity;
+		//double material_permittivity;
 		std::string density_name;
 		std::string current_name;
 		bool printing_carrier;

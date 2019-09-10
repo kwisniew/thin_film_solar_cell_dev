@@ -5,15 +5,17 @@ using namespace dealii;
 
 template<int dim>
 PostProcessor<dim>::
-PostProcessor(const ParameterSpace::Parameters 		& sim_params,
-	     const bool					& print_carrier,
-	     const std::string				& name)
+PostProcessor(   const ParameterSpace::Parameters 	& sim_params,
+				 const bool							& print_carrier,
+				 const std::string					& name)
 {
-	scale_potential  = 0.02585;
-	scale_elec_field = 0.2585/sim_params.characteristic_length;
-	scale_density	 = sim_params.characteristic_denisty;
-	scale_current	 = 1.6e-19* scale_density * sim_params.characteristic_length /
-			   sim_params.characteristic_time;
+	scale_potential  = sim_params.thermal_voltage;
+	scale_elec_field = sim_params.thermal_voltage/
+					  (sim_params.characteristic_length*(sim_params.scaled_debye_length*sim_params.semiconductor_permittivity));
+	scale_current	 = PhysicalConstants::electron_charge * sim_params.characteristic_denisty  /
+			   	   	   (sim_params.characteristic_time * sim_params.characteristic_length);
+	//material_permittivity is not used in any context: delete in near future.
+	//material_permittivity = sim_params.semiconductor_permittivity;
 
 	printing_carrier = print_carrier;	
 	if(print_carrier)
