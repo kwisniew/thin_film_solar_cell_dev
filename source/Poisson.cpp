@@ -31,20 +31,51 @@ namespace Poisson
 
 		// make hanging node constraints
 		constraints.clear();
-		DoFTools::make_hanging_node_constraints(dof_handler,											constraints);	
+		DoFTools::make_hanging_node_constraints(dof_handler, constraints);
 	
 		// add constaints to Poisson_Neumann_constraints to constrain dofs
-		// of electric field to be 0 along the Neumann boundary. 
+		// of electric field to be 0 along (through?) the Neumann boundary.
 		//
 		// NOTE: The constraints must be added to the constraint matrix before
 		// assembling Poisson's system matrix or right hand side.
 		const FEValuesExtractors::Vector	ElectricField(0);
 		ComponentMask	electric_field_mask	= fe.component_mask(ElectricField);
 		
+/*		const FEValuesExtractors::Scalar	Ex(0);
+		const FEValuesExtractors::Scalar	Ey(1);
+		ComponentMask	Ex_field_mask	= fe.component_mask(Ex);
+		ComponentMask	Ey_field_mask	= fe.component_mask(Ey);*/
+
+
 		DoFTools::make_zero_boundary_constraints(dof_handler,
 							Neumann, // NEUMANN BOUNDARY INDICATOR
 							constraints,
 							electric_field_mask);
+
+/*		DoFTools::make_zero_boundary_constraints(dof_handler,
+							Dirichlet, // DIRICHLET BOUNDARY INDICATOR
+							constraints,
+							electric_field_mask);*/
+
+/*
+		DoFTools::make_zero_boundary_constraints(dof_handler,
+							Dirichlet,
+							constraints,
+							Ex_field_mask);
+
+		DoFTools::make_zero_boundary_constraints(dof_handler,
+							Dirichlet,
+							constraints,
+							Ey_field_mask);
+*/
+
+
+/*		std::set<unsigned int> neumann_boundary;
+		neumann_boundary.insert(Neumann);
+		VectorTools::compute_no_normal_flux_constraints(dof_handler,
+				0,
+				neumann_boundary,
+				constraints);*/
 	
 		constraints.close();
 
