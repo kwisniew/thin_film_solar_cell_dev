@@ -218,18 +218,18 @@ namespace LDG_System
 
 								// int_{\Gamma_{D}} v^{-} n^{-} q^{-} ds
 								data.local_matrix_1(i,j) += psi_i_density *
-										(scratch.carrier_fe_face_values.normal_vector(q) *
-										psi_j_field 
-										+
-										(penalty/h) * psi_j_density) * 
-										scratch.carrier_fe_face_values.JxW(q);				
+															 (scratch.carrier_fe_face_values.normal_vector(q) *
+															  psi_j_field
+															  +
+															  (penalty/h) * psi_j_density) *
+															scratch.carrier_fe_face_values.JxW(q);
 
 								data.local_matrix_2(i,j) += psi_i_density * 
-										(scratch.carrier_fe_face_values.normal_vector(q) *
-										psi_j_field 
-										+
-										(penalty/h) *	psi_j_density)* 
-										scratch.carrier_fe_face_values.JxW(q);				
+															  (scratch.carrier_fe_face_values.normal_vector(q) *
+															  psi_j_field
+															  +
+															  (penalty/h) *	psi_j_density)*
+															scratch.carrier_fe_face_values.JxW(q);
 
 
 							} // end for j
@@ -495,14 +495,17 @@ namespace LDG_System
 		bool wychwyc_blad=true;
 		bool wychwyc_blad2=true;
 
-		Point<dim>	beta;
-		for(unsigned int d=0; d<dim; d++)
-			beta(d) = 1.0;
-		beta /= sqrt(beta.square());
+		Tensor<1,dim> beta/*(unit_vector)*/;
+		for(unsigned int i=0; i<dim; i++)
+			beta[i]=1;
+		beta   /= beta.norm();
 
-			// loop over all the quadrature points on this face	
+		// loop over all the quadrature points on this face
 		for(unsigned int q=0; q<n_face_points; q++)
 		{
+			//const Tensor<1,dim> normal_vector_plus(scratch.carrier_fe_face_values.normal_vector(q));
+			//const Tensor<1,dim> normal_vector_minus(-scratch.carrier_fe_face_values.normal_vector(q));
+
 			// loop over all the test function dofs of this face
 			// and get the test function values at this quadrature point
 			for(unsigned int i=0; i<dofs_this_cell; i++)
@@ -528,10 +531,12 @@ namespace LDG_System
 					data.vi_ui_matrix(i,j)	+= (
 									 0.5 * (
 									psi_i_field_minus * 
+									//normal_vector_minus*
 									scratch.carrier_fe_face_values.normal_vector(q) *
 									psi_j_density_minus
 									+ 
 									psi_i_density_minus *
+									//normal_vector_minus*
 									scratch.carrier_fe_face_values.normal_vector(q) *
 									psi_j_field_minus )
 									+ 
@@ -575,10 +580,12 @@ namespace LDG_System
 					data.vi_ue_matrix(i,j) += (	
 									0.5 * (
 									psi_i_field_minus * 
+									//normal_vector_minus *
 									scratch.carrier_fe_face_values.normal_vector(q) *
 									psi_j_density_plus 
 									+ 
 									psi_i_density_minus *
+									//normal_vector_minus *
 									scratch.carrier_fe_face_values.normal_vector(q) *
 									psi_j_field_plus ) 
 									-
@@ -630,10 +637,12 @@ namespace LDG_System
 									-0.5 * (
 									psi_i_field_plus * 
 									scratch.carrier_fe_face_values.normal_vector(q) *
+									//normal_vector_plus *
 									psi_j_density_minus 
 									+
 									psi_i_density_plus *
 									scratch.carrier_fe_face_values.normal_vector(q) *
+									//normal_vector_plus *
 									psi_j_field_minus)
 									-
 									beta *
