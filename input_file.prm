@@ -1,87 +1,79 @@
 # Listing of Parameters
 # ---------------------
 subsection computational
-  # time to steady state (in terms of characteristic time)
-  set end time           = 10
+  # time to steady state (in terms of characteristic time) 1000
+  set end time           = 1000
 
   # 2nd end time for restarting if the simulation hasn't converged by end of previous time
   set end time 2         = 100e5
 
   # number of global refinements
-  set global refinements = 1
+  set global refinements = 4
 
   # number of local refinements in predefined critical areas
-  set local refinements  = 1
+  set local refinements  = 2
 
   # if restarting, the end of last run is used as start for this one
   set restart status     = false
 
-  # number of output files from simulations
-  set time stamps        = 10
+  # number of output files from simulations 10
+  set time stamps        =10
 
   # scaled time step size of both subdomains
-  set time step size     = 0.05
+  set time step size     = 1.0
 end
 
 
+subsection mesh
+#in units of characteristic length (see: subsection physical) [um]
+  # width of boundary layer
+  set boundary layer = 0.6
+
+  # scaled domain height in y coordinate
+  set mesh height    = 5
+
+  # top radius of wire
+  set radius one     = 2.5
+
+  # bottom radius of wire
+  set radius two     = 2.5
+  
+  # n-type width
+  set n_type width   = 4.5
+  
+  # p_type width     
+  set p_type width   = 4.5 
+end
+
 subsection electrons
   # electron mobility [v/cm^{2}]
-  set mobility               = 0.02
+  set mobility               = 30
 
   # Recombination rate/time of electrons [s]
-  set recombination time     = 5e-5
+  set recombination time     = 1e-10
 
-  # Recombination velocity of electrons [cm/s]
-  set recombination velocity = 3e4
+  # Recombination velocity of electrons [cm/s] - for schottky junction
+  set recombination velocity = 3.0e4
 
-  # transfer rate of electrons [cm^{4} s^{-1}]
-  set transfer rate          = 1e-19
+  # electron effective mass [fraction of free electron mass]
+  set electron effective mass = 0.2
 end
 
 
 subsection holes
   # hole mobility [v/cm^{2}]
-  set mobility               = 0.02
+  set mobility               = 30
 
   # Recombination rate/time of holes [s]
-  set recombination time     = 5e-5
+  set recombination time     = 1e-10
 
-  # Recombination velocity of holes [cm/s]
-  set recombination velocity = 2.9e4
+  # Recombination velocity of holes [cm/s]  - for schottky junction; 2.9
+  set recombination velocity = 3.0e4
 
-  # transfer rate of holes [cm^{4} s^{-1}]
-  set transfer rate          = 1e-14
+  # hole effective mass [fraction of free electron mass] 0.9
+  set hole effective mass = 0.2
 end
 
-
-subsection mesh
-  # width of boundary layer
-  set boundary layer = 0.6
-
-  # scaled domain height in y coordinate
-  set mesh height    = 5.0
-
-  # scaled domain length in x coordinate
-  set mesh length    = 5.2
-
-  # top radius of wire
-  set radius one     = 4.6
-
-  # bottom radius of wire
-  set radius two     = 4.6
-  
-  # n-type width
-  set n_type width   = 0.6
-  
-  # p_type width     
-  set p_type width   = 4.0 
-end
-
-
-subsection oxidants
-  # oxidant mobility [v/cm^{2}]
-  set mobility = 1.0
-end
 
 
 subsection physical
@@ -91,38 +83,43 @@ subsection physical
   # the applied bias [v]
   set applied bias               = 0.0
 
-  # the built in / SCR  bias [V]
-  set built in bias              = 1.00
-
-  # the characteristic density scale [cm^{-3}]
-  set characteristic density     = 1.0e16
+  # band gap in semiconductor [eV]
+  set band gap                   = 1.0
   
-  # scaled n type doping [cm^{-3}]
-  set n_type doping     = 1.0e18
+  # defect level [in faction of band gap - from 0 to 1]
+  set defect energy level    	 = 0.5 
 
-  # scaled p type doping [cm^{-3}]
-  set p_type doping     = 1.0e15
+  # Temperature of the device [K] - please do not change, but if you do so:
+  # remember that other parameters need to be change as well (e.g. thermal voltage). 
+  set temperature                = 300.0
+
+  # scaled n type donor density [cm^{-3}]
+  # the characteristic density by which the densities will be scaled in calculations 
+  # will be the smaller value of n-type donor density and p-type acceptor density 
+  set n_type donor density     = 1.0e14
   
-  # efective hole density Nv [cm^{-3}]
-  set effective density     = 2.54e19  
+  # scaled n type acceptor density [cm^{-3}]
+  set n_type acceptor density     = 0.0
 
-  # the characteristic length scale [cm]
-  set characteristic length      = 1.0e-6
+  # scaled p type donor density [cm^{-3}]
+  set p_type donor density        = 0.0
+  
+  # scaled p type acceptor density [cm^{-3}]
+  # the characteristic density by which the densities will be scaled in calculations 
+  # will be the smaller value of n-type donor density and p-type acceptor density
+  set p_type acceptor density    = 1.0e14
+  
+  # the characteristic length scale [cm]. Do not change the unit! 
+  set characteristic length      = 1.0e-4
 
   # the characteristic time scale [s]
-  set characteristic time        = 1.0e-12
-
-  # electrolyte permittivity const []
-  set electrolyte permittivity   = 1000
+  set characteristic time        = 1.0e-10
 
   # true means that the cell is illuminated, false means its not.
   set illumination status        = false
 
   # whether device is insulated. See Grid::make_Neumann_boundaries
-  set insulated                  = false
-
-  # the intrinsic density scale [cm^{-3}]
-  set intrinsic density          = 2.564e9
+  set insulated                  = true
 
   # intensity of light  [cm^{-2}s^{-1} ]
   set photon flux                = 1.2e17
@@ -136,10 +133,3 @@ subsection physical
   # semiconductor permittivity const []
   set semiconductor permittivity = 13.0
 end
-
-
-subsection reductants
-  # reductant mobility [v/cm^{2}]
-  set mobility = 1.0
-end
-
