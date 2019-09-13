@@ -532,19 +532,19 @@ namespace LDG_System
 					// int_{face} n^{-} * ( p_{i}^{-} u_{j}^{-} + v^{-} q^{-} ) dx
 					// 					  + penalty v^{-}u^{-} dx
 					data.vi_ui_matrix(i,j)	+= (
-									 0.5 * (
+									-0.5 * (
 									psi_i_field_minus * 
-									normal_vector_plus*
+									normal_vector_minus*
 									//scratch.carrier_fe_face_values.normal_vector(q) *
 									psi_j_density_minus
 									+ 
 									psi_i_density_minus *
-									normal_vector_plus*
+									normal_vector_minus*
 									//scratch.carrier_fe_face_values.normal_vector(q) *
 									psi_j_field_minus )
 									+ 
-									beta *
-									psi_i_field_minus *
+									beta * normal_vector_minus *
+									psi_i_field_minus * normal_vector_minus *
 									psi_j_density_minus
 									-
 									beta *
@@ -581,14 +581,14 @@ namespace LDG_System
 					// int_{face} n^{-} * ( p_{i}^{-} u_{j}^{+} + v^{-} q^{+} ) dx
 					// 					  - penalty v^{-}u^{+} dx
 					data.vi_ue_matrix(i,j) += (	
-									0.5 * (
+									-0.5 * (
 									psi_i_field_minus * 
-									normal_vector_plus *
+									normal_vector_minus *
 									//scratch.carrier_fe_face_values.normal_vector(q) *
 									psi_j_density_plus 
 									+ 
 									psi_i_density_minus *
-									normal_vector_plus *
+									normal_vector_minus *
 									//scratch.carrier_fe_face_values.normal_vector(q) *
 									psi_j_field_plus ) 
 									-
