@@ -474,11 +474,12 @@ namespace LDG_System
 		// matrices across that face
 		const unsigned int n_face_points  =	
 					scratch.carrier_fe_face_values.n_quadrature_points;
-	 	const unsigned int dofs_this_cell = 
+		//TODO: loop only by this shape functions which are non-zero on this face (or just check if it is possible)
+		//      (right now we loop over all 12 dofs in cell)
+		const unsigned int dofs_this_cell =
 					scratch.carrier_fe_face_values.dofs_per_cell;
 		const unsigned int dofs_neighbor_cell =
 					scratch.carrier_fe_neighbor_face_values.dofs_per_cell;	
-
 //		std::cout<<"n_face_points  " << n_face_points << std::endl;
 //		std::cout<<"dofs_this_cell " << dofs_this_cell << std::endl;
 //		std::cout<<"dofs_neighbor_cell  " << dofs_neighbor_cell << std::endl;
@@ -495,16 +496,18 @@ namespace LDG_System
 		bool wychwyc_blad=true;
 		bool wychwyc_blad2=true;
 
-		Tensor<1,dim> beta/*(unit_vector)*/;
+		//any unit vector
+		Tensor<1,dim> beta;
 		for(unsigned int i=0; i<dim; i++)
 			beta[i]=1;
-		beta   /= beta.norm();
+
+		beta/= beta.norm();
 
 		// loop over all the quadrature points on this face
 		for(unsigned int q=0; q<n_face_points; q++)
 		{
-			//const Tensor<1,dim> normal_vector_plus(scratch.carrier_fe_face_values.normal_vector(q));
-			//const Tensor<1,dim> normal_vector_minus(-scratch.carrier_fe_face_values.normal_vector(q));
+			const Tensor<1,dim> normal_vector_plus(scratch.carrier_fe_face_values.normal_vector(q));
+			const Tensor<1,dim> normal_vector_minus(-scratch.carrier_fe_face_values.normal_vector(q));
 
 			// loop over all the test function dofs of this face
 			// and get the test function values at this quadrature point
@@ -531,13 +534,13 @@ namespace LDG_System
 					data.vi_ui_matrix(i,j)	+= (
 									 0.5 * (
 									psi_i_field_minus * 
-									//normal_vector_minus*
-									scratch.carrier_fe_face_values.normal_vector(q) *
+									normal_vector_plus*
+									//scratch.carrier_fe_face_values.normal_vector(q) *
 									psi_j_density_minus
 									+ 
 									psi_i_density_minus *
-									//normal_vector_minus*
-									scratch.carrier_fe_face_values.normal_vector(q) *
+									normal_vector_plus*
+									//scratch.carrier_fe_face_values.normal_vector(q) *
 									psi_j_field_minus )
 									+ 
 									beta *
@@ -580,13 +583,13 @@ namespace LDG_System
 					data.vi_ue_matrix(i,j) += (	
 									0.5 * (
 									psi_i_field_minus * 
-									//normal_vector_minus *
-									scratch.carrier_fe_face_values.normal_vector(q) *
+									normal_vector_plus *
+									//scratch.carrier_fe_face_values.normal_vector(q) *
 									psi_j_density_plus 
 									+ 
 									psi_i_density_minus *
-									//normal_vector_minus *
-									scratch.carrier_fe_face_values.normal_vector(q) *
+									normal_vector_plus *
+									//scratch.carrier_fe_face_values.normal_vector(q) *
 									psi_j_field_plus ) 
 									-
 		 							beta *
@@ -636,13 +639,13 @@ namespace LDG_System
 					data.ve_ui_matrix(i,j) +=	( 
 									-0.5 * (
 									psi_i_field_plus * 
-									scratch.carrier_fe_face_values.normal_vector(q) *
-									//normal_vector_plus *
+									//scratch.carrier_fe_face_values.normal_vector(q) *
+									normal_vector_plus *
 									psi_j_density_minus 
 									+
 									psi_i_density_plus *
-									scratch.carrier_fe_face_values.normal_vector(q) *
-									//normal_vector_plus *
+									//scratch.carrier_fe_face_values.normal_vector(q) *
+									normal_vector_plus *
 									psi_j_field_minus)
 									-
 									beta *
@@ -675,11 +678,13 @@ namespace LDG_System
 					data.ve_ue_matrix(i,j) +=	( 
 									-0.5 * (
 									psi_i_field_plus * 
-									scratch.carrier_fe_face_values.normal_vector(q) *
+									//scratch.carrier_fe_face_values.normal_vector(q) *
+									normal_vector_plus*
 									psi_j_density_plus 
 									+
 									psi_i_density_plus *
-									scratch.carrier_fe_face_values.normal_vector(q) *
+									//scratch.carrier_fe_face_values.normal_vector(q) *
+									normal_vector_plus*
 									psi_j_field_plus ) 
 									+
 									beta *
