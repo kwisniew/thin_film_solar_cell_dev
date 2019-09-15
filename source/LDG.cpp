@@ -506,8 +506,8 @@ namespace LDG_System
 		// loop over all the quadrature points on this face
 		for(unsigned int q=0; q<n_face_points; q++)
 		{
-			const Tensor<1,dim> normal_vector_plus(scratch.carrier_fe_face_values.normal_vector(q));
-			const Tensor<1,dim> normal_vector_minus(-scratch.carrier_fe_face_values.normal_vector(q));
+			const Tensor<1,dim> normal_vector_minus(scratch.carrier_fe_face_values.normal_vector(q));
+			const Tensor<1,dim> normal_vector_plus(-scratch.carrier_fe_face_values.normal_vector(q));
 
 			// loop over all the test function dofs of this face
 			// and get the test function values at this quadrature point
@@ -532,25 +532,23 @@ namespace LDG_System
 					// int_{face} n^{-} * ( p_{i}^{-} u_{j}^{-} + v^{-} q^{-} ) dx
 					// 					  + penalty v^{-}u^{-} dx
 					data.vi_ui_matrix(i,j)	+= (
-									-0.5 * (
+									0.5 * (
 									psi_i_field_minus * 
 									normal_vector_minus*
-									//scratch.carrier_fe_face_values.normal_vector(q) *
 									psi_j_density_minus
 									+ 
 									psi_i_density_minus *
 									normal_vector_minus*
-									//scratch.carrier_fe_face_values.normal_vector(q) *
 									psi_j_field_minus )
 									+ 
-									beta * normal_vector_minus *
-									psi_i_field_minus * normal_vector_minus *
+									(beta * normal_vector_minus) *
+									(psi_i_field_minus * normal_vector_minus) *
 									psi_j_density_minus
 									-
-									beta *
+									(beta * normal_vector_minus) *
 									psi_i_density_minus *
-								 	psi_j_field_minus 
-									+ 
+								 	(psi_j_field_minus * normal_vector_minus)
+									+
 									penalty * 
 									psi_i_density_minus *
 									psi_j_density_minus
@@ -581,24 +579,22 @@ namespace LDG_System
 					// int_{face} n^{-} * ( p_{i}^{-} u_{j}^{+} + v^{-} q^{+} ) dx
 					// 					  - penalty v^{-}u^{+} dx
 					data.vi_ue_matrix(i,j) += (	
-									-0.5 * (
+									0.5 * (
 									psi_i_field_minus * 
 									normal_vector_minus *
-									//scratch.carrier_fe_face_values.normal_vector(q) *
 									psi_j_density_plus 
 									+ 
 									psi_i_density_minus *
 									normal_vector_minus *
-									//scratch.carrier_fe_face_values.normal_vector(q) *
 									psi_j_field_plus ) 
-									-
-		 							beta *
-									psi_i_field_minus *
-									psi_j_density_plus
 									+
-									beta *
+		 							(beta * normal_vector_plus) *
+									(psi_i_field_minus * normal_vector_minus) *
+									psi_j_density_plus
+									-
+									(beta * normal_vector_minus) *
 									psi_i_density_minus *
-									psi_j_field_plus
+									(psi_j_field_plus * normal_vector_plus)
 									-
 		 	 						penalty * 
 									psi_i_density_minus *
@@ -637,24 +633,22 @@ namespace LDG_System
 					// 					  - penalty v^{+}u^{-} dx
 				
 					data.ve_ui_matrix(i,j) +=	( 
-									-0.5 * (
-									psi_i_field_plus * 
-									//scratch.carrier_fe_face_values.normal_vector(q) *
+									0.5 * (
+									psi_i_field_plus   *
 									normal_vector_plus *
 									psi_j_density_minus 
 									+
 									psi_i_density_plus *
-									//scratch.carrier_fe_face_values.normal_vector(q) *
 									normal_vector_plus *
 									psi_j_field_minus)
-									-
-									beta *
-									psi_i_field_plus *
-									psi_j_density_minus
 									+
-									beta *
+									(beta * normal_vector_minus) *
+									(psi_i_field_plus * normal_vector_plus) *
+									psi_j_density_minus
+									-
+									(beta * normal_vector_plus)*
 									psi_i_density_plus *
-									psi_j_field_minus 
+									(psi_j_field_minus * normal_vector_minus)
 									-
 									penalty * 
 									psi_i_density_plus *
@@ -676,24 +670,22 @@ namespace LDG_System
 					// int_{face} -n^{-} * ( p_{i}^{+} u_{j}^{+} + v^{+} q^{+} )
 					// 					  + penalty v^{+}u^{+} dx
 					data.ve_ue_matrix(i,j) +=	( 
-									-0.5 * (
-									psi_i_field_plus * 
-									//scratch.carrier_fe_face_values.normal_vector(q) *
+									0.5 * (
+									psi_i_field_plus *
 									normal_vector_plus*
 									psi_j_density_plus 
 									+
 									psi_i_density_plus *
-									//scratch.carrier_fe_face_values.normal_vector(q) *
 									normal_vector_plus*
 									psi_j_field_plus ) 
 									+
-									beta *
-									psi_i_field_plus *
+									(beta * normal_vector_plus)*
+									(psi_i_field_plus * normal_vector_plus)*
 									psi_j_density_plus
 									-
-									beta *
+									(beta * normal_vector_plus) *
 									psi_i_density_plus *
-									psi_j_field_plus 
+									(psi_j_field_plus * normal_vector_plus)
 									+
 									penalty * 
 									psi_i_density_plus *
