@@ -171,12 +171,12 @@
 		}
 		else //(component == dim)
 		{
-			if(p[0] < 1e-6 )
-				return scaled_p_type_donor_density;
+			if(p[0] < 1e-10 )
+				return scaled_p_type_electron_bc;
 			else
 			{
-				if(p[0] > (scaled_p_type_width + scaled_n_type_width - 1e-6) )
-					return scaled_n_type_donor_density;
+				if(p[0] > (scaled_p_type_width + scaled_n_type_width - 1e-10) )
+					return scaled_n_type_electron_bc;
 				else
 				{
 					//std::cout<<"This situation is not implemented!" <<std::endl;
@@ -190,15 +190,38 @@
 	template <int dim>
 	void
 	LDG_Dirichlet_electron_density_bc<dim>::
-	set_values( const double & n_type_donor_density,
+	set_values( const double & n_type_acceptor_density,
+				const double & p_type_acceptor_density,
+				const double & n_type_donor_density,
 				const double & p_type_donor_density,
+				const double & n_type_width,
 				const double & p_type_width,
-				const double & n_type_width)
+				const double & intrinsic_density)
 	{
-		scaled_n_type_donor_density = n_type_donor_density;
-		scaled_p_type_donor_density = p_type_donor_density;
-		scaled_p_type_width  		= p_type_width;
-		scaled_n_type_width         = n_type_width;
+		scaled_n_type_acceptor_density = n_type_acceptor_density;
+		scaled_p_type_acceptor_density = p_type_acceptor_density;
+
+		scaled_n_type_donor_density    = n_type_donor_density;
+		scaled_p_type_donor_density    = p_type_donor_density;
+
+		scaled_n_type_width  		   = n_type_width;
+		scaled_p_type_width            = p_type_width;
+
+		scaled_intrinsic_density       = intrinsic_density;
+
+		const double n_type_resultant_doping = (scaled_n_type_donor_density - scaled_n_type_acceptor_density);
+		const double p_type_resultant_doping = (scaled_p_type_donor_density - scaled_p_type_acceptor_density);
+
+		scaled_n_type_electron_bc = 0.5*( n_type_resultant_doping + std::sqrt(n_type_resultant_doping*n_type_resultant_doping + 4*scaled_intrinsic_density*scaled_intrinsic_density));
+		scaled_p_type_electron_bc = 0.5*( p_type_resultant_doping + std::sqrt(p_type_resultant_doping*p_type_resultant_doping + 4*scaled_intrinsic_density*scaled_intrinsic_density));
+
+		std::cout << "electrons on n_type boundary:   "
+				  << scaled_n_type_electron_bc
+				  << std::endl
+				  << "electrons on p_type boundary:   "
+				  << scaled_p_type_electron_bc
+				  << std::endl;
+
 
 	}
 
@@ -216,12 +239,12 @@
 		}
 		else //(component == dim)
 		{
-			if(p[0] < 1e-6 )
-				return scaled_p_type_acceptor_density;
+			if(p[0] < 1e-10 )
+				return scaled_p_type_hole_bc;
 			else
 			{
-				if(p[0] > (scaled_p_type_width + scaled_n_type_width - 1e-6) )
-					return scaled_n_type_acceptor_density;
+				if(p[0] > (scaled_p_type_width + scaled_n_type_width - 1e-10) )
+					return scaled_n_type_hole_bc;
 				else
 				{
 					//std::cout<<"This situation is not implemented!" <<std::endl;
@@ -237,11 +260,35 @@
 	LDG_Dirichlet_hole_density_bc<dim>::
 	set_values( const double & n_type_acceptor_density,
 				const double & p_type_acceptor_density,
+				const double & n_type_donor_density,
+				const double & p_type_donor_density,
+				const double & n_type_width,
 				const double & p_type_width,
-				const double & n_type_width)
+				const double & intrinsic_density)
 	{
 		scaled_n_type_acceptor_density = n_type_acceptor_density;
 		scaled_p_type_acceptor_density = p_type_acceptor_density;
-		scaled_p_type_width  		= p_type_width;
-		scaled_n_type_width         = n_type_width;
+
+		scaled_n_type_donor_density    = n_type_donor_density;
+		scaled_p_type_donor_density    = p_type_donor_density;
+
+		scaled_n_type_width  		   = n_type_width;
+		scaled_p_type_width            = p_type_width;
+
+		scaled_intrinsic_density       = intrinsic_density;
+
+		const double n_type_resultant_doping = (scaled_n_type_donor_density - scaled_n_type_acceptor_density);
+		const double p_type_resultant_doping = (scaled_p_type_donor_density - scaled_p_type_acceptor_density);
+
+		scaled_n_type_hole_bc = 0.5*( -n_type_resultant_doping + std::sqrt(n_type_resultant_doping*n_type_resultant_doping + 4*scaled_intrinsic_density*scaled_intrinsic_density));
+		scaled_p_type_hole_bc = 0.5*( -p_type_resultant_doping + std::sqrt(p_type_resultant_doping*p_type_resultant_doping + 4*scaled_intrinsic_density*scaled_intrinsic_density));
+
+		std::cout << "holes on n_type boundary:   "
+				  << scaled_n_type_hole_bc
+				  << std::endl
+				  << "holes on p_type boundary:   "
+				  << scaled_p_type_hole_bc
+				  << std::endl;
+
+
 	}

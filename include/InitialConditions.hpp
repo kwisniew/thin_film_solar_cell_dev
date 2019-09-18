@@ -2,6 +2,7 @@
 #define _INITIALCONDITIONS_H__
 
 #include<deal.II/base/function.h>
+#include <iostream>
 
 using namespace dealii;
 
@@ -121,10 +122,13 @@ class Doping_profile_donors : public Function<dim>
 			LDG_Dirichlet_electron_density_bc() : Function<dim>(dim+1)
 			{}
 
-			void set_values(const double & n_type_donor_density,
+			void set_values(const double & n_type_acceptor_density,
+							const double & p_type_acceptor_density,
+							const double & n_type_donor_density,
 							const double & p_type_donor_density,
 							const double & p_type_width,
-							const double & n_type_width);
+							const double & n_type_width,
+							const double & intrinsic_density);
 
 
 			/** \brief Returns value of \f$\rho_{r}^{\infty}\f$ at point p.*/
@@ -132,10 +136,16 @@ class Doping_profile_donors : public Function<dim>
 					     const unsigned int component=0) const;
 
 		private:
+			double scaled_n_type_acceptor_density;
+			double scaled_p_type_acceptor_density;
 			double scaled_n_type_donor_density;
 			double scaled_p_type_donor_density;
 			double scaled_p_type_width;
 			double scaled_n_type_width;
+			double scaled_intrinsic_density;
+
+			double scaled_n_type_electron_bc;
+			double scaled_p_type_electron_bc;
 	};
 
 
@@ -149,8 +159,11 @@ class Doping_profile_donors : public Function<dim>
 
 			void set_values(const double & n_type_acceptor_density,
 							const double & p_type_acceptor_density,
+							const double & n_type_donor_density,
+							const double & p_type_donor_density,
 							const double & p_type_width,
-							const double & n_type_width);
+							const double & n_type_width,
+							const double & intrinsic_density);
 
 
 			/** \brief Returns value of \f$\rho_{r}^{\infty}\f$ at point p.*/
@@ -160,8 +173,14 @@ class Doping_profile_donors : public Function<dim>
 		private:
 			double scaled_n_type_acceptor_density;
 			double scaled_p_type_acceptor_density;
+			double scaled_n_type_donor_density;
+			double scaled_p_type_donor_density;
 			double scaled_p_type_width;
 			double scaled_n_type_width;
+			double scaled_intrinsic_density;
+
+			double scaled_n_type_hole_bc;
+			double scaled_p_type_hole_bc;
 	};
 
 #endif
