@@ -16,7 +16,7 @@ value(const dealii::Point<dim> &p,
 {
 	// potential applied at y = 0, a positive potential is a foward bias,
 	// a negative potential is a reverse bias
-	if(p[0] == 0.0) //|| (p[1] == 0.0))
+	if(p[0] > (9.0 - 1e-10)/*p[0] == 0.0*/) //|| (p[1] == 0.0))
 	{
 //		std::cout << "Built in" << std::endl;
 		return built_in_bias; // volts

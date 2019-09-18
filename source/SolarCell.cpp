@@ -82,16 +82,22 @@ namespace SOLARCELL
 									sim_params.scaled_p_type_depletion_width);
 
 		electron_density_bc.set_values(
+									sim_params.scaled_n_type_acceptor_density,
+									sim_params.scaled_p_type_acceptor_density,
 									sim_params.scaled_n_type_donor_density,
-									sim_params.scaled_p_type_donor_density,
+									sim_params.scaled_n_type_acceptor_density,
 									sim_params.scaled_p_type_width,
-									sim_params.scaled_n_type_width);
+									sim_params.scaled_n_type_width,
+									sim_params.scaled_intrinsic_density);
 
 		hole_density_bc.set_values(
 									sim_params.scaled_n_type_acceptor_density,
 									sim_params.scaled_p_type_acceptor_density,
+									sim_params.scaled_n_type_donor_density,
+									sim_params.scaled_n_type_acceptor_density,
 									sim_params.scaled_p_type_width,
-									sim_params.scaled_n_type_width);
+									sim_params.scaled_n_type_width,
+									sim_params.scaled_intrinsic_density);
 
 		// set the charges name, charge sign, and mobility
 		electron_hole_pair.carrier_1.set_name("Electrons");
@@ -908,7 +914,7 @@ namespace SOLARCELL
 			// get the face_no-th face of this cell
 			typename DoFHandler<dim>::face_iterator 	face = cell->face(face_no);
 			
-			// if on boundary apply boundayr conditions	
+			// if on boundary apply boundary conditions
 			if(face->at_boundary() )
 			{
 				// reinitialize the fe_face_values for this cell ONLY if it is as the
@@ -969,91 +975,6 @@ namespace SOLARCELL
 						} // for i
 					}	// for q
 				} // end Dirichlet
-/*
-				else if(face->boundary_id() == Interface)
-				{
-					// get the doping profile values for the boundary conditions
-					electrons_e.value_list(
-								scratch.carrier_fe_face_values.get_quadrature_points(),
-								scratch.carrier_1_bc_values,
-								dim); // calls the density values of the donor profile
-									  // not the current ones
-					holes_e.value_list(
-								scratch.carrier_fe_face_values.get_quadrature_points(),
-								scratch.carrier_2_bc_values,
-								dim); // calls the density values of the donor profile
-									  // not the current ones
-					
-	
-					// get the electrona and hole densities at the pevious time step
-					scratch.carrier_fe_face_values[Density].get_function_values(
-										electron_hole_pair.carrier_1.solution,
-										scratch.electron_interface_values);
-
-					scratch.carrier_fe_face_values[Density].get_function_values(
-										electron_hole_pair.carrier_2.solution,
-										scratch.hole_interface_values);
-
-					// get neighboring selectrolyte cell
-					unsigned interface_index = semi_interface_map[
-							std::pair<unsigned int, unsigned>(cell->level(),
-											      cell->index())];
-
-					typename DoFHandler<dim>::active_cell_iterator
-							neighbor_cell(&electrolyte_triangulation,
-							  	 elec_interface_cells[interface_index].first, // level
-							        elec_interface_cells[interface_index].second, // index
-							  	 &electrolyte_dof_handler);
-
-					// update fe_neigbors_face_values for this face
-					scratch.carrier_fe_neighbor_face_values.reinit(neighbor_cell,
-										 elec_interface_faces[interface_index]);
-
-					// get the reductant and oxidant densities at the pevious time step
-					scratch.carrier_fe_neighbor_face_values[Density].get_function_values(
-										redox_pair.carrier_1.solution,
-										scratch.reductant_interface_values);
-
-					scratch.carrier_fe_neighbor_face_values[Density].get_function_values(
-										redox_pair.carrier_2.solution,
-										scratch.oxidant_interface_values);
-		
-					// loop over all the quadrature points on this face
-					for(unsigned int q=0; q<n_face_q_points; q++)
-					{
-						// copy over the test functions
-						for(unsigned int k=0; k<dofs_per_cell; k++)
-						{
-							scratch.psi_i_density[k] = 
-								scratch.carrier_fe_face_values[Density].value(k,q);
-						}
-						// loop over all the test function dofs on this face
-						for(unsigned int i=0; i<dofs_per_cell; i++)
-						{
-							// int_{\sigma} -v^{-} ket (rho_n - rho_n^e) rho_o ds
-							data.local_carrier_1_rhs(i) += 
-									-1.0 * scratch.psi_i_density[i] *
-									 sim_params.scaled_k_et *
-									(scratch.electron_interface_values[q]
-									 -
-									 scratch.carrier_1_bc_values[q]) * 
-									 scratch.oxidant_interface_values[q] *
-									 scratch.carrier_fe_face_values.JxW(q);				
-					
-							// int_{\Sigma}  v^{-} kht (rho_p - rho_p^e) rho_r ds
-							data.local_carrier_2_rhs(i) +=  
-									+1.0 * scratch.psi_i_density[i] *
-									 sim_params.scaled_k_ht *
-									(scratch.hole_interface_values[q]
-									-
-									scratch.carrier_2_bc_values[q]) *
-							 		scratch.reductant_interface_values[q] *
-									scratch.carrier_fe_face_values.JxW(q);						
-						} // for i
-					} // for j
-
-				}
-*/
 				else if(face->boundary_id() == Schottky)
 				{
 					// Get the doping profile values for the boundary conditions
@@ -1319,7 +1240,7 @@ namespace SOLARCELL
 		print_sim_info();
 
 		// dont remove
-		electron_hole_pair.penalty = 1.0; 
+		electron_hole_pair.penalty = 1.0e4;
 		//redox_pair.penalty = 1.0;
 	
 		

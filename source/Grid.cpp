@@ -335,7 +335,7 @@ namespace Grid_Maker
 					// top and bottom of the domain
 					if
 					(
-						//cell->face(face_no)->center()[1] == scaled_domain_height
+						//(cell->face(face_no)->center()[0] == scaled_p_type_width+scaled_n_type_width) ||
 						(cell->face(face_no)->center()[1] == 0.0) ||
 						(cell->face(face_no)->center()[1] == scaled_domain_height)
 					)

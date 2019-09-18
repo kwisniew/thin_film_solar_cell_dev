@@ -168,6 +168,7 @@ namespace Assembly
 				carrier_fe.dofs_per_cell),
 		local_mass_matrix(carrier_fe.dofs_per_cell,
 				  carrier_fe.dofs_per_cell),
+		//better size should be: carrier_fe_face_values.dofs_per_cell
 		vi_ui_matrix(carrier_fe.dofs_per_cell,
 			     carrier_fe.dofs_per_cell),
 		vi_ue_matrix(carrier_fe.dofs_per_cell,
