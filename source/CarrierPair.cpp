@@ -60,6 +60,50 @@ namespace ChargeCarrierSpace
  	 	carrier_2.system_rhs.reinit (n_dofs); // [vector field, density]
 	
 		constraints.clear();
+
+	    const unsigned int   dofs_per_cell   = fe.dofs_per_cell;
+	    std::vector<types::global_dof_index> local_dof_indices (dofs_per_cell);
+
+
+	    typename DoFHandler<dim>::active_cell_iterator
+	                                    cell = dof_handler.begin_active(),
+	                                    endc = dof_handler.end();
+	    std::cout << "Przedział od: \n"
+				  << (dof_handler.n_dofs()/3-1)
+				  << "do:\n"
+				  << (2*dof_handler.n_dofs()/3)
+				  << std::endl;
+
+	    for (; cell!=endc; ++cell)
+	    {
+	        cell->get_dof_indices(local_dof_indices);
+
+	        for (unsigned int face_n=0;
+	                face_n<GeometryInfo<dim>::faces_per_cell;
+	                ++face_n)
+	        {
+	            if (cell->at_boundary(face_n))
+	            {
+	                if (cell->face(face_n)->boundary_id()==Neumann)
+	                {
+	                    for (unsigned int i = 0; i<dofs_per_cell; ++i)
+	                    {
+	                        // see documentation for these functions
+	                    	if(local_dof_indices.at(i)>(dof_handler.n_dofs()/3-1) &&
+	                    	   local_dof_indices.at(i)<(2*dof_handler.n_dofs()/3))
+	                    	{
+	                    		/*std::cout << local_dof_indices.at(i)
+	                    				  << ""
+	                    				  << std::endl;*/
+	                    		constraints.add_line (local_dof_indices.at(i));
+	                    	}
+	                    }
+	                }
+	            }
+	        }
+	    }
+
+
 		constraints.close();
 	}
 

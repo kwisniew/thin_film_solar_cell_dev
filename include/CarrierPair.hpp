@@ -107,6 +107,16 @@ namespace ChargeCarrierSpace
 			/** The dieletric constant for this material.*/
 			double				material_permittivity;
 
+		private:
+			enum
+			{
+				Interface_2,
+				PN_Interface,
+				Dirichlet,
+				Neumann,
+				Schottky
+			};
+
 	};
 
 }
