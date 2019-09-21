@@ -42,6 +42,8 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <functional>
+#include <numeric>
 
 // multithreading
 #include <deal.II/base/work_stream.h>
@@ -61,9 +63,17 @@
 #include "LDG.hpp"
 #include "PostProcessor.hpp"
 
+//double inner_product_accumulator(double x, double y)
+//{
+//	return std::abs(x) + std::abs(y);
+//}
+/**/
+//double inner_product_accumulator(double x, double y);
+//double inner_product_product(    double x, double y);
+
 /** \namespace SOLARCELL This namespace is for everything that has to do particularly 
  *	with the solar cell model is the main namespace for everything that is
- *	constained in the source file for	SOLARCELL:SolarCellProblem. */
+ *	contained in the source file for	SOLARCELL:SolarCellProblem. */
 namespace SOLARCELL
 {
 	using namespace dealii;
@@ -301,10 +311,6 @@ namespace SOLARCELL
 			* for \f$k=2\f$.  \note \f$h\f$ will be the 
 			* same value for both of the triangulations of \f$\Omega_{S}\f$ and \f$\Omega_{E}\f$ 
 			* since they are basically the same mesh. */
-			void
-			test_interface_coupling(const unsigned int  & n_refine,
-									ConvergenceTable    & Table);
-
 
 		private:
 			/// Degree of the polynomials used.
@@ -460,11 +466,9 @@ namespace SOLARCELL
 			Generation<dim>						 generation;
 
 
-			Vector<double>	diff_electrons;
-			Vector<double>	diff_holes;
-			Vector<double>	diff_reductants;
-			Vector<double>	diff_oxidants;
-			Vector<double>	diff_Poisson;
+			Vector<double>	diff_electrons_old;
+			Vector<double>	diff_holes_old;
+			Vector<double>	diff_Poisson_old;
 
 			
 			/** Distributes the dofs and allocates memory for matrices and vectors.*/	
@@ -735,6 +739,9 @@ namespace SOLARCELL
  			* values on the boundary of their respective domains. */
 			void
 			print_results_on_boundary(unsigned int time_step_number);
+
+			double
+			check_convergence(Vector<double> & residuum, unsigned int index_begin, unsigned int index_end);
 
 			/** Assembles the local cell rhs term for the LDG method applied to the 
 			* drift-diffusion equation defined in

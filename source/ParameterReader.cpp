@@ -32,6 +32,18 @@ namespace ParameterSpace
 	{
 		prm.enter_subsection("computational");
 
+		prm.declare_entry("steady state", "true",
+				Patterns::Bool(),
+				"whether to calculate a steady state situation");
+
+		prm.declare_entry("equilibrium state", "false",
+				Patterns::Bool(),
+				"whether to calculate a equilibrium state (eg. with applied voltage)");
+
+		prm.declare_entry("small signal response", "false",
+				Patterns::Bool(),
+				"whether to calculate a small signal response");
+
 		prm.declare_entry("global refinements", "4",
 				 Patterns::Integer(0,10),
 				 "number of global refinements");
@@ -44,9 +56,17 @@ namespace ParameterSpace
 				Patterns::Double(0,1),
 				"scaled time step size of both subdomains");
 
-		prm.declare_entry("end time", "13",
+		prm.declare_entry("end time steady state", "1e3",
 				Patterns::Double(0),
 				"time to steady state (in terms of characteristic time)");
+
+		prm.declare_entry("end time equilibrium state", "1e3",
+				Patterns::Double(0),
+				"time to equilibrium state (in terms of characteristic time)");
+
+		prm.declare_entry("end time small signal response", "1e3",
+				Patterns::Double(0),
+				"time to small signal response (in terms of characteristic time)");
 
 		prm.declare_entry("end time 2", "20",
 				Patterns::Double(0),
@@ -59,6 +79,10 @@ namespace ParameterSpace
 		prm.declare_entry("restart status", "false",
 				Patterns::Bool(),
 				"whether to use end of last run as start for this one");
+
+		prm.declare_entry("restart from steady state", "false",
+				Patterns::Bool(),
+				"whether to use end of last steady state simulation for this one");
 
 		prm.leave_subsection();				
 
@@ -189,7 +213,15 @@ namespace ParameterSpace
 				Patterns::Double(0),
 				"doping in p type region [cm^{-3}]");
 
-		prm.declare_entry("characteristic time", "1.0e-12",
+		prm.declare_entry("characteristic time steady state", "1.0e-12",
+				Patterns::Double(0),
+				"the characteristic time scale [s]");
+
+		prm.declare_entry("characteristic time equilibrium state", "1.0e-12",
+				Patterns::Double(0),
+				"the characteristic time scale [s]");
+
+		prm.declare_entry("characteristic time small signal response", "1.0e-12",
 				Patterns::Double(0),
 				"the characteristic time scale [s]");
 

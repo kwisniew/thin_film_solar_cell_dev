@@ -1,4 +1,6 @@
 #include "../include/SolarCell.hpp"
+#include "../include/Grid.hpp"
+
 #include "Grid.cpp"
 #include "Assembly.cpp"
 #include "MixedFEM.cpp"
@@ -7,7 +9,7 @@
 #include "InitialConditions.cpp"
 #include "BiasValues.cpp"
 #include "CarrierPair.cpp"
-#include<numeric>
+
 
 namespace SOLARCELL
 {
@@ -1193,8 +1195,18 @@ namespace SOLARCELL
 
 
 	/*--------------------------------------------------------------------*/
-
-
+	template<int dim>
+	double
+	SolarCellProblem<dim>::
+	check_convergence(Vector<double> & residuum, unsigned int index_begin, unsigned int index_end)
+	{
+		double convergence_indicator=0;
+		for(unsigned int i = index_begin;  i < index_end; i++)
+		{
+			convergence_indicator += residuum[i];
+		}
+		return convergence_indicator;
+	}
 
 	/*---------------------------------------------------------------------*/
 	/*			RUN		  			       */
@@ -1222,7 +1234,6 @@ namespace SOLARCELL
 					);
 
 		grid_maker.print_grid(Poisson_triangulation,"Grid.eps");
-
 		grid_maker.print_grid(semiconductor_triangulation,"Semi.eps");
 
 		timer.leave_subsection("Make Grids");
@@ -1274,21 +1285,22 @@ namespace SOLARCELL
 
 
 		// if we are restarting the simulation, read in the dofs
-		// from the end of hte last sim as the initial conditions of this one
+		// from the end of the last simulation as the initial conditions of this one
 		if(sim_params.restart_status)
 		{
-			electron_hole_pair.read_dofs();
-
-			// make the time stamps
+			electron_hole_pair.read_dofs(sim_params.type_of_restart);
 			for(unsigned int i=0; i<number_outputs; i++)
+				timeStamps[i] = (i+1) * sim_params.t_end / number_outputs;
+			// make the time stamps
+			/*for(unsigned int i=0; i<number_outputs; i++)
 			{
 				timeStamps[i] = sim_params.t_end 
 					+ ( (i+1) * (sim_params.t_end_2 - sim_params.t_end)
 					/ number_outputs);	
-			}
-			time_step_number	= number_outputs;
+			}*/
+			time_step_number	= number_outputs+1;
 			time 			= sim_params.t_end;
-			std::cout << "running until t = " << sim_params.t_end_2 << std::endl;
+			std::cout << "running until t = " << sim_params.t_end << std::endl;
 		}
 		else // use defined initial condition functions
 		{
@@ -1380,9 +1392,12 @@ namespace SOLARCELL
 	 	time_step_number++;	*/
 
 		// for testing convergence to steady state
-		diff_electrons = electron_hole_pair.carrier_1.solution;
-		diff_holes =  electron_hole_pair.carrier_2.solution;
-		diff_Poisson	=	Poisson_object.solution;
+		diff_electrons_old = electron_hole_pair.carrier_1.solution;
+		Vector<double> convergence_rate(diff_electrons_old.size()/3);
+		double convergence_indicator;
+		//int n = diff_electrons_old.size();
+		diff_holes_old     = electron_hole_pair.carrier_2.solution;
+		diff_Poisson_old   = Poisson_object.solution;
 
 		// time stepping until the semiconductor converges at time 
 		// t = t_end_1
@@ -1398,12 +1413,6 @@ namespace SOLARCELL
 				assemble_semiconductor_rhs();
 				timer.leave_subsection("Assemble semiconductor rhs");
 
-/*
-				timer.enter_subsection("Assemble electrolyte rhs");
-				std::cout<<"2"<<std::endl;
-				assemble_electrolyte_rhs();
-				timer.leave_subsection("Assemble electrolyte rhs");
-*/
 				//std::cout<<"2"<<std::endl;
 				timer.enter_subsection("Solve LDG Systems");
 				solve_full_system();
@@ -1428,11 +1437,31 @@ namespace SOLARCELL
 			timer.enter_subsection("Printing");
 			time_step_number++;
 			print_results(time_step_number);
+
+/*			std::cout<< "electron convergence:  " << std::inner_product(std::begin(diff_electrons_old),
+																		std::begin(diff_electrons_old)+(n/3-1),
+																		std::begin(electron_hole_pair.carrier_1.solution),
+																		0,
+																		inner_product_accumulator,
+																		std::minus<double>())
+												 <<std::endl;*/
+			diff_electrons_old -=electron_hole_pair.carrier_1.solution;
+			diff_electrons_old.extract_subvector_to( diff_electrons_old.begin(),
+													 diff_electrons_old.begin()+(diff_electrons_old.size()/3-1),
+													 convergence_rate.begin() );
+
+			convergence_indicator = convergence_rate.l1_norm();
+
+			std::cout<< "Zbieżność w kroku " << time_step_number <<" wynosi: " << convergence_indicator << std::endl;
+			diff_electrons_old = electron_hole_pair.carrier_1.solution;
 			timer.leave_subsection("Printing");
 		} // end for
 
-		// print the dofs of the end state
-		electron_hole_pair.print_dofs();
+		// print the dofs of the end state for restart situation.
+//		if(!sim_params.restart_status)
+//		{
+		electron_hole_pair.print_dofs(sim_params.type_of_simulation);
+//		}
 
 
 	} // run
@@ -2458,170 +2487,6 @@ namespace SOLARCELL
 		Mixed_table.add_value("Phi", primary_error);
 		Mixed_table.add_value("D", flux_error);
 	}
-
-	/*---------------------------------------------------------------------*/
-	/*		LDG-INTERFACE TEST			  	    		  */
-	/*---------------------------------------------------------------------*/
-
-	template<int dim>
-	void
-	SolarCellProblem<dim>::
-	test_interface_coupling(const unsigned int & n_refine,
-				ConvergenceTable	 & LDG_table)
-	{
-		full_system = true;
-
-		double 	primary_error, flux_error;
-		sim_params.set_params_for_testing(n_refine);
-
-		// make the triangulations
-		Grid_Maker::Grid<dim> grid_maker(sim_params);
-
-		// make the grids
-		grid_maker.make_grids(semiconductor_triangulation,
-				electrolyte_triangulation,
-				Poisson_triangulation,
-				true);
-
-		setup_mappings();
-						
-		setup_dofs();
-
-		double h = GridTools::maximal_cell_diameter(semiconductor_triangulation);
-
-		electron_hole_pair.set_semiconductor_for_testing(sim_params);
-		redox_pair.set_electrolyte_for_testing(sim_params);
- 		
-		delta_t = 1.0;
-		for(unsigned int i=0; i < carrier_fe.degree+1; i++)
-			delta_t *= h;
-
-		std::cout << "dt = " << delta_t << std::endl;
-
-		assemble_LDG_system(1.0);
-
-		electron_hole_pair.carrier_1.set_solver();
-		redox_pair.carrier_1.set_solver();
-
-		// Get the initial conditions
-		VectorTools::project(semiconductor_dof_handler,
-				electron_hole_pair.constraints,
-				QGauss<dim>(degree+1),
-				LDG_Assembler.test_interface_initial,
-				electron_hole_pair.carrier_1.solution);
-
-		// Get the initial conditions
-		VectorTools::project(electrolyte_dof_handler,
-				redox_pair.constraints,
-				QGauss<dim>(degree+1),
-				LDG_Assembler.test_interface_initial,
-				redox_pair.carrier_1.solution);
-
-		double t_end = 1.0;
-		double time  = 0.0;
-
-
-		while(time < t_end)
-		{
-			// set carrier_system_rhs = M * u^{n-1}
-			electron_hole_pair.mass_matrix.vmult(electron_hole_pair.carrier_1.system_rhs,														 electron_hole_pair.carrier_1.solution);
-			// set rhs for time step n-1
-			WorkStream::run(semiconductor_dof_handler.begin_active(),
-					semiconductor_dof_handler.end(),
-					std_cxx11::bind(&SOLARCELL::SolarCellProblem<dim>::
-							assemble_local_test_semiconductor_rhs,
-							this, // Assembler object
-							std_cxx11::_1,
-							std_cxx11::_2,
-							std_cxx11::_3,
-							time,
-							electron_hole_pair.penalty),
-					std_cxx11::bind(&SOLARCELL::SolarCellProblem<dim>::
-							copy_local_to_global_semiconductor_system_rhs,
-							this, // this object
-							std_cxx11::_1),
-					Assembly::AssemblyScratch<dim>(Poisson_fe,
-								 carrier_fe,
-								 QGauss<dim>(degree+2),
-								 QGauss<dim-1>(degree+2)),
-					Assembly::DriftDiffusion::CopyData<dim>(carrier_fe)
-					);
-
-			// set carrier_system_rhs = M * u^{n-1}
-			redox_pair.mass_matrix.vmult(redox_pair.carrier_1.system_rhs,
-						    redox_pair.carrier_1.solution);
-
-			// set rhs for time step n-1
-			WorkStream::run(electrolyte_dof_handler.begin_active(),
-					electrolyte_dof_handler.end(),
-					std_cxx11::bind(&SOLARCELL::SolarCellProblem<dim>::
-							assemble_local_test_electrolyte_rhs,
-							this, // Assembler object
-							std_cxx11::_1,
-							std_cxx11::_2,
-							std_cxx11::_3,
-							time,
-							redox_pair.penalty),
-					std_cxx11::bind(&SOLARCELL::SolarCellProblem<dim>::
-							copy_local_to_global_electrolyte_system_rhs,
-							this, // this object
-							std_cxx11::_1),
-					Assembly::AssemblyScratch<dim>(Poisson_fe,
-									carrier_fe,
-									QGauss<dim>(degree+2),
-									QGauss<dim-1>(degree+2)),
-					Assembly::DriftDiffusion::CopyData<dim>(carrier_fe)
-					);
-
-			Threads::TaskGroup<void> task_group;
-
-			task_group += Threads::new_task(&ChargeCarrierSpace::
-							Carrier<dim>::solve,
-							electron_hole_pair.carrier_1);
-
-			task_group += Threads::new_task(&ChargeCarrierSpace::
-							Carrier<dim>::solve,
-							redox_pair.carrier_1);
-
-			task_group.join_all();
-
-			time += delta_t;
-		}	// end while																		
-
-		//LDG_Assembler.compute_interface_errors(semiconductor_triangulation,
-		LDG_Assembler.compute_interface_errors(semiconductor_triangulation,
-							semiconductor_dof_handler,
-							electron_hole_pair.carrier_1.solution,
-							primary_error,
-							flux_error,
-							time);
-
-
-		unsigned int n_active_cells = semiconductor_triangulation.n_active_cells();
-		unsigned int n_dofs			= semiconductor_dof_handler.n_dofs();
-
-		LDG_table.add_value("h",h);
-		LDG_table.add_value("cells", n_active_cells);
-		LDG_table.add_value("dofs", n_dofs);
-
-		LDG_table.add_value("u1", primary_error);
-		LDG_table.add_value("J1", flux_error);
-
-
-		LDG_Assembler.compute_interface_errors(electrolyte_triangulation,
-							electrolyte_dof_handler,
-							redox_pair.carrier_1.solution,
-							primary_error,
-							flux_error,
-							time);
-
-		LDG_table.add_value("u2", primary_error);
-		LDG_table.add_value("J2", flux_error);
-
-		print_results(n_refine);
-
-	} // end test_interface_coupling
-
 
 } // namespace SOLARCELL
  // namespace SOLARCELL

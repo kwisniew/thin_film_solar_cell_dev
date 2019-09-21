@@ -52,11 +52,11 @@ namespace ChargeCarrierSpace
 
 			/** \brief Prints the DOFS into a files to be read in. */
 			void 
-			print_dofs();
+			print_dofs(const std::string & type_of_simulation);
 
 			/** \brief Reads the DOFS from output of last run to be init cond for this one.*/
  			void
-			read_dofs();
+			read_dofs(const std::string & type_of_restart);
 
 			/** \brief Set \f$\tilde{\tau} = 1\f$ and mobilities \f$=1\f$. */
 			void 
@@ -70,6 +70,9 @@ namespace ChargeCarrierSpace
 	
 			/** Name of the material: semiconductor or electrolyte */
 			std::string			material_name;
+
+			/** String which indicate whether to restart simulation from steady state*/
+			std::string         type_of_simulation;
 
 			/** Sparsity pattern for system matrix to be inverted 
 			* foreach carrier in this pair. */
@@ -104,7 +107,7 @@ namespace ChargeCarrierSpace
 			* matrix and system matrix.*/
 			double				delta_t;
 
-			/** The dieletric constant for this material.*/
+			/** The dielectric constant for this material.*/
 			double				material_permittivity;
 
 		private:

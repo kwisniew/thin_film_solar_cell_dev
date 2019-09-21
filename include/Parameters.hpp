@@ -31,15 +31,25 @@ namespace ParameterSpace
 	struct Parameters
 	{
 			// computational
+			bool 		 calculate_steady_state;
+			bool 		 calculate_equilibrium_state;
+			bool 		 calculate_small_signal_response;
+			std::string  type_of_simulation;
 			unsigned int n_global_refine;				
 			unsigned int n_local_refine;				
 			unsigned int time_stamps;
-			double 	 	 	 h_max;
-			double			 h_min;
-			double 			 t_end;
-			double 			 t_end_2;
-			double 			 delta_t;	
-			double 			 penalty;
+			double 	 	 h_max;
+			double		 h_min;
+			double		 t_end;
+			double 		 t_end_steady_state;
+			double 		 t_end_equilibrium_state;
+			double 		 t_end_small_signal_response;
+			double 		 t_end_2;
+			double 		 delta_t;
+			double 		 penalty;
+			bool 		 restart_status;
+			bool		 restart_from_steady_state;
+			std::string  type_of_restart;
 
 			//mesh
 			double scaled_boundary_layer;
@@ -88,9 +98,11 @@ namespace ParameterSpace
 			double thermal_voltage;
 
 			double characteristic_length;
-			double characteristic_time;
 			double characteristic_denisty;
-
+			double characteristic_time;
+			double characteristic_time_steady_state;
+			double characteristic_time_equilibrium_state;
+			double characteristic_time_small_signal_response;
 
 			double scaled_schottky_hole_density;
 			double scaled_schottky_electron_density;
@@ -100,7 +112,6 @@ namespace ParameterSpace
 
 			bool illum_or_dark;
 			bool insulated;
-			bool restart_status;
 			bool schottky_status;
 	
 
@@ -142,13 +153,22 @@ namespace ParameterSpace
 
 				// read in the parameters
 				prm.enter_subsection("computational");
+				this->calculate_steady_state          = prm.get_bool("steady state");
+				this->calculate_equilibrium_state     = prm.get_bool("equilibrium state");
+				this->calculate_small_signal_response = prm.get_bool("small signal response");
+
 				this->n_global_refine = prm.get_integer("global refinements");
 				this->n_local_refine  = prm.get_integer("local refinements");
-				this->delta_t  = prm.get_double("time step size");
-				this->t_end = prm.get_double("end time");
+				this->delta_t         = prm.get_double("time step size");
+
+				this->t_end_steady_state          = prm.get_double("end time steady state");
+				this->t_end_equilibrium_state     = prm.get_double("end time equilibrium state");
+				this->t_end_small_signal_response = prm.get_double("end time small signal response");
+
 				this->t_end_2 = prm.get_double("end time 2");
 				this->time_stamps = prm.get_integer("time stamps");
-				this->restart_status = prm.get_bool("restart status");
+				this->restart_status            = prm.get_bool("restart status");
+				this->restart_from_steady_state = prm.get_bool("restart from steady state");
 				prm.leave_subsection();
 
 				prm.enter_subsection("mesh");
@@ -184,7 +204,11 @@ namespace ParameterSpace
 				this->temperatue = prm.get_double("temperature");
 				this->scaled_schottky_bias = prm.get_double("schottky bias");
 				this->characteristic_length = prm.get_double("characteristic length");
-				this->characteristic_time = prm.get_double("characteristic time");
+
+				this->characteristic_time_steady_state          = prm.get_double("characteristic time steady state");
+				this->characteristic_time_equilibrium_state     = prm.get_double("characteristic time equilibrium state");
+				this->characteristic_time_small_signal_response = prm.get_double("characteristic time small signal response");
+
 				this->scaled_n_type_donor_density     = prm.get_double("n_type donor density");
 				this->scaled_n_type_acceptor_density  = prm.get_double("n_type acceptor density");
 				this->scaled_p_type_donor_density     = prm.get_double("p_type donor density");
@@ -195,17 +219,53 @@ namespace ParameterSpace
 				prm.leave_subsection();
 
 
+				/*----------------------------------------------------------------------*/
+				// 	Compute parameters
+				/*----------------------------------------------------------------------*/
 
-/*				prm.enter_subsection("reductants");
-				this->scaled_reductant_mobility = prm.get_double("mobility");
-				prm.leave_subsection();*/
+				std::cout <<std::endl;
+				if(this->calculate_steady_state  && !this->calculate_equilibrium_state && !this->calculate_small_signal_response)
+				{
+					std::cout << "STEADY STATE CALCULATION" <<std::endl;
 
+					type_of_simulation = "_steady_state";
+					this->characteristic_time = this->characteristic_time_steady_state;
+					this->t_end               = this->t_end_steady_state;
+					this->scaled_applied_bias = 0;
+				}
+				else if(!this->calculate_steady_state  && this->calculate_equilibrium_state && !this->calculate_small_signal_response)
+				{
+					std::cout << "EQUILIBRIUM STATE CALCULATION" <<std::endl;
 
-/*				prm.enter_subsection("oxidants");
-				this->scaled_oxidant_mobility = prm.get_double("mobility");
-				prm.leave_subsection();*/
+					type_of_simulation = "";
+					this->characteristic_time = this->characteristic_time_equilibrium_state;
+					this->t_end               = this->t_end_equilibrium_state;
+				}
+				else if(!this->calculate_steady_state  && !this->calculate_equilibrium_state && this->calculate_small_signal_response)
+				{
+					std::cout << "SMALL SIGNAL RESPONSE CALCULATION" <<std::endl;
 
-				//compute parameters:
+					type_of_simulation = "";
+					this->characteristic_time = this->characteristic_time_small_signal_response;
+					this->t_end               = this->t_end_small_signal_response;
+				}
+				else
+				{
+					std::cout << "There need to be one and ONLY ONE type of SIMULATION AT THE SAME TIME!!! \n The steady state time will be used!" <<std::endl;
+					type_of_simulation = "steady_state";
+					this->characteristic_time = this->characteristic_time_steady_state;
+					this->t_end               = this->t_end_steady_state;
+				}
+
+				if(restart_from_steady_state)
+				{
+					type_of_restart = "_steady_state";
+				}
+				else   type_of_restart = "";
+
+				std::cout 	<< std::endl
+							<< "Parameters:    "
+							<< std::endl;
 
 
 				this->thermal_voltage = PhysicalConstants::boltzman_constant*temperatue/PhysicalConstants::electron_charge;
@@ -243,7 +303,7 @@ namespace ParameterSpace
 
 				//calculate build in bias (not scaled yet):
 				//Note: all densities (n_type_doping, p_type_doping and intrinsic_density)
-				//      need to be unscaled and in [cm^-3]
+				//      need to be "unscaled" and in [cm^-3]
 				this->scaled_built_in_bias =  this->thermal_voltage
 											 *log(this->scaled_n_type_donor_density*this->scaled_p_type_acceptor_density
 												  /(this->scaled_intrinsic_density*this->scaled_intrinsic_density));
@@ -312,7 +372,15 @@ namespace ParameterSpace
 						  << "cm^-3"
 						  << std::endl;
 
-				// scale the parameters
+
+
+
+
+				/*----------------------------------------------------------------------*/
+				// 	Scale parameters
+				/*----------------------------------------------------------------------*/
+
+
 				this->characteristic_denisty =
 				// MAX(a, b) == ((a > b) ? a : b)
 				(this->scaled_p_type_acceptor_density < this->scaled_n_type_donor_density ? this->scaled_p_type_acceptor_density : this->scaled_n_type_donor_density);
@@ -333,7 +401,7 @@ namespace ParameterSpace
 
 
 				this->scaled_electron_recombo_t /= this->characteristic_time;
-				this->scaled_hole_recombo_t /= this->characteristic_time;
+				this->scaled_hole_recombo_t     /= this->characteristic_time;
 
 				this->scaled_electron_recombo_v *= (this->characteristic_time /
 								this->characteristic_length);
@@ -377,7 +445,8 @@ namespace ParameterSpace
 							* this->characteristic_length)
 							/ this->characteristic_time;
 
-
+				std::cout 	<< std::endl
+							<< std::endl;
 /*
 				std::cout << "debeye length = " 
 					<< this->scaled_debeye_length 
@@ -409,7 +478,7 @@ namespace ParameterSpace
 		
 	};
 
-	/// @author Michael Harmon
+	/// @author Michael Harmon & Konrad Wisniewski
 }
 
 

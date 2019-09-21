@@ -1,20 +1,33 @@
-# Listing of Parameters
+# The list of a Parameters
 # ---------------------
 subsection computational
-  # time to steady state (in terms of characteristic time) 1000
-  set end time           = 1000
+  #type of simulation: (i)  converge to steady state - without bias, (ii) converge to eq. state - with bias, 
+  #                    (iii)small signal response: add small voltage increment 
+  # NOTE: one and only one of the below conditions must be true!
+  set steady state          = true
+  set equilibrium state     = false
+  set small signal response = false
+  
+  # if restarting, the end of last run is used as start for this one
+  # if restarting from steady state, the end of last run of steady state is used as start for this one
+  # NOTE: if "restart status" will be FALSE the "restart from steady state" will be ignored  
+  set restart status            = false
+  set restart from steady state = true
 
-  # 2nd end time for restarting if the simulation hasn't converged by end of previous time
-  set end time 2         = 100e5
+  # simulation time to steady state (in terms of characteristic time) 1000
+  set end time steady state          = 1000
+  set end time equilibrium state     = 1000
+  set end time small signal response = 1000
+
+  # 2nd end time (in terms of characteristic time) 
+  # for restarting if the simulation hasn't converged by end of previous time
+  set end time 2         = 2e3
 
   # number of global refinements
   set global refinements = 4
 
   # number of local refinements in predefined critical areas
   set local refinements  = 2
-
-  # if restarting, the end of last run is used as start for this one
-  set restart status     = false
 
   # number of output files from simulations 10
   set time stamps        =10
@@ -81,7 +94,8 @@ subsection physical
   set absorption coefficient     = 1.74974e5
 
   # the applied bias [v]
-  set applied bias               = 0.0
+  # NOTE: if type of calculation will be "steady state" then applied bias will be always 0! 
+  set applied bias               = 0.4
 
   # band gap in semiconductor [eV]
   set band gap                   = 1.0
@@ -113,7 +127,9 @@ subsection physical
   set characteristic length      = 1.0e-4
 
   # the characteristic time scale [s]
-  set characteristic time        = 1.0e-10
+  set characteristic time steady state          = 1.0e-10
+  set characteristic time equilibrium state     = 1.0e-10
+  set characteristic time small signal response = 1.0e-10  
 
   # true means that the cell is illuminated, false means its not.
   set illumination status        = false

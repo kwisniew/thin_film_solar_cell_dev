@@ -68,10 +68,10 @@ namespace ChargeCarrierSpace
 	    typename DoFHandler<dim>::active_cell_iterator
 	                                    cell = dof_handler.begin_active(),
 	                                    endc = dof_handler.end();
-	    std::cout << "Przedział od: \n"
-				  << (dof_handler.n_dofs()/3-1)
-				  << "do:\n"
-				  << (2*dof_handler.n_dofs()/3)
+	    std::cout << "Przedział od:  "
+				  << (dof_handler.n_dofs()/3)
+				  << "    do:   "
+				  << (2*dof_handler.n_dofs()/3-1)
 				  << std::endl;
 
 	    for (; cell!=endc; ++cell)
@@ -89,8 +89,8 @@ namespace ChargeCarrierSpace
 	                    for (unsigned int i = 0; i<dofs_per_cell; ++i)
 	                    {
 	                        // see documentation for these functions
-	                    	if(local_dof_indices.at(i)>(dof_handler.n_dofs()/3-1) &&
-	                    	   local_dof_indices.at(i)<(2*dof_handler.n_dofs()/3))
+	                    	if(local_dof_indices.at(i)>(dof_handler.n_dofs()/3) &&
+	                    	   local_dof_indices.at(i)<(2*dof_handler.n_dofs()/3-1))
 	                    	{
 	                    		/*std::cout << local_dof_indices.at(i)
 	                    				  << ""
@@ -133,11 +133,13 @@ namespace ChargeCarrierSpace
 	template<int dim>
 	void
 	CarrierPair<dim>::
-	print_dofs()
+	print_dofs(const std::string & type_of_simulation)
 	{
 		std::string dof_name_1 = carrier_1.name;
+		dof_name_1 += type_of_simulation;
 		dof_name_1 += ".dofs";
 		std::string dof_name_2 = carrier_2.name;
+		dof_name_2 += type_of_simulation;
 		dof_name_2 += ".dofs";
 		std::ofstream prt(dof_name_1.c_str());
 		carrier_1.solution.block_write(prt);
@@ -150,11 +152,13 @@ namespace ChargeCarrierSpace
 	template<int dim>
 	void
 	CarrierPair<dim>::
-	read_dofs()
+	read_dofs(const std::string & type_of_restart)
 	{
 		std::string dof_name_1 = carrier_1.name;
+		dof_name_1 += type_of_restart;
 		dof_name_1 += ".dofs";
 		std::string dof_name_2 = carrier_2.name;
+		dof_name_2 += type_of_restart;
 		dof_name_2 += ".dofs";
 		std::ifstream reader(dof_name_1.c_str());
 		carrier_1.solution.block_read(reader);
