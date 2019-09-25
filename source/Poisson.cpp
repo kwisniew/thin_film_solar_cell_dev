@@ -104,7 +104,8 @@ namespace Poisson
 	PoissonData<dim>::
 	print_info(DoFHandler<dim>	& dof_handler)
 	{
-		// Get the dnumber of dofs for each component
+		// Get the number of dofs for each component
+		// note: RT finite element do not decompose vector to spatial components!
 		std::vector<types::global_dof_index> dofs_per_component(dim+1);
 		DoFTools::count_dofs_per_component(dof_handler, dofs_per_component);
 		

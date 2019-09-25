@@ -62,6 +62,7 @@
 #include "BiasValues.hpp"
 #include "LDG.hpp"
 #include "PostProcessor.hpp"
+#include "Convergence.hpp"
 
 //double inner_product_accumulator(double x, double y)
 //{
@@ -394,11 +395,13 @@ namespace SOLARCELL
 
 			/** Object holds the assembling and printing routines for the LDG/
 			* semiconductor/electrolyte carrier system. */
-			MixedPoisson::MixedFEM<dim>			Mixed_Assembler;
+			MixedPoisson::MixedFEM<dim>		Mixed_Assembler;
 
 			/** Object holds the assembling and printing routines for the Mixed FEM
 			* Poisson equation on the whole domain.*/
-			LDG_System::LDG<dim>				LDG_Assembler;	
+			LDG_System::LDG<dim>			LDG_Assembler;
+
+			//Convergence<dim>                Convergance_check;
 
 
 

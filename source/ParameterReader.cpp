@@ -122,7 +122,7 @@ namespace ParameterSpace
 		prm.enter_subsection("electrons");
 		prm.declare_entry("mobility", "1350.0",
 				Patterns::Double(0),
-				"electron mobility [v/cm^{2}]");
+				"electron mobility [cm^{2}/(Vs)]");
 
 		prm.declare_entry("recombination time", "5e-5",
 				Patterns::Double(0),
@@ -144,7 +144,7 @@ namespace ParameterSpace
 		prm.enter_subsection("holes");
 		prm.declare_entry("mobility", "480.0",
 				Patterns::Double(0),
-				"hole mobility [v/cm^{2}]");
+				"hole mobility [cm^{2}/(Vs)]");
 
 		prm.declare_entry("recombination time", "5e-5",
 				Patterns::Double(0),

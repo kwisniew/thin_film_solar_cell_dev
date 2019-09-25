@@ -9,6 +9,7 @@
 #include "InitialConditions.cpp"
 #include "BiasValues.cpp"
 #include "CarrierPair.cpp"
+#include "Convergence.cpp"
 
 
 namespace SOLARCELL
@@ -1053,23 +1054,17 @@ namespace SOLARCELL
 	SolarCellProblem<dim>::
 	set_solvers()
 	{
-		std::cout << "Ustawiam Solver: Poisson" << std::endl;
+		//std::cout << "Ustawiam Solver: Poisson" << std::endl;
 //		freopen("output.txt","w",stdout);
 //		Poisson_object.system_matrix.print_formatted(std::cout,0);
 		//fclose(stdout);
 
 		Poisson_object.set_solver();
-		std::cout << "Ustawim Solver: Elektrony" << std::endl;
+		//std::cout << "Ustawim Solver: Elektrony" << std::endl;
 		//electron_hole_pair.carrier_1.system_matrix.print_formatted(std::cout,0);
 		electron_hole_pair.carrier_1.set_solver();
-		std::cout << "Usatwiam Solver: Dziury" << std::endl;
+		//std::cout << "Usatwiam Solver: Dziury" << std::endl;
 		electron_hole_pair.carrier_2.set_solver();
-		
-		if(full_system)
-		{	
-			redox_pair.carrier_1.set_solver();
-			redox_pair.carrier_2.set_solver();
-		}
 	}
 
 	
@@ -1195,18 +1190,6 @@ namespace SOLARCELL
 
 
 	/*--------------------------------------------------------------------*/
-	template<int dim>
-	double
-	SolarCellProblem<dim>::
-	check_convergence(Vector<double> & residuum, unsigned int index_begin, unsigned int index_end)
-	{
-		double convergence_indicator=0;
-		for(unsigned int i = index_begin;  i < index_end; i++)
-		{
-			convergence_indicator += residuum[i];
-		}
-		return convergence_indicator;
-	}
 
 	/*---------------------------------------------------------------------*/
 	/*			RUN		  			       */
@@ -1217,7 +1200,6 @@ namespace SOLARCELL
 	SolarCellProblem<dim>::
 	run_full_system()
 	{
-		full_system = false;
 
 		TimerOutput	timer(std::cout,
 					TimerOutput::summary,
@@ -1298,8 +1280,8 @@ namespace SOLARCELL
 					+ ( (i+1) * (sim_params.t_end_2 - sim_params.t_end)
 					/ number_outputs);	
 			}*/
-			time_step_number	= number_outputs+1;
-			time 			= sim_params.t_end;
+			time_step_number	= number_outputs;
+			time 			= 0.0/*sim_params.t_end*/;
 			std::cout << "running until t = " << sim_params.t_end << std::endl;
 		}
 		else // use defined initial condition functions
@@ -1332,50 +1314,7 @@ namespace SOLARCELL
 		}
 
 		// get the intitial potential and electric field
-		//std::cout<<"Jedziemy Poissona!"<<std::endl;
 		assemble_Poisson_rhs();
-
-/*		int rhs_index_count=0;
-		std::cout<<"Przed zmianami!"<<std::endl;
-		for (auto i: Poisson_object.system_rhs)
-		{
-//			if(i > 0)
-//			{
-				std::cout << rhs_index_count << ":  " << i << ' ' << std::endl;
-//			}
-			++rhs_index_count;
-		}
-		rhs_index_count=0;
-		Vector<double> tmp_data(5);
-		tmp_data(0)=30.0;
-		tmp_data(1)=0.0;
-		tmp_data(2)=0.0;
-		tmp_data(3)=0.0;
-		tmp_data(4)=30.0;
-		std::vector<unsigned int> tmp_index{0,5,2,3,7};
-		Poisson_object.constraints.distribute_local_to_global(tmp_data,
-								  tmp_index,
-								  Poisson_object.system_rhs);
-
-		for (auto i: tmp_data)
-		{
-				std::cout << i << "   ";
-		}
-		std::cout<<std::endl;
-		for (auto i: tmp_index)
-		{
-				std::cout << i << "   ";
-		}
-		std::cout<<std::endl;
-
-		std::cout<<"Po zmianach!"<<std::endl;*/
-/*		for (auto i: Poisson_object.system_rhs)
-		{
-			std::cout << rhs_index_count << ":  " << i << ' ' << std::endl;
-			++rhs_index_count;
-		}*/
-
-
 		solve_Poisson();
 	
 		// print the initial values
@@ -1392,19 +1331,19 @@ namespace SOLARCELL
 	 	time_step_number++;	*/
 
 		// for testing convergence to steady state
-		diff_electrons_old = electron_hole_pair.carrier_1.solution;
-		Vector<double> convergence_rate(diff_electrons_old.size()/3);
-		double convergence_indicator;
-		//int n = diff_electrons_old.size();
-		diff_holes_old     = electron_hole_pair.carrier_2.solution;
-		diff_Poisson_old   = Poisson_object.solution;
+		Convergence<dim> ConverganceCheck(Poisson_dof_handler,
+									semiconductor_dof_handler,
+										Poisson_object.solution,
+										electron_hole_pair.carrier_1.solution,
+										electron_hole_pair.carrier_2.solution);
+		ConverganceCheck.print_indexes();
 
 		// time stepping until the semiconductor converges at time 
 		// t = t_end_1
 		for(unsigned int k = 0;
 				k < number_outputs;
 				k++)
-		{				
+		{
 			// while time < next print stamp time
 			while(time < timeStamps[k])
 			{
@@ -1432,37 +1371,22 @@ namespace SOLARCELL
 
 			} // while
 
-
 			// print the results
 			timer.enter_subsection("Printing");
 			time_step_number++;
 			print_results(time_step_number);
-
-/*			std::cout<< "electron convergence:  " << std::inner_product(std::begin(diff_electrons_old),
-																		std::begin(diff_electrons_old)+(n/3-1),
-																		std::begin(electron_hole_pair.carrier_1.solution),
-																		0,
-																		inner_product_accumulator,
-																		std::minus<double>())
-												 <<std::endl;*/
-			diff_electrons_old -=electron_hole_pair.carrier_1.solution;
-			diff_electrons_old.extract_subvector_to( diff_electrons_old.begin(),
-													 diff_electrons_old.begin()+(diff_electrons_old.size()/3-1),
-													 convergence_rate.begin() );
-
-			convergence_indicator = convergence_rate.l1_norm();
-
-			std::cout<< "Zbieżność w kroku " << time_step_number <<" wynosi: " << convergence_indicator << std::endl;
-			diff_electrons_old = electron_hole_pair.carrier_1.solution;
+			ConverganceCheck.calculate_residuum(Poisson_object.solution,electron_hole_pair.carrier_1.solution,electron_hole_pair.carrier_2.solution);
+			ConverganceCheck.print_residuums(time_step_number);
 			timer.leave_subsection("Printing");
 		} // end for
+
+
 
 		// print the dofs of the end state for restart situation.
 //		if(!sim_params.restart_status)
 //		{
-		electron_hole_pair.print_dofs(sim_params.type_of_simulation);
+		electron_hole_pair.print_dofs(sim_params.type_of_simulation+std::to_string(time_step_number));
 //		}
-
 
 	} // run
 

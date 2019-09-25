@@ -118,10 +118,7 @@ namespace ChargeCarrierSpace
 		// get number of dofs in vector field components and of density
 		// in each component/dimension of vector field has same number of dofs
 		const unsigned int n_current = dim * dofs_per_component[0];
-//		std::cout << "n_current = " << n_current << std::endl;	
-	
-		const unsigned int n_density = dofs_per_component[1]; 
-//		std::cout << "n_density = " << n_density << std::endl;	
+		const unsigned int n_density = dofs_per_component[dim];
 											 
 		std::cout << "Number of DOFS carrier: "
 				  << 2 * dof_handler.n_dofs()

@@ -90,7 +90,7 @@ evaluate_vector_field
 	
 	const unsigned int n_quadrature_points = inputs.solution_values.size();
 	Assert(computed_quantities.size() == n_quadrature_points, ExcInternalError());
-	Assert(uh[0].size() == (dim+1), ExcInternalError() );
+	//Assert(uh[0].size() == (dim+1), ExcInternalError() );
 	if(printing_carrier)
 	{
 		for(unsigned int q=0; q<n_quadrature_points; q++)
