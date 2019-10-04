@@ -64,14 +64,6 @@
 #include "PostProcessor.hpp"
 #include "Convergence.hpp"
 
-//double inner_product_accumulator(double x, double y)
-//{
-//	return std::abs(x) + std::abs(y);
-//}
-/**/
-//double inner_product_accumulator(double x, double y);
-//double inner_product_product(    double x, double y);
-
 /** \namespace SOLARCELL This namespace is for everything that has to do particularly 
  *	with the solar cell model is the main namespace for everything that is
  *	contained in the source file for	SOLARCELL:SolarCellProblem. */
@@ -380,15 +372,6 @@ namespace SOLARCELL
 
 			/// Holds the matrices, vectors etc for the electron/hole pair.
 			ChargeCarrierSpace::CarrierPair<dim> 		electron_hole_pair;
-
-			/// Mesh for the electrolyte domain.
-			Triangulation<dim>				electrolyte_triangulation;
-			/// DoFHandler for the redox pair. They will have same distribution od dofs.
-
-			DoFHandler<dim>					electrolyte_dof_handler;
-			/// Holds the matrices, vectors etc for the reductant/oxidant pair.
-
-			ChargeCarrierSpace::CarrierPair<dim> 		redox_pair;
 
 			/// The finite element of the LDG Method DG^{2} and DG
 			FESystem<dim>					carrier_fe;
