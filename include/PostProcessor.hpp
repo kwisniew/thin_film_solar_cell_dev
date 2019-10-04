@@ -9,6 +9,7 @@
 #include <deal.II/base/exceptions.h>
 #include "Parameters.hpp"
 #include "CarrierPair.hpp"
+#include "Assembly.hpp"
 #include <string>
 
 using namespace dealii;
@@ -46,6 +47,7 @@ class PostProcessor : public DataPostprocessor<dim>
 		/** \brief Returns the values which must be update every print.*/
 		virtual UpdateFlags get_needed_update_flags() const;
 
+
 	private:
 		//double scale_density;
 		double scale_current;
@@ -57,5 +59,49 @@ class PostProcessor : public DataPostprocessor<dim>
 		bool printing_carrier;
 
 };
+
+
+template <int dim>
+class PostProcessor_currents : public DataPostprocessor<dim>
+{
+	public:
+
+		/** \brief Constructor for Currents post processor.*/
+		/** The constructor will assign the scaling values to the object.*/
+		PostProcessor_currents(   const ParameterSpace::Parameters 	& sim_params,
+								  const std::string					& e_name,
+								  const std::string					& h_name);
+
+		/** \brief post processing done in this function.*/
+		/** \note: This is called internally from DatOut::build_patches*/
+		virtual
+		void
+		evaluate_vector_field
+		(const DataPostprocessorInputs::Vector<dim> &inputs,
+			   std::vector<Vector<double> >         &computed_quantities) const;
+
+
+		/** \brief Returns a vector containing the names of the data componetnt.*/
+		virtual std::vector<std::string> get_names() const;
+
+		/** \brief returns a vector which tells whether data comp. is scalar or vector.*/
+		virtual
+		std::vector<DataComponentInterpretation::DataComponentInterpretation>
+		get_data_component_interpretation() const;
+
+		/** \brief Returns the values which must be update every print.*/
+		virtual UpdateFlags get_needed_update_flags() const;
+
+
+	private:
+
+		double scale_dryf_current;
+		double scale_diff_current;
+		std::string elec_name;
+		std::string hole_name;
+
+};
+
+
 
 #endif 
