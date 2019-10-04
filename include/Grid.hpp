@@ -72,7 +72,7 @@ namespace Grid_Maker
 
 			/// \brief Tags boundaries of the semiconductor as Neumann/Insulating portions.
 			/** This subroutine loops over all the cells in <code>triangulation<code/>
-			* and finds which subroutines are on the boundary.  It then
+			* and finds which faces are on the boundary.  It then
 			* flags these faces to be <code>Neumann<code/> portions of boundary.
 			* The choice of which boundary faces are <code>Neumann<code/> is
 			* preset in this subroutines source code. 
@@ -81,7 +81,7 @@ namespace Grid_Maker
 			* NOTE: <code>Neumann<code/> corresponds to a Neumann bounary condition
 			* for Poisson and a Robin boundary condition for the drift-diffusion equation.
 			*/
-			void make_Neumann_boundaries(Triangulation<dim> & triangulation);
+			void make_Neumann_boundaries(Triangulation<dim> & triangulation, const bool steady_state);
 
 			/// \brief Tags boundaries of the semiconductor as Schottky portions.
 			void make_Schottky_boundaries(Triangulation<dim> & triangulation);
@@ -152,8 +152,6 @@ namespace Grid_Maker
 			/// Set in constructor.			
 			double scaled_domain_height;
 			/// Set in constructor.			
-			double scaled_domain_length;
-			/// Set in constructor.			
 			double scaled_radius_one;
 			/// Set in constructor.			
 			double scaled_radius_two;
@@ -173,6 +171,8 @@ namespace Grid_Maker
 			bool use_boundary_layer;
 			/// Set in constructor.			
 			bool schottky;
+			/// check if we calculate steady state situation (without the bias)
+			bool steady_state;
 	
 	};
 

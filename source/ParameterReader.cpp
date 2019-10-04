@@ -162,7 +162,7 @@ namespace ParameterSpace
 
 		prm.enter_subsection("physical");
 		prm.declare_entry("applied bias", "0.0",
-				Patterns::Double(0),
+				Patterns::Double(-10.0,10.0),
 				"the applied bias [v]");
 
 		prm.declare_entry("band gap", "1.1",

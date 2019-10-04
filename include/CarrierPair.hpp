@@ -42,6 +42,12 @@ namespace ChargeCarrierSpace
 
 			/** \brief Distributes the dofs for the carrier pair. 
  			* Both carriers have the same distribution of dofs.*/
+			/** NOTE: In this implementation on the top and bottom of the domain
+			 *  the normal component of flux variable (y-component) will be 0
+			 *  It is not correlated well with Nuemann boundary since it can also
+			 *  exist on right side of the domain.
+			 *  TODO: change ConstraintMatrix also on the right side of the domain
+			 */
 			void 
 			setup_dofs(const FESystem<dim>	 & fe,
 				   DoFHandler<dim>	 & dof_handler);

@@ -13,7 +13,6 @@ namespace Grid_Maker
 	Grid(const ParameterSpace::Parameters & sim_params)
 	{
 		scaled_domain_height	= sim_params.scaled_domain_height;
-		scaled_domain_length	= 0;//sim_params.scaled_domain_length;
 		scaled_radius_one	= sim_params.scaled_radius_one;
 		scaled_radius_two	= sim_params.scaled_radius_two;
 		scaled_n_type_width = sim_params.scaled_n_type_width;
@@ -23,6 +22,7 @@ namespace Grid_Maker
 		n_local_refine		= sim_params.n_local_refine;
 		insulated		= sim_params.insulated;
 		schottky		= sim_params.schottky_status;
+		steady_state     = false/*sim_params.calculate_steady_state*/;
 		
 		if(n_local_refine == 0)
 		{
@@ -70,8 +70,8 @@ namespace Grid_Maker
 		// make insulating conditions.  Handled in input file
 		if(insulated)
 		{
-			make_Neumann_boundaries(Poisson_triang);
-			make_Neumann_boundaries(semiconductor_triang);
+			make_Neumann_boundaries(Poisson_triang, steady_state);
+			make_Neumann_boundaries(semiconductor_triang, steady_state);
 		}
 
 		// make Schottky conditions.
@@ -316,7 +316,7 @@ namespace Grid_Maker
 	template<int dim> 
 	void 
 	Grid<dim>::
-	make_Neumann_boundaries(Triangulation<dim> & triangulation)
+	make_Neumann_boundaries(Triangulation<dim> & triangulation, const bool steady_state)
 	{
 		typename Triangulation<dim>::active_cell_iterator
 						cell = triangulation.begin_active(),
@@ -341,7 +341,15 @@ namespace Grid_Maker
 					)
 					{
 						cell->face(face_no)->set_boundary_id(Neumann);
-					} // if top
+					} // if top and bottom
+					//during steady state no Electric filed and no current will be on the left side of the domain
+					if(steady_state)
+					{
+						if((cell->face(face_no)->center()[0] == scaled_p_type_width+scaled_n_type_width))
+						{
+							cell->face(face_no)->set_boundary_id(Neumann);
+						}
+					} //end if steady
 				} // end if on boundary
 			} // for face_no
 		} // for cell

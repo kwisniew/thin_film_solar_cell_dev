@@ -1542,11 +1542,11 @@ namespace LDG_System
 		data_out.build_patches();
 	
 
-		std::string carrier_1_file = carrier_pair.material_name.c_str();
-		carrier_1_file += Utilities::int_to_string(time_step_number,3);
-		carrier_1_file += ".vtu";
+		std::string continuity_file = carrier_pair.material_name.c_str();
+		continuity_file += Utilities::int_to_string(time_step_number,3);
+		continuity_file += ".vtu";
 
-		std::ofstream output(carrier_1_file.c_str());
+		std::ofstream output(continuity_file.c_str());
 		data_out.write_vtu(output);
 		output.close();
 

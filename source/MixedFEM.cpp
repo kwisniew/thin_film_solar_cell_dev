@@ -34,7 +34,6 @@ namespace MixedPoisson
 		Assembly::AssemblyScratch<dim>			& scratch,
 		Assembly::Poisson::CopyData<dim>		& data,
 		const double 							& semi_permittivity,
-//		const double 							& elec_permittivity,
 		const double 							& scaled_debye_length)
 	{
 		const unsigned int	dofs_per_cell =	scratch.Poisson_fe_values.dofs_per_cell;

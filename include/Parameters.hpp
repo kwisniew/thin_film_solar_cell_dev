@@ -80,8 +80,9 @@ namespace ParameterSpace
 			double scaled_hole_recombo_v;
 			double hole_effective_mass;
 			double scaled_p_type_depletion_width;
-			//double scaled_k_ht;
 
+			//for calculating outputs currents in postprocesor, should be deleted in near future
+			double mobility;
 
 			//Physical
 			double scaled_intrinsic_density;
@@ -218,7 +219,7 @@ namespace ParameterSpace
 				this->semiconductor_permittivity = prm.get_double("semiconductor permittivity");
 				prm.leave_subsection();
 
-
+				this->mobility = this->scaled_electron_mobility;
 				/*----------------------------------------------------------------------*/
 				// 	Compute parameters
 				/*----------------------------------------------------------------------*/
