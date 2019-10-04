@@ -38,7 +38,11 @@ hole_density_scale_factor(0),
 jx_electron_scale_factor(0),
 jy_electron_scale_factor(0),
 electron_density_scale_factor(0),
-scale_factors_are_set(false)
+old_potential_res(10),
+old_elec_density_res(10),
+old_hole_density_res(10),
+scale_factors_are_set(false),
+steady_state(false)
 {
 }
 
@@ -67,7 +71,11 @@ hole_density_scale_factor(0),
 jx_electron_scale_factor(0),
 jy_electron_scale_factor(0),
 electron_density_scale_factor(0),
-scale_factors_are_set(false)
+old_potential_res(10),
+old_elec_density_res(10),
+old_hole_density_res(10),
+scale_factors_are_set(false),
+steady_state(false)
 {
 
 
@@ -135,7 +143,7 @@ calculate_residuum(const Vector<double> & Poisson_solution,
 		jx_hole_scale_factor 	   = jx_hole_residuum;
 		jy_hole_scale_factor 	   = jy_hole_residuum;
 		hole_density_scale_factor  = hole_density_residuum;
-		scale_factors_are_set  = true;
+		scale_factors_are_set 	   = true;
 	}
 
 
@@ -149,6 +157,13 @@ calculate_residuum(const Vector<double> & Poisson_solution,
 	jx_hole_residuum 		/= jx_hole_scale_factor;
 	jy_hole_residuum 		/= jy_hole_scale_factor;
 	hole_density_residuum 	/= hole_density_scale_factor;
+
+	steady_state = check_steady_state();
+	std::cout<< "steady state:   " << steady_state << std::endl;
+
+	old_potential_res = potential_residuum;
+	old_elec_density_res= electron_density_residuum;
+	old_hole_density_res= hole_density_residuum;
 
 	old_Poisson_solution = Poisson_solution;
 	old_Continuity_solution_electrons = Continuity_solution_electron;
@@ -165,7 +180,7 @@ sum_absolute_values(const Vector<double> & new_solution,
 				    const unsigned int & end)
 {
 	double sum=0.0;
-	for(unsigned int i = begin; i != end; i++)
+	for(unsigned int i = begin; i <= end; i++)
 	{
 		sum += std::abs(new_solution[i] - old_solution[i]);
 	}
@@ -173,6 +188,16 @@ sum_absolute_values(const Vector<double> & new_solution,
 	return sum;
 }
 
+template<int dim>
+bool
+Convergence<dim>::check_steady_state()
+{
+	return (
+			(-potential_residuum        + old_potential_res)    < 0.0 ||
+			(-hole_density_residuum     + old_hole_density_res) < 0.0 ||
+			(-electron_density_residuum + old_elec_density_res) < 0.0
+			);
+}
 
 
 
