@@ -1059,7 +1059,6 @@ namespace SOLARCELL
 		//std::cout << "Usatwiam Solver: Dziury" << std::endl;
 		electron_hole_pair.carrier_2.set_solver();
 	}
-
 	
 	template <int dim>
 	void 
@@ -1113,8 +1112,72 @@ namespace SOLARCELL
 	} // solve_semiconductor_system
 
 	////////////////////////////////////////////////////////////////////////
-	//			PRINTING
+	//			PRINTING & POSTPROCESSING
 	////////////////////////////////////////////////////////////////////////
+	template<int dim>
+	double
+	SolarCellProblem<dim>::
+	calculate_uncompensated_charge()
+	{
+		QGauss<dim> quad_rule(degree+2);
+		FEValues<dim> fe_values(carrier_fe,
+		                      	quad_rule,
+		                        update_values | update_JxW_values | update_quadrature_points);
+
+		const unsigned int dofs_per_cell = carrier_fe.dofs_per_cell;
+		const unsigned int n_q_points    = quad_rule.size();
+
+		double uncompendated_charge = 0;
+
+		std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
+		std::vector<double>			donor_doping_values(n_q_points);
+		std::vector<double>			acceptor_doping_values(n_q_points);
+		std::vector<double>			carrier_1_density_values(n_q_points);
+		std::vector<double>			carrier_2_density_values(n_q_points);
+
+		const FEValuesExtractors::Scalar Density(dim);
+
+		for (const auto &cell : semiconductor_dof_handler.active_cell_iterators())
+	    {
+			fe_values.reinit(cell);
+			cell->get_dof_indices(local_dof_indices);
+
+			// get the electron density values at the last time step
+			fe_values[Density].get_function_values(
+							electron_hole_pair.carrier_1.solution,
+							carrier_1_density_values);
+
+			// get the hole density values at the last time step
+			fe_values[Density].get_function_values(
+							electron_hole_pair.carrier_2.solution,
+							carrier_2_density_values);
+
+			donor_doping_profile.value_list(fe_values.get_quadrature_points(),
+						donor_doping_values,
+						dim); // calls the density values of the donor profile
+
+			acceptor_doping_profile.value_list(fe_values.get_quadrature_points(),
+						acceptor_doping_values,
+						dim); // calls the density values of the acceptor profile
+
+			for (unsigned int q_index = 0; q_index < n_q_points; ++q_index)
+			{
+				uncompendated_charge += std::abs(carrier_2_density_values[q_index]-
+										 carrier_1_density_values[q_index]+
+										 donor_doping_values[q_index]-
+										 acceptor_doping_values[q_index])*
+										fe_values.JxW(q_index);
+			} //quad points
+	    }// cells
+		std::cout<< "\nChecking uncompensated charge!\n"
+				 << "Full depletion approximation:       "
+				 << (sim_params.scaled_n_type_depletion_width + sim_params.scaled_p_type_depletion_width)*
+				    sim_params.scaled_domain_height * 1
+				 << "\nCalculated uncompensated charge:    "
+				 << uncompendated_charge;
+
+		return uncompendated_charge/2;
+	}
 
 	template<int dim>
 	void
@@ -1163,6 +1226,92 @@ namespace SOLARCELL
 		}
 
 
+	template<int dim>
+	void
+	SolarCellProblem<dim>::
+	print_currents(unsigned int time_step_number)
+	{
+
+		const FESystem<dim> joint_fe(Poisson_fe, 1, carrier_fe, 1, carrier_fe, 1);
+		DoFHandler<dim> joint_dof_handler(Poisson_triangulation);
+		joint_dof_handler.distribute_dofs(joint_fe);
+		std::cout << "Sanity check!\n"
+				  << "Number of dofs in joint dof_handler:              "
+				  << joint_dof_handler.n_dofs()
+				  << "\n"
+				  << "Number of sum of dofs in poisson and continuity:  "
+				  << Poisson_dof_handler.n_dofs()+2*semiconductor_dof_handler.n_dofs()
+				  << std::endl;
+		Vector<double> joint_solution(joint_dof_handler.n_dofs());
+
+
+		  {
+			std::vector<types::global_dof_index> local_joint_dof_indices(
+			  joint_fe.dofs_per_cell);
+			std::vector<types::global_dof_index> local_poisson_dof_indices(
+			  Poisson_fe.dofs_per_cell);
+			std::vector<types::global_dof_index> local_carrier_dof_indices(
+			  carrier_fe.dofs_per_cell);
+			typename DoFHandler<dim>::active_cell_iterator
+			  joint_cell       = joint_dof_handler.begin_active(),
+			  joint_endc       = joint_dof_handler.end(),
+			  poisson_cell     = Poisson_dof_handler.begin_active(),
+			  semicon_cell     = semiconductor_dof_handler.begin_active();
+			for (; joint_cell != joint_endc;
+				 ++joint_cell, ++poisson_cell, ++semicon_cell)
+			{
+				  joint_cell->get_dof_indices(local_joint_dof_indices);
+				  poisson_cell->get_dof_indices(local_poisson_dof_indices);
+				  semicon_cell->get_dof_indices(local_carrier_dof_indices);
+				  for (unsigned int i = 0; i < joint_fe.dofs_per_cell; ++i)
+					if (joint_fe.system_to_base_index(i).first.first == 0)
+					  {
+						Assert(joint_fe.system_to_base_index(i).second < local_poisson_dof_indices.size(),ExcInternalError());
+
+						joint_solution(local_joint_dof_indices[i]) = Poisson_object.solution(
+									local_poisson_dof_indices[joint_fe.system_to_base_index(i).second]);
+					  }
+					else if(joint_fe.system_to_base_index(i).first.first == 1)
+					  {
+						Assert(joint_fe.system_to_base_index(i).first.first == 1,ExcInternalError());
+						Assert(joint_fe.system_to_base_index(i).second <local_carrier_dof_indices.size(),ExcInternalError());
+
+						joint_solution(local_joint_dof_indices[i]) = electron_hole_pair.carrier_1.solution(
+							local_carrier_dof_indices[joint_fe.system_to_base_index(i).second]);
+					  }
+					else
+					{
+						Assert(joint_fe.system_to_base_index(i).first.first == 2,ExcInternalError());
+						Assert(joint_fe.system_to_base_index(i).second <local_carrier_dof_indices.size(),ExcInternalError());
+
+						joint_solution(local_joint_dof_indices[i]) = electron_hole_pair.carrier_2.solution(
+							local_carrier_dof_indices[joint_fe.system_to_base_index(i).second]);
+					}
+			}
+		  }
+
+
+		DataOut<dim>  currents_out;
+		PostProcessor_currents<dim> postprocessor_currents(sim_params,
+														  electron_hole_pair.carrier_1.name.c_str(),
+														  electron_hole_pair.carrier_2.name.c_str());
+
+		currents_out.attach_dof_handler(joint_dof_handler);
+		currents_out.add_data_vector(joint_solution,
+									 postprocessor_currents);
+
+		currents_out.build_patches();
+
+		std::string currents_file = "Currents";
+		currents_file += Utilities::int_to_string(time_step_number,3);
+		//continuity_file += "grad.gp";
+		currents_file += ".vtu";
+
+		std::ofstream output_current(currents_file.c_str());
+		currents_out.write_vtu(output_current);
+//		data_out.write_gnuplot(output);
+		output_current.close();
+	}
 	/*--------------------------------------------------------------------*/
 
 	/*---------------------------------------------------------------------*/
@@ -1367,103 +1516,8 @@ namespace SOLARCELL
 			timer.leave_subsection("Printing");
 		} // end for
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/*		const FESystem<dim> joint_fe(FE_RaviartThomas<dim>(degree-1),  1,
-									 FE_DGQ<dim>(degree),              1,
-									 FE_DGQ<dim>(degree),              1);*/
-		const FESystem<dim> joint_fe(Poisson_fe, 1, carrier_fe, 1, carrier_fe, 1);
-		DoFHandler<dim> joint_dof_handler(Poisson_triangulation);
-		joint_dof_handler.distribute_dofs(joint_fe);
-		std::cout << "Sanity check!\n"
-				  << "Number of dofs in joint dof_handler:              "
-				  << joint_dof_handler.n_dofs()
-				  << "\n"
-				  << "Number of sum of dofs in poisson and continuity:  "
-				  << Poisson_dof_handler.n_dofs()+2*semiconductor_dof_handler.n_dofs()
-				  << std::endl;
-		Vector<double> joint_solution(joint_dof_handler.n_dofs());
-
-
-		  {
-			std::vector<types::global_dof_index> local_joint_dof_indices(
-			  joint_fe.dofs_per_cell);
-			std::vector<types::global_dof_index> local_poisson_dof_indices(
-			  Poisson_fe.dofs_per_cell);
-			std::vector<types::global_dof_index> local_carrier_dof_indices(
-			  carrier_fe.dofs_per_cell);
-			typename DoFHandler<dim>::active_cell_iterator
-			  joint_cell       = joint_dof_handler.begin_active(),
-			  joint_endc       = joint_dof_handler.end(),
-			  poisson_cell     = Poisson_dof_handler.begin_active(),
-			  semicon_cell     = semiconductor_dof_handler.begin_active();
-			for (; joint_cell != joint_endc;
-				 ++joint_cell, ++poisson_cell, ++semicon_cell)
-			{
-				  joint_cell->get_dof_indices(local_joint_dof_indices);
-				  poisson_cell->get_dof_indices(local_poisson_dof_indices);
-				  semicon_cell->get_dof_indices(local_carrier_dof_indices);
-				  for (unsigned int i = 0; i < joint_fe.dofs_per_cell; ++i)
-					if (joint_fe.system_to_base_index(i).first.first == 0)
-					  {
-						Assert(joint_fe.system_to_base_index(i).second <
-								 local_poisson_dof_indices.size(),
-							   ExcInternalError());
-						joint_solution(local_joint_dof_indices[i]) = Poisson_object.solution(
-									local_poisson_dof_indices[joint_fe.system_to_base_index(i).second]);
-					  }
-					else if(joint_fe.system_to_base_index(i).first.first == 1)
-					  {
-						Assert(joint_fe.system_to_base_index(i).first.first == 1,
-							   ExcInternalError());
-						Assert(joint_fe.system_to_base_index(i).second <
-								 local_carrier_dof_indices.size(),
-							   ExcInternalError());
-						joint_solution(local_joint_dof_indices[i]) = electron_hole_pair.carrier_1.solution(
-							local_carrier_dof_indices[joint_fe.system_to_base_index(i).second]);
-					  }
-					else
-					{
-						Assert(joint_fe.system_to_base_index(i).first.first == 2,
-							   ExcInternalError());
-						Assert(joint_fe.system_to_base_index(i).second <
-								 local_carrier_dof_indices.size(),
-							   ExcInternalError());
-						joint_solution(local_joint_dof_indices[i]) = electron_hole_pair.carrier_2.solution(
-							local_carrier_dof_indices[joint_fe.system_to_base_index(i).second]);
-					}
-			}
-		  }
-
-
-		DataOut<dim>  currents_out;
-		PostProcessor_currents<dim> postprocessor_currents(sim_params,
-														  electron_hole_pair.carrier_1.name.c_str(),
-														  electron_hole_pair.carrier_2.name.c_str());
-
-		currents_out.attach_dof_handler(joint_dof_handler);
-		currents_out.add_data_vector(joint_solution,
-									 postprocessor_currents);
-
-		currents_out.build_patches();
-
-		std::string currents_file = "Currents";
-		currents_file += Utilities::int_to_string(time_step_number,3);
-		//continuity_file += "grad.gp";
-		currents_file += ".vtu";
-
-		std::ofstream output_current(currents_file.c_str());
-		currents_out.write_vtu(output_current);
-//		data_out.write_gnuplot(output);
-		output_current.close();
-
-
-		//////////////////////////////////////////////////////////////////
-
-
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+		print_currents(time_step_number);
+		calculate_uncompensated_charge();
 		// print the dofs of the end state for restart situation.
 		std::ofstream last_run;
 		if(sim_params.calculate_steady_state)

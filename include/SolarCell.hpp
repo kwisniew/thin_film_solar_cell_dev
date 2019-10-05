@@ -663,36 +663,6 @@ namespace SOLARCELL
 						Assembly::DriftDiffusion::CopyData<dim>		 		 & data,
 						const double 					 					 & penalty);
 
-			/** Builds the RHSes for the reductant and oxidant equations.*/
-			/**	This function loops through all the cells in the electrolyte
- 			*	triangulation. It does so by using electrolyte_dof_handler and 
- 			*	calling SOLARCELL::SolarCellProblem::assemble_local_electrolyte_rhs 
- 			*	uising workstream.*/
-			void
-			assemble_electrolyte_rhs();
-		
-			/** Builds the local RHSes for the electron and hole equations.*/
-			/** It stores the calculated data in Assembly::DriftDiffusion::CopyData
- 			*	the  rhs at time \f$k\f$ is,
- 			*	\f[ = 		
-			*	- \langle   v, K( u^{k-1})    \rangle_{\partial \Omega_{e} \cap \Sigma}  
-			*	 +
-			*	\left( s \textbf{P}  \cdot \boldsymbol \nabla \Phi , u^{k-1} 
-			*	\right)_{\Omega_{e}}
-			*	- 
-			*	\langle  \textbf{p} ,  u_{D} \rangle_{ \partial \Omega_{e} \cap \Gamma_{E} }
-			*	\f]
-			*
-			*  For all \f$(v,\textbf{p}) \in W \times \textbf{W}^{d})\f$ and all 
-			*  \f$\Omega_{e} \in \Omega_{E} \f$.
- 			*/
-			void
-			assemble_local_electrolyte_rhs(
-					const typename DoFHandler<dim>::active_cell_iterator & cell,
-					Assembly::AssemblyScratch<dim>			 & scratch,
-					Assembly::DriftDiffusion::CopyData<dim>  & data,
-					const double 					 		 & penalty);
-
 
 			/** Factorizes all the matrices (Poisson and carriers). */	
 			void
@@ -711,9 +681,12 @@ namespace SOLARCELL
 			void
 			solve_full_system();
 
-			/** Solve the linear systems of reductants and oxidants using one thread for each.*/
-			void
-			solve_electrolyte_system();
+			/**\brief Calculate uncompensated charge over all domain*/
+			 /** This function is needed to calculate capacitance:
+			  * C=dQ/dV --> we need to calculate dQ = Q(t[n+1])-Q(t[n])
+			 */
+			double
+			calculate_uncompensated_charge();
 
 			/** Print the results into three .vtu files using multi-threading. 
  			* One thread prints poisson, one thread prints electron/holes, one thread prints
@@ -726,8 +699,8 @@ namespace SOLARCELL
 			void
 			print_results_on_boundary(unsigned int time_step_number);
 
-			double
-			check_convergence(Vector<double> & residuum, unsigned int index_begin, unsigned int index_end);
+			void
+			print_currents(unsigned int time_step_number);
 
 			/** Assembles the local cell rhs term for the LDG method applied to the 
 			* drift-diffusion equation defined in
