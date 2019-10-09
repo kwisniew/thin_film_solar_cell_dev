@@ -34,6 +34,8 @@ namespace SOLARCELL
 	carrier_fe(FESystem<dim>(FE_DGQ<dim>(degree), dim), 1,
 		       	   	   	   	 FE_DGQ<dim>(degree),       1),
 	Mixed_Assembler(),
+	joint_dof_handler(semiconductor_triangulation),
+	joint_fe(Poisson_fe, 1, carrier_fe, 1, carrier_fe, 1),
 	donor_doping_profile(),
 	acceptor_doping_profile(),
 	schottky_p_type_electrons_eq(),
@@ -511,16 +513,6 @@ namespace SOLARCELL
 							scratch.Poisson_fe_face_values.get_quadrature_points(),
 							scratch.Poisson_bi_values);
 
-
-/*					for (auto i: scratch.Poisson_bi_values)
-					{
-						if(i > 0)
-						{
-							std::cout << i << ' ';
-						}
-
-					}*/
-
 					applied_bias.value_list(
 							scratch.Poisson_fe_face_values.get_quadrature_points(),
 							scratch.Poisson_bc_values);
@@ -619,12 +611,6 @@ namespace SOLARCELL
 	SolarCellProblem<dim>::
 	assemble_LDG_system(const double & transient_or_steady)
 	{	
-		// assemble mass matrix for the electron_hole pair
-//		std::cout<<"MACIERZ PRZED"<<std::endl;
-//
-//		electron_hole_pair.carrier_1.system_matrix.print_formatted(std::cout,0);
-
-//		std::cout << "Czy chodzi o bulk?" << std::endl;
 		WorkStream::run(semiconductor_dof_handler.begin_active(),
 				semiconductor_dof_handler.end(),
 				std_cxx11::bind(&LDG_System::LDG<dim>::
@@ -644,11 +630,7 @@ namespace SOLARCELL
 							  QGauss<dim-1>(degree+2)),
 				Assembly::DriftDiffusion::CopyData<dim>(carrier_fe)
 				);
-//		std::cout<<"MACIERZ Po BULKU"<<std::endl;
-//
-//		electron_hole_pair.carrier_1.system_matrix.print_formatted(std::cout,0);
-		// system matrix for the electron_hole pair
-//		std::cout << "Czy o boundary condition?" << std::endl;
+
 		WorkStream::run(semiconductor_dof_handler.begin_active(),
 				semiconductor_dof_handler.end(),
 				std_cxx11::bind(&LDG_System::LDG<dim>::
@@ -672,20 +654,12 @@ namespace SOLARCELL
 							 QGauss<dim-1>(degree+2)),
 				Assembly::DriftDiffusion::CopyData<dim>(carrier_fe)
 				);
-//		std::cout<<"MACIERZ PO BOUNDARY CONDITION"<<std::endl;
-//
-//		electron_hole_pair.carrier_1.system_matrix.print_formatted(std::cout,0);
 
-//		std::cout << "A może to dopiero fluxy?" << std::endl;
 		// LDG FLLUXES
 		LDG_Assembler.assemble_flux_terms(semiconductor_dof_handler,
 						electron_hole_pair,
 						Poisson_fe,
 						carrier_fe);	
-//		std::cout << "A może wszystko działa" << std::endl;
-//		std::cout<<"MACIERZ PO FLUXACH"<<std::endl;
-//		electron_hole_pair.carrier_1.system_matrix.print_formatted(std::cout,0);
-
 	}
 
 	template<int dim>
@@ -1111,9 +1085,116 @@ namespace SOLARCELL
 		task_group.join_all();
 	} // solve_semiconductor_system
 
+	template<int dim>
+	void
+	SolarCellProblem<dim>::
+	solve_one_time_step(TimerOutput & timer)
+	{
+		timer.enter_subsection("Assemble semiconductor rhs");
+		assemble_semiconductor_rhs();
+		timer.leave_subsection("Assemble semiconductor rhs");
+
+		timer.enter_subsection("Solve LDG Systems");
+		solve_full_system();
+		timer.leave_subsection("Solve LDG Systems");
+
+		timer.enter_subsection("Assemble Poisson rhs");
+		assemble_Poisson_rhs();
+		timer.leave_subsection("Assemble Poisson rhs");
+
+		timer.enter_subsection("Solve Poisson system");
+		solve_Poisson();
+		timer.leave_subsection("Solve Poisson system");
+	}
 	////////////////////////////////////////////////////////////////////////
 	//			PRINTING & POSTPROCESSING
 	////////////////////////////////////////////////////////////////////////
+	template<int dim>
+	void
+	SolarCellProblem<dim>::
+	calculate_one_IV_point(double 				voltage,
+						   Convergence<dim>     & ConverganceCheck,
+						   unsigned int			max_number_of_time_stamps,
+						   std::vector<double> 	& timeStamps,
+						   TimerOutput 			& timer)
+	{
+		std::cout << "Voltage:   " << voltage*sim_params.thermal_voltage <<"\n";
+		//set new bias values
+		applied_bias.set_value(voltage);
+		int time_step_number = 0;
+		double time	  		 = 0.0;
+
+		// with new Vapp we need to recalculate Poisson equation
+		assemble_Poisson_rhs();
+		solve_Poisson();
+
+		// for testing convergence to steady state
+		timer.enter_subsection("Checking convergence");
+		ConverganceCheck.set_old_solutions( Poisson_object.solution,
+											electron_hole_pair.carrier_1.solution,
+											electron_hole_pair.carrier_2.solution);
+		ConverganceCheck.scale_factors_are_set = false;
+		timer.leave_subsection("Checking convergence");
+
+		// time stepping until the semiconductor converges at time
+		// t = t_end_1
+		for(unsigned int k = 0;
+				k < max_number_of_time_stamps;
+				k++)
+		{
+			// while time < next print stamp time
+			while(time < timeStamps[k])
+			{
+				this->solve_one_time_step(timer);
+				time += delta_t;
+
+			} // while
+
+			// print the results
+			timer.enter_subsection("Checking convergence");
+			time_step_number++;
+			//print_results(time_step_number);
+			ConverganceCheck.calculate_residuum(Poisson_object.solution,
+												electron_hole_pair.carrier_1.solution,
+												electron_hole_pair.carrier_2.solution);
+			ConverganceCheck.print_residuums(time_step_number);
+			timer.leave_subsection("Checking convergence");
+			if(ConverganceCheck.get_steady_state_idicator())
+			{
+				std::cout << "STEADY STATE WAS ACHIEVED in "
+						  << time_step_number
+						  << " time step."
+						  <<std::endl;
+				break;
+			}
+
+		} // end for
+
+		timer.enter_subsection("Printing");
+		calculate_joint_solution_vector();
+
+		std::string file_prefix = "IV_Vapp_"+std::to_string(voltage*sim_params.thermal_voltage);
+		print_results(0, file_prefix);
+		print_currents(0, joint_solution, file_prefix);
+		//calculate_uncompensated_charge();
+		double total_current = calculate_currents(joint_solution);
+
+		std::ofstream IV_data;
+		IV_data.open("IV_data.txt", std::ios_base::app);
+		IV_data << total_current
+				 << "\t"
+				 << voltage*sim_params.thermal_voltage
+				 << "\n";
+		IV_data.close();
+
+		std::cout<< "Potencjał:    " << voltage
+				 << "Prąd:         " << total_current
+				 << "\n";
+
+		timer.leave_subsection("Printing");
+
+	}
+
 	template<int dim>
 	double
 	SolarCellProblem<dim>::
@@ -1140,7 +1221,7 @@ namespace SOLARCELL
 		for (const auto &cell : semiconductor_dof_handler.active_cell_iterators())
 	    {
 			fe_values.reinit(cell);
-			cell->get_dof_indices(local_dof_indices);
+			//cell->get_dof_indices(local_dof_indices);
 
 			// get the electron density values at the last time step
 			fe_values[Density].get_function_values(
@@ -1182,58 +1263,10 @@ namespace SOLARCELL
 	template<int dim>
 	void
 	SolarCellProblem<dim>::
-	print_results(unsigned int time_step_number)
+	calculate_joint_solution_vector()
 	{
-		// TODO: Make so that rescaled version will work in debug mode
-		Threads::TaskGroup<void> task_group;
-		task_group += Threads::new_task(&MixedPoisson::
-						MixedFEM<dim>::output_rescaled_results,
-						Mixed_Assembler,
-						Poisson_dof_handler,
-						Poisson_object.solution,
-						sim_params,
-						time_step_number);
-			
-		task_group += Threads::new_task(&LDG_System::
-						LDG<dim>::output_rescaled_results,
-						LDG_Assembler,
-						semiconductor_dof_handler,
-						electron_hole_pair,
-						sim_params,
-						time_step_number);
-
-		task_group.join_all();
-	} // print_results
-
-
-	template<int dim>
-	void
-	SolarCellProblem<dim>::
-	print_results_on_boundary(unsigned int time_step_number)
-	{
-		// TODO: Make so that rescaled version will work in debug mode
-		Threads::TaskGroup<void> task_group;
-		task_group += Threads::new_task(&LDG_System::
-						LDG<dim>::output_unscaled_results_on_boundary,
-						LDG_Assembler,
-						semiconductor_dof_handler,
-						electron_hole_pair,
-		//				sim_params,
-						time_step_number);
-
-
-		task_group.join_all();
-		}
-
-
-	template<int dim>
-	void
-	SolarCellProblem<dim>::
-	print_currents(unsigned int time_step_number)
-	{
-
-		const FESystem<dim> joint_fe(Poisson_fe, 1, carrier_fe, 1, carrier_fe, 1);
-		DoFHandler<dim> joint_dof_handler(Poisson_triangulation);
+		/*const FESystem<dim> joint_fe(Poisson_fe, 1, carrier_fe, 1, carrier_fe, 1);
+		DoFHandler<dim> joint_dof_handler(Poisson_triangulation);*/
 		joint_dof_handler.distribute_dofs(joint_fe);
 		std::cout << "Sanity check!\n"
 				  << "Number of dofs in joint dof_handler:              "
@@ -1242,7 +1275,7 @@ namespace SOLARCELL
 				  << "Number of sum of dofs in poisson and continuity:  "
 				  << Poisson_dof_handler.n_dofs()+2*semiconductor_dof_handler.n_dofs()
 				  << std::endl;
-		Vector<double> joint_solution(joint_dof_handler.n_dofs());
+		joint_solution.reinit(joint_dof_handler.n_dofs());
 
 
 		  {
@@ -1289,20 +1322,193 @@ namespace SOLARCELL
 					}
 			}
 		  }
+	}
+
+	template<int dim>
+	double
+	SolarCellProblem<dim>::
+	calculate_currents(const Vector<double> & joint_solution_vector)
+	{
+		if(joint_solution_vector.size() != joint_dof_handler.n_dofs())
+		{
+			std::cout<<"Vector size is not equal to the number of dofs! Aborting calculate_currents()!\n";
+		}
+		QGauss<dim-1> quad_rule(degree+2);
+		FEFaceValues<dim> joint_fe_face_values( joint_fe,
+												quad_rule,
+												update_values | update_gradients | update_normal_vectors |	update_JxW_values | update_quadrature_points);
+
+		//const unsigned int dofs_per_cell    = joint_fe_face_values.dofs_per_cell;
+		const unsigned int n_q_face_points  = joint_fe_face_values.n_quadrature_points;
+
+		double total_current = 0;
+
+		//std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
+		std::vector<double>			electron_density_values(n_q_face_points);
+		std::vector<double>			hole_density_values(n_q_face_points);
+		std::vector< Tensor<1,dim>> electron_density_gradient_values(n_q_face_points);
+		std::vector< Tensor<1,dim>> hole_density_gradient_values(n_q_face_points);
+		std::vector< Tensor<1,dim>> electric_field_values(n_q_face_points);
+
+		const FEValuesExtractors::Vector ElectricFiled(0);
+		//const FEValuesExtractors::Scalar Potential(dim);
+		//const FEValuesExtractors::Vector ElectronCurrent(dim+1);
+		const FEValuesExtractors::Scalar ElectronDensity(dim+3);
+		//const FEValuesExtractors::Vector HoleCurrent(dim+4);
+		const FEValuesExtractors::Scalar HoleDensity(dim+6);
+
+		double scale_elec_field = sim_params.thermal_voltage/
+							  (sim_params.characteristic_length*(sim_params.scaled_debye_length*sim_params.semiconductor_permittivity));
+		double scale_dryf_current     = PhysicalConstants::electron_charge*sim_params.mobility*sim_params.characteristic_denisty*scale_elec_field;
 
 
+		double scale_gradient	  =  sim_params.characteristic_denisty  / sim_params.characteristic_length;
+		double diffusion_constant =  sim_params.mobility * sim_params.thermal_voltage;
+		double scale_diff_current   =  PhysicalConstants::electron_charge*diffusion_constant*scale_gradient;
+
+		unsigned int numbers_of_cells_on_right_border = 0;
+
+		for (const auto &cell : joint_dof_handler.active_cell_iterators())
+		{
+			// loop over all the faces of the cell and find which are on the boundary
+			for(unsigned int face_no=0;
+					face_no < GeometryInfo<dim>::faces_per_cell;
+					face_no++)
+			{
+				if(cell->face(face_no)->at_boundary() )
+				{
+					if((cell->face(face_no)->center()[0] == sim_params.scaled_p_type_width+sim_params.scaled_n_type_width) )
+					{
+						++numbers_of_cells_on_right_border;
+						for (unsigned int q_index = 0; q_index < n_q_face_points; ++q_index)
+						{
+							joint_fe_face_values.reinit(cell, face_no);
+							const Tensor<1,dim> normal_vector(joint_fe_face_values.normal_vector(q_index));
+
+							// get the electron density
+							joint_fe_face_values[ElectronDensity].get_function_values(
+											joint_solution_vector,
+											electron_density_values);
+
+							// get the hole density
+							joint_fe_face_values[HoleDensity].get_function_values(
+											joint_solution_vector,
+											hole_density_values);
+
+							// get electric field vector
+							joint_fe_face_values[ElectricFiled].get_function_values(
+											joint_solution_vector,
+											electric_field_values);
+
+							// get the hole density gradient
+							joint_fe_face_values[HoleDensity].get_function_gradients(
+											joint_solution_vector,
+											hole_density_gradient_values);
+
+							// get the electron density gradient
+							joint_fe_face_values[ElectronDensity].get_function_gradients(
+											joint_solution_vector,
+											electron_density_gradient_values);
+
+
+							total_current += (scale_dryf_current*hole_density_values[q_index]*electric_field_values[q_index] -
+											  scale_diff_current*hole_density_gradient_values[q_index]+
+											  scale_dryf_current*electron_density_values[q_index]*electric_field_values[q_index] +
+											  scale_diff_current*electron_density_gradient_values[q_index])*
+											 normal_vector*
+											 joint_fe_face_values.JxW(q_index);
+
+							/*std::cout<< "gradient dziur na brzegu:  " << hole_density_gradient_values[0] << "\n";
+							std::cout<< "gradient elekt na brzegu:  " << electron_density_gradient_values[0] << "\n";*/
+							/*std::cout<< "pole elekt na brzegu:  " << scale_elec_field*electric_field_values[0] << "\n";
+							std::cout<<"Wektor normalny do brzegu:   " << normal_vector << "\n";*/
+
+
+						}//q_index
+					}//cell on right hand side
+				}//cell face at boundary
+			}//cell face
+
+		}//cell
+
+//		std::cout<<"Całkowita liczba komórek na prawym brzegu:   " << numbers_of_cells_on_right_border <<"\n";
+
+		total_current/=sim_params.scaled_domain_height;
+		std::cout << "\nCałkowita uśredniona gęstość prądu po prawej stronie:    "
+				  << total_current
+				  << std::endl;
+		return total_current;
+	}
+
+	template<int dim>
+	void
+	SolarCellProblem<dim>::
+	print_results(unsigned int time_step_number, std::string any_string)
+	{
+		// TODO: Make so that rescaled version will work in debug mode
+		Threads::TaskGroup<void> task_group;
+		task_group += Threads::new_task(&MixedPoisson::
+						MixedFEM<dim>::output_rescaled_results,
+						Mixed_Assembler,
+						Poisson_dof_handler,
+						Poisson_object.solution,
+						sim_params,
+						time_step_number,
+						any_string);
+			
+		task_group += Threads::new_task(&LDG_System::
+						LDG<dim>::output_rescaled_results,
+						LDG_Assembler,
+						semiconductor_dof_handler,
+						electron_hole_pair,
+						sim_params,
+						time_step_number,
+						any_string);
+
+		task_group.join_all();
+	} // print_results
+
+
+	template<int dim>
+	void
+	SolarCellProblem<dim>::
+	print_results_on_boundary(unsigned int time_step_number)
+	{
+		// TODO: Make so that rescaled version will work in debug mode
+		Threads::TaskGroup<void> task_group;
+		task_group += Threads::new_task(&LDG_System::
+						LDG<dim>::output_unscaled_results_on_boundary,
+						LDG_Assembler,
+						semiconductor_dof_handler,
+						electron_hole_pair,
+		//				sim_params,
+						time_step_number);
+
+
+		task_group.join_all();
+		}
+
+
+	template<int dim>
+	void
+	SolarCellProblem<dim>::
+	print_currents(unsigned int           time_step_number,
+                   const Vector<double> & joint_solution_vector,
+				   std::string            any_string)
+	{
 		DataOut<dim>  currents_out;
 		PostProcessor_currents<dim> postprocessor_currents(sim_params,
 														  electron_hole_pair.carrier_1.name.c_str(),
 														  electron_hole_pair.carrier_2.name.c_str());
 
 		currents_out.attach_dof_handler(joint_dof_handler);
-		currents_out.add_data_vector(joint_solution,
+		currents_out.add_data_vector(joint_solution_vector,
 									 postprocessor_currents);
 
 		currents_out.build_patches();
 
-		std::string currents_file = "Currents";
+		std::string currents_file = any_string;
+		currents_file += "Currents";
 		currents_file += Utilities::int_to_string(time_step_number,3);
 		//continuity_file += "grad.gp";
 		currents_file += ".vtu";
@@ -1385,14 +1591,13 @@ namespace SOLARCELL
 		double time;
 
 		unsigned int number_outputs = sim_params.time_stamps;
-		std::vector<double>	timeStamps(number_outputs);
+		unsigned int last_run_number=0;
 
 
 		// if we are restarting the simulation, read in the dofs
 		// from the end of the last simulation as the initial conditions of this one
 		if(sim_params.restart_status)
 		{
-			unsigned int last_run_number;
 			std::ifstream last_run;
 			if(sim_params.restart_from_steady_state)
 			{
@@ -1411,14 +1616,7 @@ namespace SOLARCELL
 				std::cout << "UNABLE TO OPEN THE FILE. \n New outputs fill start from index 1!\n";
 				last_run_number=1;
 			}
-
 			electron_hole_pair.read_dofs(sim_params.type_of_restart);
-			for(unsigned int i=0; i<number_outputs; i++)
-				timeStamps[i] = (i+1) * sim_params.t_end / number_outputs;
-			// make the time stamps
-			time_step_number	= last_run_number/*number_outputs*/;
-			time 			= 0.0/*sim_params.t_end*/;
-			std::cout << "running until t = " << sim_params.t_end << std::endl;
 		}
 		else // use defined initial condition functions
 		{
@@ -1429,106 +1627,238 @@ namespace SOLARCELL
 						electrons_initial_condition,
 						electron_hole_pair.carrier_1.solution);
 
-/*			for (auto i: electron_hole_pair.carrier_1.solution)
-			{
-					std::cout << i << ' ' << std::endl;
-			}*/
-
 			VectorTools::project(semiconductor_dof_handler,
 						electron_hole_pair.constraints,
 						QGauss<dim>(degree+1),
 						holes_initial_condition,
 						electron_hole_pair.carrier_2.solution);
+		}
 
+
+		if(!sim_params.calculate_IV_curve)
+		{
+
+			std::vector<double>	timeStamps(number_outputs);
 			// make the time stamps
 			for(unsigned int i=0; i<number_outputs; i++)
-				timeStamps[i] = (i+1) * sim_params.t_end / number_outputs;	
-
-			time_step_number	= 0;
-			time			= 0.0;
+				timeStamps[i] = (i+1) * sim_params.t_end / number_outputs;
+			time 			= 0.0/*sim_params.t_end*/;
 			std::cout << "running until t = " << sim_params.t_end << std::endl;
-		}
 
-		// get the intitial potential and electric field
-		assemble_Poisson_rhs();
-		solve_Poisson();
-	
-		// print the initial values
-		print_results(time_step_number);
-
-		// for testing convergence to steady state
-		Convergence<dim> ConverganceCheck(Poisson_dof_handler,
-									semiconductor_dof_handler,
-										Poisson_object.solution,
-										electron_hole_pair.carrier_1.solution,
-										electron_hole_pair.carrier_2.solution);
-		ConverganceCheck.print_indexes();
-
-		// time stepping until the semiconductor converges at time 
-		// t = t_end_1
-		for(unsigned int k = 0;
-				k < number_outputs;
-				k++)
-		{
-			// while time < next print stamp time
-			while(time < timeStamps[k])
+			if(sim_params.restart_status)
 			{
-				timer.enter_subsection("Assemble semiconductor rhs");
-				//std::cout<<"1"<<std::endl;
-				assemble_semiconductor_rhs();
-				timer.leave_subsection("Assemble semiconductor rhs");
+				time_step_number	= last_run_number/*number_outputs*/;
 
-				//std::cout<<"2"<<std::endl;
-				timer.enter_subsection("Solve LDG Systems");
-				solve_full_system();
-				timer.leave_subsection("Solve LDG Systems");
-	
-				//std::cout<<"Jedziemy Poissona!"<<std::endl;
-				timer.enter_subsection("Assemble Poisson rhs");
-				assemble_Poisson_rhs();
-				timer.leave_subsection("Assemble Poisson rhs");
+			}
+			else
+			{
+				time_step_number	= 0;
+			}
+		// get the intitial potential and electric field
+			assemble_Poisson_rhs();
+			solve_Poisson();
 
-				timer.enter_subsection("Solve Poisson system");
-				solve_Poisson();			
-				timer.leave_subsection("Solve Poisson system");
-
-				time += delta_t;
-				counter++;
-
-			} // while
-
-			// print the results
-			timer.enter_subsection("Printing");
-			time_step_number++;
+			// print the initial values
 			print_results(time_step_number);
-			ConverganceCheck.calculate_residuum(Poisson_object.solution,
+
+			// for testing convergence to steady state
+			Convergence<dim> ConverganceCheck(Poisson_dof_handler,
+										semiconductor_dof_handler,
+											Poisson_object.solution,
+											electron_hole_pair.carrier_1.solution,
+											electron_hole_pair.carrier_2.solution);
+			ConverganceCheck.print_indexes();
+
+			// time stepping until the semiconductor converges at time
+			// t = t_end_1
+			for(unsigned int k = 0;
+					k < number_outputs;
+					k++)
+			{
+				// while time < next print stamp time
+				while(time < timeStamps[k])
+				{
+					solve_one_time_step(timer);
+
+					time += delta_t;
+					counter++;
+
+				} // while
+
+				// print the results
+				timer.enter_subsection("Printing");
+				time_step_number++;
+				print_results(time_step_number);
+				ConverganceCheck.calculate_residuum(Poisson_object.solution,
+													electron_hole_pair.carrier_1.solution,
+													electron_hole_pair.carrier_2.solution);
+				ConverganceCheck.print_residuums(time_step_number);
+				if(ConverganceCheck.get_steady_state_idicator())
+				{
+					std::cout << "STEADY STATE WAS ACHIEVED in "
+							  << time_step_number
+							  << " time step."
+							  <<std::endl;
+					break;
+				}
+				timer.leave_subsection("Printing");
+			} // end for
+	
+			calculate_joint_solution_vector();
+			print_currents(time_step_number, joint_solution);
+			calculate_uncompensated_charge();
+			// print the dofs of the end state for restart situation.
+			std::ofstream last_run;
+			if(sim_params.calculate_steady_state)
+			{
+				last_run.open("last_run_ss.txt", std::ios::out | std::ios::trunc);
+			}
+			else last_run.open("last_run.txt", std::ios::out | std::ios::trunc);
+			last_run << time_step_number;
+			last_run.close();
+
+			std::ofstream IV_data;
+			if(sim_params.calculate_steady_state)
+			{
+				IV_data.open("IV_data.txt", std::ios::out | std::ios::trunc);
+			}
+			else IV_data.open("IV_data_restart.txt", std::ios::out | std::ios::trunc);
+			IV_data << calculate_currents(joint_solution)
+					 << "\t"
+					 << sim_params.scaled_applied_bias/sim_params.thermal_voltage
+					 << "\n";
+			IV_data.close();
+
+			electron_hole_pair.print_dofs(sim_params.type_of_simulation);
+
+
+
+		}
+		else if(sim_params.calculate_IV_curve && sim_params.restart_from_steady_state)
+		/*
+		 *
+		 *
+		 **********************************************
+		 *      WE ARE CALCULATING IV CURVE!          *
+		 **********************************************
+		 *
+		 *
+		 *
+		 */
+		{
+			double voltage_step = (sim_params.scaled_IV_max_V - sim_params.scaled_IV_min_V)/sim_params.IV_n_of_data_points;
+			double V_min = sim_params.scaled_IV_min_V;
+			//double V_max = sim_params.scaled_IV_max_V;
+			std::cout << "CALCULATING IV CURVE \n";
+
+			unsigned int max_number_of_time_stamps = 3*number_outputs;
+			std::vector<double>	timeStamps(max_number_of_time_stamps);
+			// make the time stamps
+			for(unsigned int i=0; i<max_number_of_time_stamps; i++)
+				timeStamps[i] = (i+1) * sim_params.t_end / number_outputs;
+			std::cout << "running until t = " << sim_params.t_end << std::endl;
+
+			// get the intitial potential and electric field
+			assemble_Poisson_rhs();
+			solve_Poisson();
+
+			Convergence<dim> ConverganceCheck(Poisson_dof_handler,
+										semiconductor_dof_handler,
+											Poisson_object.solution,
+											electron_hole_pair.carrier_1.solution,
+											electron_hole_pair.carrier_2.solution);
+			ConverganceCheck.print_indexes();
+
+/*
+			for(double voltage = -voltage_step; voltage > V_min; voltage-=voltage_step)
+			{
+				calculate_one_IV_point(voltage, ConverganceCheck, max_number_of_time_stamps, timeStamps, timer);
+			} // end minus voltage for loop
+*/
+
+			for(double voltage = -voltage_step; voltage > V_min; voltage-=voltage_step)
+			{
+				std::cout << "Voltage:   " << voltage*sim_params.thermal_voltage <<"\n";
+				//set new bias values
+				applied_bias.set_value(voltage);
+				time_step_number = 0;
+				time 			= 0.0;
+				// get the intitial potential and electric field
+				assemble_Poisson_rhs();
+				solve_Poisson();
+
+				// for testing convergence to steady state
+				Convergence<dim> ConverganceCheck(Poisson_dof_handler,
+											semiconductor_dof_handler,
+												Poisson_object.solution,
 												electron_hole_pair.carrier_1.solution,
 												electron_hole_pair.carrier_2.solution);
-			ConverganceCheck.print_residuums(time_step_number);
-			if(ConverganceCheck.get_steady_state_idicator())
-			{
-				std::cout << "STEADY STATE WAS ACHIEVED in "
-						  << time_step_number
-						  << " time step."
-						  <<std::endl;
-				break;
+				//ConverganceCheck.print_indexes();
+
+/*				ConverganceCheck.set_old_solutions( Poisson_object.solution,
+													electron_hole_pair.carrier_1.solution,
+													electron_hole_pair.carrier_2.solution);*/
+				ConverganceCheck.scale_factors_are_set = false;
+				// time stepping until the semiconductor converges at time
+				// t = t_end_1
+				for(unsigned int k = 0;
+						k < 3*number_outputs;
+						k++)
+				{
+					// while time < next print stamp time
+					while(time < timeStamps[k])
+					{
+						solve_one_time_step(timer);
+						time += delta_t;
+						counter++;
+
+					} // while
+
+					// print the results
+					timer.enter_subsection("Printing");
+					time_step_number++;
+					//print_results(time_step_number);
+					ConverganceCheck.calculate_residuum(Poisson_object.solution,
+														electron_hole_pair.carrier_1.solution,
+														electron_hole_pair.carrier_2.solution);
+					ConverganceCheck.print_residuums(time_step_number);
+					if(ConverganceCheck.get_steady_state_idicator())
+					{
+						std::cout << "STEADY STATE WAS ACHIEVED in "
+								  << time_step_number
+								  << " time step."
+								  <<std::endl;
+						break;
+					}
+					timer.leave_subsection("Printing");
+				} // end for
+
+				calculate_joint_solution_vector();
+
+				std::string file_prefix = "IV_Vapp_"+std::to_string(voltage*sim_params.thermal_voltage);
+				print_results(0, file_prefix);
+				print_currents(0, joint_solution, file_prefix);
+				//calculate_uncompensated_charge();
+				double total_current = calculate_currents(joint_solution);
+
+				std::ofstream IV_data;
+				IV_data.open("IV_data.txt", std::ios_base::app);
+				IV_data << total_current
+						 << "\t"
+						 << voltage*sim_params.thermal_voltage
+						 << "\n";
+				IV_data.close();
+
+				std::cout<< "Potencjał:    " << voltage
+						 << "Prąd:         " << total_current
+						 << "\n";
+
 			}
-			timer.leave_subsection("Printing");
-		} // end for
-
-		print_currents(time_step_number);
-		calculate_uncompensated_charge();
-		// print the dofs of the end state for restart situation.
-		std::ofstream last_run;
-		if(sim_params.calculate_steady_state)
+		} // end IV curve
+		else
 		{
-			last_run.open("last_run_ss.txt", std::ios::out | std::ios::trunc);
+			std::cout << "Calculation of IV curve not from steady state was not implemented!";
 		}
-		else last_run.open("last_run.txt", std::ios::out | std::ios::trunc);
-		last_run << time_step_number;
-		last_run.close();
-		electron_hole_pair.print_dofs(sim_params.type_of_simulation);
-
 	} // run
 
 
