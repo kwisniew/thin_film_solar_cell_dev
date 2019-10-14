@@ -21,10 +21,17 @@ template <int dim>
 	class Convergence
 	{
 		public:
+			bool scale_factors_are_set;
+
 			Convergence();
 			Convergence(const DoFHandler<dim> & Poisson_dof_handler,const DoFHandler<dim> & continuity_dof_handler,
 						const Vector<double>  & Poisson_solution   , const Vector<double> & Continuity_solution_electron,
 																	 const Vector<double> & Continuity_solution_hole);
+
+			void set_old_solutions(const Vector<double>  & Poisson_solution,
+								   const Vector<double>  & Continuity_solution_electron,
+								   const Vector<double>  & Continuity_solution_hole);
+
 			void print_indexes();
 			void print_residuums(unsigned int time_step);
 
@@ -99,7 +106,6 @@ template <int dim>
 			double old_elec_density_res;
 			double old_hole_density_res;
 
-			bool scale_factors_are_set;
 			bool steady_state;
 
 	};

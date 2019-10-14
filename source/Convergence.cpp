@@ -22,26 +22,26 @@ double inner_product_product(double x, double y)
 template<int dim>
 Convergence<dim>::
 Convergence() :
-electric_field_residuum(0),
-potential_residuum(0),
-jx_hole_residuum(0),
-jy_hole_residuum(0),
-hole_density_residuum(0),
-jx_electron_residuum(0),
-jy_electron_residuum(0),
-electron_density_residuum(0),
-electric_field_scale_factor(0),
-potential_scale_factor(0),
-jx_hole_scale_factor(0),
-jy_hole_scale_factor(0),
-hole_density_scale_factor(0),
-jx_electron_scale_factor(0),
-jy_electron_scale_factor(0),
-electron_density_scale_factor(0),
-old_potential_res(10),
-old_elec_density_res(10),
-old_hole_density_res(10),
 scale_factors_are_set(false),
+electric_field_residuum(0.0),
+potential_residuum(0.0),
+jx_hole_residuum(0.0),
+jy_hole_residuum(0.0),
+hole_density_residuum(0.0),
+jx_electron_residuum(0.0),
+jy_electron_residuum(0.0),
+electron_density_residuum(0.0),
+electric_field_scale_factor(0.0),
+potential_scale_factor(0.0),
+jx_hole_scale_factor(0.0),
+jy_hole_scale_factor(0.0),
+hole_density_scale_factor(0.0),
+jx_electron_scale_factor(0.0),
+jy_electron_scale_factor(0.0),
+electron_density_scale_factor(0.0),
+old_potential_res(10.0),
+old_elec_density_res(10.0),
+old_hole_density_res(10.0),
 steady_state(false)
 {
 }
@@ -52,29 +52,29 @@ Convergence(const DoFHandler<dim> & Poisson_dof_handler,const DoFHandler<dim> & 
 			const Vector<double>  & Poisson_solution   , const Vector<double> & Continuity_solution_electron,
 														 const Vector<double> & Continuity_solution_hole):
 
+scale_factors_are_set(false),
 old_Poisson_solution(Poisson_solution),
 old_Continuity_solution_electrons(Continuity_solution_electron),
 old_Continuity_solution_holes(Continuity_solution_hole),
-electric_field_residuum(0),
-potential_residuum(0),
-jx_hole_residuum(0),
-jy_hole_residuum(0),
-hole_density_residuum(0),
-jx_electron_residuum(0),
-jy_electron_residuum(0),
-electron_density_residuum(0),
-electric_field_scale_factor(0),
-potential_scale_factor(0),
-jx_hole_scale_factor(0),
-jy_hole_scale_factor(0),
-hole_density_scale_factor(0),
-jx_electron_scale_factor(0),
-jy_electron_scale_factor(0),
-electron_density_scale_factor(0),
-old_potential_res(10),
-old_elec_density_res(10),
-old_hole_density_res(10),
-scale_factors_are_set(false),
+electric_field_residuum(0.0),
+potential_residuum(0.0),
+jx_hole_residuum(0.0),
+jy_hole_residuum(0.0),
+hole_density_residuum(0.0),
+jx_electron_residuum(0.0),
+jy_electron_residuum(0.0),
+electron_density_residuum(0.0),
+electric_field_scale_factor(0.0),
+potential_scale_factor(0.0),
+jx_hole_scale_factor(0.0),
+jy_hole_scale_factor(0.0),
+hole_density_scale_factor(0.0),
+jx_electron_scale_factor(0.0),
+jy_electron_scale_factor(0.0),
+electron_density_scale_factor(0.0),
+old_potential_res(10.0),
+old_elec_density_res(10.0),
+old_hole_density_res(10.0),
 steady_state(false)
 {
 
@@ -105,6 +105,22 @@ steady_state(false)
 	density_indexes.first    = 2*n_current;
 	density_indexes.second	 = 2*n_current+n_density-1;
 
+}
+
+
+template<int dim>
+void
+Convergence<dim>::
+set_old_solutions(const Vector<double>  & Poisson_solution,
+				  const Vector<double>  & Continuity_solution_electron,
+				  const Vector<double>  & Continuity_solution_hole)
+{
+	old_Poisson_solution 			  = Poisson_solution;
+	old_Continuity_solution_electrons = Continuity_solution_electron;
+	old_Continuity_solution_holes     = Continuity_solution_hole;
+	old_potential_res    = 10.0;
+	old_elec_density_res = 10.0;
+	old_hole_density_res = 10.0;
 }
 
 template<int dim>
