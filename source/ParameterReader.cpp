@@ -44,6 +44,14 @@ namespace ParameterSpace
 				Patterns::Bool(),
 				"whether to calculate a small signal response");
 
+		prm.declare_entry("IV curve", "false",
+				Patterns::Bool(),
+				"whether to calculate an IV curve");
+
+		prm.declare_entry("CV curve", "false",
+				Patterns::Bool(),
+				"whether to calculate an CV curve");
+
 		prm.declare_entry("global refinements", "4",
 				 Patterns::Integer(0,10),
 				 "number of global refinements");
@@ -161,6 +169,14 @@ namespace ParameterSpace
 
 
 		prm.enter_subsection("physical");
+		prm.declare_entry("real domain height", "0.5",
+				Patterns::Double(0.1,5.0),
+				"real domain height (or more correctly width) [cm]");
+
+		prm.declare_entry("device thickness", "0.5",
+				Patterns::Double(0.1,5.0),
+				"device thickness [cm]");
+
 		prm.declare_entry("applied bias", "0.0",
 				Patterns::Double(-10.0,10.0),
 				"the applied bias [v]");
@@ -244,6 +260,26 @@ namespace ParameterSpace
 		prm.declare_entry("absorption coefficient", "1.74974e5",
 				Patterns::Double(0),
 				"absoprtion coefficient averaged over all energies  [cm^{-1} ]");
+
+		prm.leave_subsection();
+
+
+		prm.enter_subsection("IV");
+		prm.declare_entry("IV minimal voltage", "-1.0",
+				Patterns::Double(-10,10),
+				"The lowest voltage value on IV curve [V]");
+
+		prm.declare_entry("IV maximal voltage", "1.0",
+				Patterns::Double(-10,10),
+				"Recombination rate/time of electrons [s]");
+
+		prm.declare_entry("IV number of data points", "20",
+				 Patterns::Integer(0,100),
+				 "number of points on the curve (without 0V point)");
+
+		prm.declare_entry("delta V", "0.001",
+				 Patterns::Double(0.0001,0.1),
+				 "small voltage increment for capacitance calculations");
 
 		prm.leave_subsection();
 	}
@@ -429,6 +465,9 @@ namespace ParameterSpace
 				"oxidant mobility [v/cm^{2}]");	
 	
 		prm.leave_subsection();
+
+
+
 	
 
 

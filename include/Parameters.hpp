@@ -23,7 +23,7 @@ namespace ParameterSpace
 	
 	
 	/** These are the parameters which will be used by
-	*		DriftDiffusionPoisson class to do simulations. They will be read
+	*		SolarCell class to do simulations. They will be read
 	*		read in using the ParameterReader class to read them from 
 	*		input_file.prm and then use the ParameterHandler to 
 	* 	set the variables and scale them if necessary.
@@ -34,6 +34,8 @@ namespace ParameterSpace
 			bool 		 calculate_steady_state;
 			bool 		 calculate_equilibrium_state;
 			bool 		 calculate_small_signal_response;
+			bool		 calculate_IV_curve;
+			bool		 calculate_CV_curve;
 			std::string  type_of_simulation;
 			unsigned int n_global_refine;				
 			unsigned int n_local_refine;				
@@ -85,11 +87,13 @@ namespace ParameterSpace
 			double mobility;
 
 			//Physical
+			double real_domain_height;
+			double device_thickness;
 			double scaled_intrinsic_density;
 			double semiconductor_permittivity;
 			double scaled_absorption_coeff;
 			double scaled_photon_flux;
-			//note: any time you use scaled_debye_length in a program it need to be multiply by semiconductor_permittivity
+			//NOTE: any time you use scaled_debye_length in a program it need to be multiply by semiconductor_permittivity
 			double scaled_debye_length;
 			double Nc_effective_dos;
 			double Nv_effective_dos;
@@ -121,6 +125,13 @@ namespace ParameterSpace
 			double scaled_schottky_bias;
 
 			double rescale_current;
+
+			//IV
+			double scaled_IV_min_V;
+			double scaled_IV_max_V;
+			unsigned int IV_n_of_data_points;
+			double scaled_delta_V;
+
 
 			/** This functions makes almost everythingn 1.0 that is relevant for testing.*/
 			void set_params_for_testing(const unsigned int & n_refine)
@@ -157,6 +168,8 @@ namespace ParameterSpace
 				this->calculate_steady_state          = prm.get_bool("steady state");
 				this->calculate_equilibrium_state     = prm.get_bool("equilibrium state");
 				this->calculate_small_signal_response = prm.get_bool("small signal response");
+				this->calculate_IV_curve			  = prm.get_bool("IV curve");
+				this->calculate_CV_curve			  = prm.get_bool("CV curve");
 
 				this->n_global_refine = prm.get_integer("global refinements");
 				this->n_local_refine  = prm.get_integer("local refinements");
@@ -195,7 +208,9 @@ namespace ParameterSpace
 				this->hole_effective_mass   = prm.get_double("hole effective mass");
 				prm.leave_subsection();
 
-				prm.enter_subsection("physical");	
+				prm.enter_subsection("physical");
+				this->real_domain_height = prm.get_double("real domain height");
+				this->device_thickness   = prm.get_double("device thickness");
 				this->illum_or_dark = prm.get_bool("illumination status");
 				this->insulated = prm.get_bool("insulated");
 				this->schottky_status = prm.get_bool("schottky status");
@@ -219,7 +234,19 @@ namespace ParameterSpace
 				this->semiconductor_permittivity = prm.get_double("semiconductor permittivity");
 				prm.leave_subsection();
 
+				prm.enter_subsection("IV");
+				this->scaled_IV_min_V = prm.get_double("IV minimal voltage");
+				this->scaled_IV_max_V = prm.get_double("IV maximal voltage");
+				this->IV_n_of_data_points = prm.get_double("IV number of data points");
+				this->scaled_delta_V        = prm.get_double("delta V");
+				prm.leave_subsection();
+
+
+
+				//tmp NEED TO CHANGE IT AS SOON AS POSSIBLE
+				//it is for scaling of outputs values
 				this->mobility = this->scaled_electron_mobility;
+
 				/*----------------------------------------------------------------------*/
 				// 	Compute parameters
 				/*----------------------------------------------------------------------*/
@@ -440,6 +467,10 @@ namespace ParameterSpace
 				this->scaled_applied_bias  /= this->thermal_voltage;
 				this->scaled_built_in_bias /= this->thermal_voltage;
 				this->scaled_schottky_bias /= this->thermal_voltage;
+				this->scaled_IV_max_V      /= this->thermal_voltage;
+				this->scaled_IV_min_V      /= this->thermal_voltage;
+				this->scaled_delta_V              /= this->thermal_voltage;
+
 
 				this->rescale_current = (PhysicalConstants::electron_charge 
 							* this->characteristic_denisty 
