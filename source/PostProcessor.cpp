@@ -121,12 +121,6 @@ evaluate_vector_field
 /*
  *
  *
- *
- *
- *
- *
- *
- *
  *  CALCULATE ALL CURRENT
  *
  *

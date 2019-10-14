@@ -202,7 +202,8 @@ namespace MixedPoisson
 			void	output_rescaled_results(DoFHandler<dim>	 & dof_handler,
 						const Vector<double> 				 & solution,
 						const ParameterSpace::Parameters 	 & sim_params,
-						const unsigned int time_step_number) const;
+						const unsigned int  				   time_step_number,
+						const std::string 					   any_string="") const;
 		
 			/** Prints the electric field and potential without the units. */	
 			void	output_unscaled_results(DoFHandler<dim>		& dof_handler,

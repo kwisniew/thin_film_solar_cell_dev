@@ -75,7 +75,7 @@ namespace LDG_System
 					// construct the local mass matrix
 					// int_{Omega} (1/dt) * v * u dx
 					data.local_mass_matrix(i,j) += 
-							(1.0/delta_t) * psi_i_density * psi_j_density 
+							(1.0/delta_t) * psi_i_density * psi_j_density
 							* scratch.carrier_fe_values.JxW(q);
 				}
 			}
@@ -475,7 +475,7 @@ namespace LDG_System
 		const unsigned int n_face_points  =	
 					scratch.carrier_fe_face_values.n_quadrature_points;
 		//TODO: loop only by this shape functions which are non-zero on this face (or just check if it is possible)
-		//      (right now we loop over all 12 dofs in cell)
+		//      (right now we loop over all eg. 12 dofs in cell)
 		const unsigned int dofs_this_cell =
 					scratch.carrier_fe_face_values.dofs_per_cell;
 		const unsigned int dofs_neighbor_cell =
@@ -1265,31 +1265,6 @@ namespace LDG_System
 						} // for i
 					}	// for q
 				} // end Dirichlet
-/*				else if(face->boundary_id() == Interface)
-				{
-					test_LDG_interface.value_list(
-							scratch.carrier_fe_face_values.get_quadrature_points(),
-							scratch.carrier_1_bc_values);
-
-					// loop over all the quadrature points on this face
-					for(unsigned int q=0; q<n_face_q_points; q++)
-					{
-						// loop over all the test function dofs on this face
-						for(unsigned int i=0; i<dofs_per_cell; i++)
-						{
-							// get the test function
-							const double psi_i_density =
-									scratch.carrier_fe_face_values[Density].value(i,q);
-	
-							// int_{\Gamm
-							data.local_carrier_1_rhs(i) +=
-									-1.0 * psi_i_density *
-									scratch.carrier_1_bc_values[q] *
-									scratch.carrier_fe_face_values.JxW(q);
-		
-						} // for i
-					} // for q
-				}*/
 				else if(face->boundary_id() == Neumann)
 				{
 					// NOTHIN TO DO IF INSULATING
@@ -1516,10 +1491,11 @@ namespace LDG_System
 	template<int dim>
 	void
 	LDG<dim>::
-	output_rescaled_results(DoFHandler<dim>		             & carrier_dof_handler,
+	output_rescaled_results(DoFHandler<dim>		     & carrier_dof_handler,
 				ChargeCarrierSpace::CarrierPair<dim> & carrier_pair,
 				const ParameterSpace::Parameters     & sim_params,
-				const unsigned int 		   time_step_number) const
+				const unsigned int 		   			   time_step_number,
+				const std::string 					   any_string) const
 	{
 		DataOut<dim>		data_out;
 		PostProcessor<dim>	postprocessor_1(sim_params,
@@ -1542,7 +1518,8 @@ namespace LDG_System
 		data_out.build_patches();
 	
 
-		std::string continuity_file = carrier_pair.material_name.c_str();
+		std::string continuity_file = any_string;
+		continuity_file += carrier_pair.material_name.c_str();
 		continuity_file += Utilities::int_to_string(time_step_number,3);
 		continuity_file += ".vtu";
 

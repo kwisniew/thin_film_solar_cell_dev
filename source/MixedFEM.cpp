@@ -250,14 +250,17 @@ namespace MixedPoisson
 	output_rescaled_results(DoFHandler<dim>	& dof_handler,
 				const Vector<double> & solution,
 				const ParameterSpace::Parameters & sim_params,
-				const unsigned int time_step_number) const
+				const unsigned int time_step_number,
+				const std::string  any_string) const
 	{
 		PostProcessor<dim> 	postprocessor(sim_params, false,"noname");
 		DataOut<dim>		data_out;
 		data_out.attach_dof_handler(dof_handler);
 		data_out.add_data_vector(solution, postprocessor);
 		data_out.build_patches();
-		std::string file = "Poisson-"
+		std::string file = any_string
+				+
+				"Poisson-"
 				+ 
 				Utilities::int_to_string(time_step_number,3) 
 				+ 

@@ -403,7 +403,8 @@ namespace LDG_System
 			output_rescaled_results(DoFHandler<dim>			 & carrier_dof_handler,
 					ChargeCarrierSpace::CarrierPair<dim> 	 & carrier_pair,
 					const ParameterSpace::Parameters 		 & sim_params,
-					const unsigned int 			  			 time_step_number) const;
+					const unsigned int 			  			 time_step_number,
+					const std::string 					     any_string="") const;
 
 			/** \brief Does the same as LDG_System::LDG::output_unscaled_results 
 			but only on the boundary.*/
