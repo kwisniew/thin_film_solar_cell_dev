@@ -384,9 +384,9 @@ namespace SOLARCELL
 			* Poisson equation on the whole domain.*/
 			LDG_System::LDG<dim>			LDG_Assembler;
 
-			//Convergence<dim>                Convergance_check;
-
-
+			DoFHandler<dim>					joint_dof_handler;
+			FESystem<dim>					joint_fe;
+			Vector<double>					joint_solution;
 
 			/*----------------------------------------------------------------*/
 			/* Mappings														  */
@@ -566,28 +566,6 @@ namespace SOLARCELL
 				Assembly::AssemblyScratch<dim>						 & scratch,
 				Assembly::Poisson::CopyData<dim>					 & data);
 	
-			/** \brief Assembles the local poisson rhs for the coupled problem
- 			*		in the electrolyte triangulation. */
-			/**  This function loops through all the cells in the 
- 			*	electrolyte triangulation and performs the following calculation, 
- 			*	\f[ \ = \ -\langle \textbf{p} \ , \ \Phi^{\infty} 
-			* \rangle_{\partial \Omega_{e} \cap \Gamma_{E}} 
-			*	- 
-			*	\left( v, 
-			* \left[  -\  \left( \rho_{r} \ - \ \rho_{o} \right) \ \right]   
-			* \ \right)_{\Omega_{e}} \f]
-			* 
-			*
-			*  For all \f$( v \  , \ \textbf{p}  ) \, \in \, W \, \times\, \textbf{V}^{d}\f$ and
-			*  all \f$\Omega_{e} \in \Omega_{E}\f$. It stores the data in 
-			*  Assembly::Poisson::CopyData. */
-			void 
-			assemble_local_Poisson_rhs_for_electrolyte(
-				const typename DoFHandler<dim>::active_cell_iterator & cell,
-				Assembly::AssemblyScratch<dim>						 & scratch,
-				Assembly::Poisson::CopyData<dim>					 & data);
-
-
 			/** Assembles the LDG system that asembles the mass matrix and system matrix for the
  			* electrons, holes, reductants and oxidants using the IMEX method and LDG 
  			* discritizations.*/	
@@ -681,6 +659,27 @@ namespace SOLARCELL
 			void
 			solve_full_system();
 
+			/*\brief Solve once continuity equation and after that Poisson equation*/
+			/** This function calculate, for actual values of matrices and rhsides
+			 * following system of routines:
+			 * assemble_semiconductor_rhs() --> solve_full_system() -->
+			 * assemble_Poisson_rhs() --> solve_Poisson();
+			 */
+			void
+			solve_one_time_step(TimerOutput & timer);
+
+			/**\brief Calculate uncompensated charge over all domain*/
+			 /** This function is needed to calculate capacitance:
+			  * C=dQ/dV --> we need to calculate dQ = Q(t[n+1])-Q(t[n])
+			 */
+			void
+			calculate_one_IV_point(double 				voltage,
+								   Convergence<dim>     & ConverganceCheck,
+								   unsigned int			max_number_of_time_stamps,
+								   std::vector<double> 	& timeStamps,
+								   TimerOutput 			& timer,
+								   bool 				make_output);
+
 			/**\brief Calculate uncompensated charge over all domain*/
 			 /** This function is needed to calculate capacitance:
 			  * C=dQ/dV --> we need to calculate dQ = Q(t[n+1])-Q(t[n])
@@ -688,11 +687,24 @@ namespace SOLARCELL
 			double
 			calculate_uncompensated_charge();
 
+			/**\brief [Postprocessing] Calculate vector of solutions as if we where solving
+			 * only one equation (vector contains E,phi,jp,jn,rho_n, rho_p)*/
+			 /** This function is needed if we want to calculate global variables
+			  * as currents because eg. to calculate drift currents we need
+			  * E and rho (densities), which variables we achieved from different
+			  * equations.
+			 */
+			void
+			calculate_joint_solution_vector();
+
+			double
+			calculate_currents(const Vector<double> & joint_solution_vector);
+
 			/** Print the results into three .vtu files using multi-threading. 
  			* One thread prints poisson, one thread prints electron/holes, one thread prints
  			* reductant/oxidant.*/
 			void
-			print_results(unsigned int time_step_number);
+			print_results(unsigned int time_step_number, std::string any_string="");
 	
 			/** Multi threaded printing that only prints the electron-hole and reductant-oxidant
  			* values on the boundary of their respective domains. */
@@ -700,7 +712,9 @@ namespace SOLARCELL
 			print_results_on_boundary(unsigned int time_step_number);
 
 			void
-			print_currents(unsigned int time_step_number);
+			print_currents(unsigned int           time_step_number,
+					       const Vector<double> & joint_solution_vector,
+						   std::string any_string="");
 
 			/** Assembles the local cell rhs term for the LDG method applied to the 
 			* drift-diffusion equation defined in

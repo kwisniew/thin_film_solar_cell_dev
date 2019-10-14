@@ -1116,9 +1116,10 @@ namespace SOLARCELL
 						   Convergence<dim>     & ConverganceCheck,
 						   unsigned int			max_number_of_time_stamps,
 						   std::vector<double> 	& timeStamps,
-						   TimerOutput 			& timer)
+						   TimerOutput 			& timer,
+						   bool 				make_output)
 	{
-		std::cout << "Voltage:   " << voltage*sim_params.thermal_voltage <<"\n";
+		std::cout << "\nVoltage:   " << voltage*sim_params.thermal_voltage <<"\n";
 		//set new bias values
 		applied_bias.set_value(voltage);
 		int time_step_number = 0;
@@ -1172,23 +1173,25 @@ namespace SOLARCELL
 
 		timer.enter_subsection("Printing");
 		calculate_joint_solution_vector();
-
-		std::string file_prefix = "IV_Vapp_"+std::to_string(voltage*sim_params.thermal_voltage);
-		print_results(0, file_prefix);
-		print_currents(0, joint_solution, file_prefix);
-		//calculate_uncompensated_charge();
 		double total_current = calculate_currents(joint_solution);
 
-		std::ofstream IV_data;
-		IV_data.open("IV_data.txt", std::ios_base::app);
-		IV_data << total_current
-				 << "\t"
-				 << voltage*sim_params.thermal_voltage
-				 << "\n";
-		IV_data.close();
+		if(make_output)
+		{
+			std::string file_prefix = "IV_Vapp_"+std::to_string(voltage*sim_params.thermal_voltage);
+			print_results(0, file_prefix);
+			print_currents(0, joint_solution, file_prefix);
+			//calculate_uncompensated_charge();
 
-		std::cout<< "Potencjał:    " << voltage
-				 << "Prąd:         " << total_current
+
+			std::ofstream IV_data;
+			IV_data.open("IV_data.txt", std::ios_base::app);
+			IV_data  << voltage*sim_params.thermal_voltage
+					 << "\t"
+					 << total_current
+					 << "\n";
+			IV_data.close();
+		}
+		std::cout<< "Current:         " << total_current
 				 << "\n";
 
 		timer.leave_subsection("Printing");
@@ -1434,6 +1437,7 @@ namespace SOLARCELL
 //		std::cout<<"Całkowita liczba komórek na prawym brzegu:   " << numbers_of_cells_on_right_border <<"\n";
 
 		total_current/=sim_params.scaled_domain_height;
+		total_current*=(sim_params.real_domain_height*sim_params.device_thickness);
 		std::cout << "\nCałkowita uśredniona gęstość prądu po prawej stronie:    "
 				  << total_current
 				  << std::endl;
@@ -1541,8 +1545,8 @@ namespace SOLARCELL
 
 		// make the grids and set the boundary conditions
 		grid_maker.make_grids(semiconductor_triangulation,
-					Poisson_triangulation
-					);
+							  Poisson_triangulation
+							  );
 
 		grid_maker.print_grid(Poisson_triangulation,"Grid.eps");
 		grid_maker.print_grid(semiconductor_triangulation,"Semi.eps");
@@ -1648,7 +1652,6 @@ namespace SOLARCELL
 			if(sim_params.restart_status)
 			{
 				time_step_number	= last_run_number/*number_outputs*/;
-
 			}
 			else
 			{
@@ -1705,17 +1708,9 @@ namespace SOLARCELL
 			} // end for
 	
 			calculate_joint_solution_vector();
+
+			//currents
 			print_currents(time_step_number, joint_solution);
-			calculate_uncompensated_charge();
-			// print the dofs of the end state for restart situation.
-			std::ofstream last_run;
-			if(sim_params.calculate_steady_state)
-			{
-				last_run.open("last_run_ss.txt", std::ios::out | std::ios::trunc);
-			}
-			else last_run.open("last_run.txt", std::ios::out | std::ios::trunc);
-			last_run << time_step_number;
-			last_run.close();
 
 			std::ofstream IV_data;
 			if(sim_params.calculate_steady_state)
@@ -1728,6 +1723,36 @@ namespace SOLARCELL
 					 << sim_params.scaled_applied_bias/sim_params.thermal_voltage
 					 << "\n";
 			IV_data.close();
+
+			//capacitance:
+			double total_charge =calculate_uncompensated_charge();
+			calculate_one_IV_point(sim_params.scaled_delta_V, ConverganceCheck, 15, timeStamps, timer,false);
+			std::ofstream CV_data;
+			if(sim_params.calculate_steady_state)
+			{
+				CV_data.open("CV_data.txt", std::ios::out | std::ios::trunc);
+			}
+			else CV_data.open("CV_data.txt", std::ios_base::app);
+			CV_data  << 0.0
+					 << "\t"
+					 <<  (sim_params.real_domain_height/(sim_params.scaled_domain_height*sim_params.characteristic_length))*
+					 	 ((-calculate_uncompensated_charge() + total_charge)*sim_params.device_thickness*
+						   sim_params.characteristic_denisty*PhysicalConstants::electron_charge*
+						   sim_params.characteristic_length*sim_params.characteristic_length)/
+					     (sim_params.scaled_delta_V*sim_params.thermal_voltage)
+					 << "\n";
+			CV_data.close();
+
+
+			// print the dofs of the end state for restart situation.
+			std::ofstream last_run;
+			if(sim_params.calculate_steady_state)
+			{
+				last_run.open("last_run_ss.txt", std::ios::out | std::ios::trunc);
+			}
+			else last_run.open("last_run.txt", std::ios::out | std::ios::trunc);
+			last_run << time_step_number;
+			last_run.close();
 
 			electron_hole_pair.print_dofs(sim_params.type_of_simulation);
 
@@ -1748,7 +1773,8 @@ namespace SOLARCELL
 		{
 			double voltage_step = (sim_params.scaled_IV_max_V - sim_params.scaled_IV_min_V)/sim_params.IV_n_of_data_points;
 			double V_min = sim_params.scaled_IV_min_V;
-			//double V_max = sim_params.scaled_IV_max_V;
+			double V_max = sim_params.scaled_IV_max_V;
+			double total_charge = 0;
 			std::cout << "CALCULATING IV CURVE \n";
 
 			unsigned int max_number_of_time_stamps = 3*number_outputs;
@@ -1758,7 +1784,7 @@ namespace SOLARCELL
 				timeStamps[i] = (i+1) * sim_params.t_end / number_outputs;
 			std::cout << "running until t = " << sim_params.t_end << std::endl;
 
-			// get the intitial potential and electric field
+			// get the initial potential and electric field
 			assemble_Poisson_rhs();
 			solve_Poisson();
 
@@ -1769,91 +1795,84 @@ namespace SOLARCELL
 											electron_hole_pair.carrier_2.solution);
 			ConverganceCheck.print_indexes();
 
-/*
-			for(double voltage = -voltage_step; voltage > V_min; voltage-=voltage_step)
+			if(V_min < 0.0 )
 			{
-				calculate_one_IV_point(voltage, ConverganceCheck, max_number_of_time_stamps, timeStamps, timer);
-			} // end minus voltage for loop
-*/
+				for(double voltage = -voltage_step; voltage >= V_min; voltage-=voltage_step)
+				{
+					calculate_one_IV_point(voltage, ConverganceCheck, max_number_of_time_stamps, timeStamps, timer, true);
+					if(sim_params.calculate_CV_curve)
+					{
+						total_charge =calculate_uncompensated_charge();
+						calculate_one_IV_point(voltage+sim_params.scaled_delta_V, ConverganceCheck, max_number_of_time_stamps, timeStamps, timer,false);
+						std::ofstream CV_data;
+						CV_data.open("CV_data.txt", std::ios_base::app);
+						CV_data  << voltage*sim_params.thermal_voltage
+								 << "\t"
+								 << (sim_params.real_domain_height/(sim_params.scaled_domain_height*sim_params.characteristic_length))*
+									 ((-calculate_uncompensated_charge() + total_charge)*sim_params.device_thickness*
+									   sim_params.characteristic_denisty*PhysicalConstants::electron_charge*
+									   sim_params.characteristic_length*sim_params.characteristic_length)/
+									 (sim_params.scaled_delta_V*sim_params.thermal_voltage)
+								 << "\n";
+						CV_data.close();
+					}
+				} // end minus voltage for loop
 
-			for(double voltage = -voltage_step; voltage > V_min; voltage-=voltage_step)
-			{
-				std::cout << "Voltage:   " << voltage*sim_params.thermal_voltage <<"\n";
-				//set new bias values
-				applied_bias.set_value(voltage);
-				time_step_number = 0;
-				time 			= 0.0;
-				// get the intitial potential and electric field
+				electron_hole_pair.read_dofs(sim_params.type_of_restart);
+				// get the initial potential and electric field
 				assemble_Poisson_rhs();
 				solve_Poisson();
 
-				// for testing convergence to steady state
-				Convergence<dim> ConverganceCheck(Poisson_dof_handler,
-											semiconductor_dof_handler,
-												Poisson_object.solution,
-												electron_hole_pair.carrier_1.solution,
-												electron_hole_pair.carrier_2.solution);
-				//ConverganceCheck.print_indexes();
-
-/*				ConverganceCheck.set_old_solutions( Poisson_object.solution,
-													electron_hole_pair.carrier_1.solution,
-													electron_hole_pair.carrier_2.solution);*/
-				ConverganceCheck.scale_factors_are_set = false;
-				// time stepping until the semiconductor converges at time
-				// t = t_end_1
-				for(unsigned int k = 0;
-						k < 3*number_outputs;
-						k++)
+				for(double voltage = voltage_step; voltage <= V_max; voltage+=voltage_step)
 				{
-					// while time < next print stamp time
-					while(time < timeStamps[k])
+					calculate_one_IV_point(voltage, ConverganceCheck, max_number_of_time_stamps, timeStamps, timer, true);
+					if(sim_params.calculate_CV_curve)
 					{
-						solve_one_time_step(timer);
-						time += delta_t;
-						counter++;
-
-					} // while
-
-					// print the results
-					timer.enter_subsection("Printing");
-					time_step_number++;
-					//print_results(time_step_number);
-					ConverganceCheck.calculate_residuum(Poisson_object.solution,
-														electron_hole_pair.carrier_1.solution,
-														electron_hole_pair.carrier_2.solution);
-					ConverganceCheck.print_residuums(time_step_number);
-					if(ConverganceCheck.get_steady_state_idicator())
+						total_charge =calculate_uncompensated_charge();
+						calculate_one_IV_point(voltage+sim_params.scaled_delta_V, ConverganceCheck, max_number_of_time_stamps, timeStamps, timer,false);
+						std::ofstream CV_data;
+						CV_data.open("CV_data.txt", std::ios_base::app);
+						CV_data  << voltage*sim_params.thermal_voltage
+								 << "\t"
+								 << (sim_params.real_domain_height/(sim_params.scaled_domain_height*sim_params.characteristic_length))*
+									 ((-calculate_uncompensated_charge() + total_charge)*sim_params.device_thickness*
+									   sim_params.characteristic_denisty*PhysicalConstants::electron_charge*
+									   sim_params.characteristic_length*sim_params.characteristic_length)/
+									 (sim_params.scaled_delta_V*sim_params.thermal_voltage)
+								 << "\n";
+						CV_data.close();
+					} // end if CV curve
+				} // end plus voltage loop
+			}// end if Vmin < 0
+			else
+			{
+				double dV = 0.1/sim_params.thermal_voltage;
+				double catch_up_V = 0.1/sim_params.thermal_voltage;
+				while(catch_up_V < V_min)
+				{
+					calculate_one_IV_point(catch_up_V, ConverganceCheck, max_number_of_time_stamps, timeStamps, timer,false);
+					catch_up_V += dV;
+				}
+				for(double voltage = V_min; voltage <= V_max; voltage+=voltage_step)
+				{
+					calculate_one_IV_point(voltage, ConverganceCheck, max_number_of_time_stamps, timeStamps, timer, true);
+					if(sim_params.calculate_CV_curve)
 					{
-						std::cout << "STEADY STATE WAS ACHIEVED in "
-								  << time_step_number
-								  << " time step."
-								  <<std::endl;
-						break;
-					}
-					timer.leave_subsection("Printing");
-				} // end for
+						total_charge =calculate_uncompensated_charge();
+						calculate_one_IV_point(voltage+sim_params.scaled_delta_V, ConverganceCheck, max_number_of_time_stamps, timeStamps, timer,false);
+						std::ofstream CV_data;
+						CV_data.open("CV_data.txt", std::ios_base::app);
+						CV_data  << voltage*sim_params.thermal_voltage
+								 << "\t"
+								 << ((calculate_uncompensated_charge() - total_charge)*sim_params.characteristic_denisty*PhysicalConstants::electron_charge)/
+									 (sim_params.scaled_delta_V*sim_params.thermal_voltage)
+								 << "\n";
+						CV_data.close();
+					} // end if CV curve
+				} // end plus voltage loop
 
-				calculate_joint_solution_vector();
+			}// end else Vmin >= 0
 
-				std::string file_prefix = "IV_Vapp_"+std::to_string(voltage*sim_params.thermal_voltage);
-				print_results(0, file_prefix);
-				print_currents(0, joint_solution, file_prefix);
-				//calculate_uncompensated_charge();
-				double total_current = calculate_currents(joint_solution);
-
-				std::ofstream IV_data;
-				IV_data.open("IV_data.txt", std::ios_base::app);
-				IV_data << total_current
-						 << "\t"
-						 << voltage*sim_params.thermal_voltage
-						 << "\n";
-				IV_data.close();
-
-				std::cout<< "Potencjał:    " << voltage
-						 << "Prąd:         " << total_current
-						 << "\n";
-
-			}
 		} // end IV curve
 		else
 		{
