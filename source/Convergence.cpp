@@ -209,13 +209,28 @@ bool
 Convergence<dim>::check_steady_state()
 {
 	return (
-			(-potential_residuum        + old_potential_res)    < 0.0 ||
+			(-potential_residuum        + old_potential_res)    < 0.0 /*||
 			(-hole_density_residuum     + old_hole_density_res) < 0.0 ||
-			(-electron_density_residuum + old_elec_density_res) < 0.0
+			(-electron_density_residuum + old_elec_density_res) < 0.0*/
 			);
 }
 
-
+template<int dim>
+bool
+Convergence<dim>::sanity_check()
+{
+	if(std::isnan(potential_residuum) ||
+	   std::isnan(electric_field_residuum) ||
+	   std::isnan(jx_electron_residuum) ||
+	   std::isnan(jy_electron_residuum) ||
+	   std::isnan(electron_density_residuum) ||
+	   std::isnan(jx_hole_residuum) ||
+	   std::isnan(jy_hole_residuum) ||
+	   std::isnan(hole_density_residuum) )
+		return false;
+	else
+		return true;
+}
 
 template<int dim>
 void

@@ -61,6 +61,8 @@ template <int dim>
 			 *  so we can announce that we achieve steady state (or equilibrium state)
 			 */
 			bool check_steady_state();
+			bool sanity_check();
+
 			bool get_steady_state_idicator() const {return steady_state;}
 			std::pair<unsigned int, unsigned int> get_density_indexes() const {return density_indexes;}
 			std::pair<unsigned int, unsigned int> get_E_field_indexes() const {return electric_field_indexes;}
