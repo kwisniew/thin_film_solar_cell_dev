@@ -46,8 +46,8 @@ namespace SOLARCELL
 	hole_density_bc(),
 	built_in_bias(),
 	applied_bias(),
-	bulk_bias(),
-	schottky_bias(),
+	/*bulk_bias(),*/
+	/*schottky_bias(),*/
 	generation()
 	{
 		// set the parameters
@@ -57,8 +57,8 @@ namespace SOLARCELL
 		applied_bias.set_value(sim_params.scaled_applied_bias);
 		//std::cout<<"applied bias:  " << sim_params.scaled_applied_bias << std::endl;
 		built_in_bias.set_value(sim_params.scaled_built_in_bias);
-		schottky_bias.set_value(sim_params.scaled_domain_height);
-		schottky_bias.set_value(sim_params.scaled_schottky_bias);
+		/*schottky_bias.set_value(sim_params.scaled_domain_height);
+		schottky_bias.set_value(sim_params.scaled_schottky_bias);*/
 
 		donor_doping_profile.set_values(
 								sim_params.scaled_n_type_donor_density,
@@ -75,14 +75,20 @@ namespace SOLARCELL
 									sim_params.scaled_p_type_donor_density,
 									sim_params.scaled_p_type_width,
 									sim_params.scaled_n_type_depletion_width,
-									sim_params.scaled_p_type_depletion_width);
+									sim_params.scaled_p_type_depletion_width,
+									sim_params.schottky_status,
+									sim_params.scaled_p_type_schottky_dwidth,
+									sim_params.scaled_schottky_electron_density);
 
 		holes_initial_condition.set_values(
 									sim_params.scaled_n_type_acceptor_density,
 									sim_params.scaled_p_type_acceptor_density,
 									sim_params.scaled_p_type_width,
 									sim_params.scaled_n_type_depletion_width,
-									sim_params.scaled_p_type_depletion_width);
+									sim_params.scaled_p_type_depletion_width,
+									sim_params.schottky_status,
+									sim_params.scaled_p_type_schottky_dwidth,
+									sim_params.scaled_schottky_hole_density);
 
 		electron_density_bc.set_values(
 									sim_params.scaled_n_type_acceptor_density,
@@ -101,6 +107,19 @@ namespace SOLARCELL
 									sim_params.scaled_p_type_width,
 									sim_params.scaled_n_type_width,
 									sim_params.scaled_intrinsic_density);
+
+		//function the same as donors
+		schottky_p_type_electrons_eq.set_values(
+									0.0,
+									sim_params.scaled_schottky_electron_density,
+									1e-10);
+
+		//function the same as acceptors
+		schottky_p_type_holes_eq.set_values(
+									0.0,
+									sim_params.scaled_schottky_hole_density,
+									1e-10);
+
 
 		// set the charges name, charge sign, and mobility
 		electron_hole_pair.carrier_1.set_name("Electrons");
@@ -565,9 +584,13 @@ namespace SOLARCELL
 								scratch.Poisson_fe_face_values.get_quadrature_points(),
 								scratch.Poisson_bi_values);
 					
-					schottky_bias.value_list(
+					/*schottky_bias.value_list(
+								scratch.Poisson_fe_face_values.get_quadrature_points(),
+								scratch.Poisson_bc_values);*/
+					applied_bias.value_list(
 								scratch.Poisson_fe_face_values.get_quadrature_points(),
 								scratch.Poisson_bc_values);
+
 			
 					// copy over the normal vectors
 					for(unsigned int k=0; k < n_face_q_points; k++)
@@ -947,20 +970,19 @@ namespace SOLARCELL
 				} // end Dirichlet
 				else if(face->boundary_id() == Schottky)
 				{
-					// Get the doping profile values for the boundary conditions
-					electron_density_bc.value_list(
+					// Get the electron density on Schottky in equilibrium
+					schottky_p_type_electrons_eq.value_list(
 								scratch.carrier_fe_face_values.get_quadrature_points(),
 								scratch.carrier_1_bc_values,
-								dim); // calls the density values of the donor profile
-									  // not the current ones
-					hole_density_bc.value_list(
+								dim);
+
+					schottky_p_type_holes_eq.value_list(
 								scratch.carrier_fe_face_values.get_quadrature_points(),
 								scratch.carrier_2_bc_values,
-								dim); // calls the density values of the donor profile
-									  // not the current ones
+								dim);
 					
 	
-					// get the electrona and hole densities at the pevious time step
+					// get the electrons and holes densities at the previous time step
 					scratch.carrier_fe_face_values[Density].get_function_values(
 									electron_hole_pair.carrier_1.solution,
 									scratch.electron_interface_values);
@@ -1588,7 +1610,6 @@ namespace SOLARCELL
 		set_solvers();
 		timer.leave_subsection("Factor Matrices");
 	
-
 		// make time stepping stuff... 
 		unsigned int counter 	= 0;
 		unsigned int time_step_number;
@@ -1724,25 +1745,27 @@ namespace SOLARCELL
 					 << "\n";
 			IV_data.close();
 
-			//capacitance:
-			double total_charge =calculate_uncompensated_charge();
-			calculate_one_IV_point(sim_params.scaled_delta_V, ConverganceCheck, 15, timeStamps, timer,false);
-			std::ofstream CV_data;
-			if(sim_params.calculate_steady_state)
+			if(sim_params.calculate_CV_curve)
 			{
-				CV_data.open("CV_data.txt", std::ios::out | std::ios::trunc);
+				//capacitance:
+				double total_charge =calculate_uncompensated_charge();
+				calculate_one_IV_point(sim_params.scaled_delta_V, ConverganceCheck, 15, timeStamps, timer,false);
+				std::ofstream CV_data;
+				if(sim_params.calculate_steady_state)
+				{
+					CV_data.open("CV_data.txt", std::ios::out | std::ios::trunc);
+				}
+				else CV_data.open("CV_data.txt", std::ios_base::app);
+				CV_data  << 0.0
+						 << "\t"
+						 <<  (sim_params.real_domain_height/(sim_params.scaled_domain_height*sim_params.characteristic_length))*
+							 ((-calculate_uncompensated_charge() + total_charge)*sim_params.device_thickness*
+							   sim_params.characteristic_denisty*PhysicalConstants::electron_charge*
+							   sim_params.characteristic_length*sim_params.characteristic_length)/
+							 (sim_params.scaled_delta_V*sim_params.thermal_voltage)
+						 << "\n";
+				CV_data.close();
 			}
-			else CV_data.open("CV_data.txt", std::ios_base::app);
-			CV_data  << 0.0
-					 << "\t"
-					 <<  (sim_params.real_domain_height/(sim_params.scaled_domain_height*sim_params.characteristic_length))*
-					 	 ((-calculate_uncompensated_charge() + total_charge)*sim_params.device_thickness*
-						   sim_params.characteristic_denisty*PhysicalConstants::electron_charge*
-						   sim_params.characteristic_length*sim_params.characteristic_length)/
-					     (sim_params.scaled_delta_V*sim_params.thermal_voltage)
-					 << "\n";
-			CV_data.close();
-
 
 			// print the dofs of the end state for restart situation.
 			std::ofstream last_run;

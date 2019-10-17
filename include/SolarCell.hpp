@@ -440,9 +440,9 @@ namespace SOLARCELL
 			/// \f$ \Phi_{\text{app.}} \f$
 			Applied_Bias<dim>					applied_bias;
 			/// \f$ \Phi^{\infty} \f$
-			Bulk_Bias<dim>						bulk_bias;
+			/*Bulk_Bias<dim>						bulk_bias;*/
 			/// \f$ \Phi_{\text{Sch}} \f$ 	
-			Schottky_Bias<dim>					schottky_bias;
+			/*Schottky_Bias<dim>					schottky_bias;*/
 
 			/*-------------------------------------------------------------*/
 			/* Generation function						*/

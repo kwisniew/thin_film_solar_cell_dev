@@ -18,6 +18,7 @@ class Built_In_Bias : public dealii::Function<dim>
 		/** \brief Default constructor.*/
 		Built_In_Bias() : dealii::Function<dim>()
 		{}
+		virtual ~Built_In_Bias(){}
 	
 		void set_value(const double & bias_value);
 
@@ -37,6 +38,7 @@ class Schottky_Bias : public dealii::Function<dim>
 		/** \brief Default constructor.*/
 		Schottky_Bias() : dealii::Function<dim>()
 		{}
+		virtual ~Schottky_Bias(){}
 
 		void set_location(const double & bias_location);
 
@@ -62,6 +64,7 @@ class Applied_Bias : public dealii::Function<dim>
 		/** \brief Default constructor.*/
 		Applied_Bias() : dealii::Function<dim>()
 		{}
+		virtual ~Applied_Bias(){}
 
 		void set_value(const double & bias_value);
 		
@@ -72,22 +75,5 @@ class Applied_Bias : public dealii::Function<dim>
 	private:
 		double applied_bias;
 };
-
-
-
-/** \brief The bulk bias of the electrolyte \$f\Phi^{\infty}\f$.*/
-template <int dim>
-class Bulk_Bias : public dealii::Function<dim>
-{
-	public:
-		/** \brief Default constructor.*/
-		Bulk_Bias() : dealii::Function<dim>()
-		{}
-		
-		/** \brief Returns value of \$f\Phi^{\infty}}\f$ at point p.*/ 
-		virtual double value(const dealii::Point<dim> &p, 
-				     const unsigned int component = 0 ) const;
-};
-
 
 #endif

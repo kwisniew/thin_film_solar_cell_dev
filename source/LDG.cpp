@@ -236,8 +236,7 @@ namespace LDG_System
 						} // end for i
 					} // for q
 				} // if Dirichlet
-				else if(/*(face->boundary_id() == Interface) ||*/
-						(face->boundary_id() == Neumann)   ||
+				else if((face->boundary_id() == Neumann)   ||
 						(face->boundary_id() == Schottky) )
 				{
 					// loop over alll the quadrature points of this face

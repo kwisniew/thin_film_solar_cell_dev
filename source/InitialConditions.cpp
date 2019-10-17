@@ -31,7 +31,6 @@
 		scaled_n_type_donor_doping = n_type_donor_doping;
 		scaled_p_type_donor_doping = p_type_donor_doping;
 		scaled_p_type_width  = p_type_width;
-
 	}
 
 
@@ -82,8 +81,25 @@
 			return ZeroFunction<dim>(dim+1).value(p, component);
 		}
 		else //(component == dim)
+		if(!schottky)
 		{
 			if(p[0] < (scaled_p_type_width - scaled_p_type_depletion_width) )
+				return scaled_p_type_donor_density;
+			else
+			{
+				if(p[0] < (scaled_p_type_width + scaled_n_type_depletion_width) )
+					return 0;
+				else
+					return scaled_n_type_donor_density;
+			}
+		}
+		else
+		{
+			if(p[0] <= scaled_schottky_depletion_width)
+				return scaled_schottky_electron_density;
+			if(p[0] > scaled_schottky_depletion_width
+					&&
+			   p[0] < (scaled_p_type_width - scaled_p_type_depletion_width) )
 				return scaled_p_type_donor_density;
 			else
 			{
@@ -102,13 +118,26 @@
 				const double & p_type_donor_density,
 				const double & p_type_width,
 				const double & n_type_depletion_width,
-				const double & p_type_depletion_width)
+				const double & p_type_depletion_width,
+				const bool   & schottky_status,
+				const double & schottky_depletion_width,
+				const double & schottky_electron_density)
 	{
-		scaled_n_type_donor_density   = n_type_donor_density;
-		scaled_p_type_donor_density   = p_type_donor_density;
-		scaled_p_type_width  		  = p_type_width;
-		scaled_n_type_depletion_width = n_type_depletion_width;
-		scaled_p_type_depletion_width = p_type_depletion_width;
+		scaled_n_type_donor_density   	= n_type_donor_density;
+		scaled_p_type_donor_density   	= p_type_donor_density;
+		scaled_p_type_width  		  	= p_type_width;
+		scaled_n_type_depletion_width 	= n_type_depletion_width;
+		scaled_p_type_depletion_width   = p_type_depletion_width;
+		schottky						= schottky_status;
+		scaled_schottky_depletion_width = schottky_depletion_width;
+		scaled_schottky_electron_density= schottky_electron_density;
+
+		if(schottky)
+			std::cout << "schottky depletion width:"
+					  << scaled_schottky_depletion_width
+					  << "\nschottky electron density:"
+					  << scaled_schottky_electron_density
+					  << std::endl;
 
 	}
 
@@ -126,8 +155,25 @@
 			return ZeroFunction<dim>(dim+1).value(p, component);
 		}
 		else //(component == dim)
+		if(!schottky)
 		{
 			if(p[0] < (scaled_p_type_width - scaled_p_type_depletion_width) )
+				return scaled_p_type_acceptor_density;
+			else
+			{
+				if(p[0] < (scaled_p_type_width + scaled_n_type_depletion_width) )
+					return 0;
+				else
+					return scaled_n_type_acceptor_density;
+			}
+		}
+		else // schottky
+		{
+			if(p[0] <= scaled_schottky_depletion_width )
+				return scaled_schottky_hole_density;
+			if(p[0] > scaled_schottky_depletion_width
+					&&
+			   p[0] <= (scaled_p_type_width - scaled_p_type_depletion_width) )
 				return scaled_p_type_acceptor_density;
 			else
 			{
@@ -146,13 +192,24 @@
 				const double & p_type_acceptor_density,
 				const double & p_type_width,
 				const double & n_type_depletion_width,
-				const double & p_type_depletion_width)
+				const double & p_type_depletion_width,
+				const bool   & schottky_status,
+				const double & schottky_depletion_width,
+				const double & schottky_hole_density)
 	{
-		scaled_n_type_acceptor_density = n_type_acceptor_density;
-		scaled_p_type_acceptor_density = p_type_acceptor_density;
-		scaled_p_type_width  		   = p_type_width;
-		scaled_n_type_depletion_width  = n_type_depletion_width;
-		scaled_p_type_depletion_width  = p_type_depletion_width;
+		scaled_n_type_acceptor_density  = n_type_acceptor_density;
+		scaled_p_type_acceptor_density  = p_type_acceptor_density;
+		scaled_p_type_width  		    = p_type_width;
+		scaled_n_type_depletion_width   = n_type_depletion_width;
+		scaled_p_type_depletion_width   = p_type_depletion_width;
+		schottky						= schottky_status;
+		scaled_schottky_depletion_width = schottky_depletion_width;
+		scaled_schottky_hole_density    = schottky_hole_density;
+
+		if(schottky)
+			std::cout << "schottky hole density:"
+					  << scaled_schottky_hole_density
+					  << std::endl;
 
 	}
 

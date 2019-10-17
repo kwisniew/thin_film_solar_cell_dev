@@ -14,6 +14,7 @@ class Doping_profile_donors : public Function<dim>
 		/** \brief Default constructor. */
 		Doping_profile_donors() : Function<dim>(dim+1)
 		{};
+		virtual ~Doping_profile_donors(){}
 
 		void set_values(const double & n_type_donor_doping, const double & p_type_donor_doping, const double & p_type_width);
 
@@ -60,14 +61,27 @@ class Doping_profile_donors : public Function<dim>
 	{
 		public:
 			/** \brief Default constructor. */
-			Initial_condition_electrons() : Function<dim>(dim+1)
+			Initial_condition_electrons() :
+			Function<dim>(dim+1),
+			scaled_n_type_donor_density(0),
+			scaled_p_type_donor_density(0),
+			scaled_p_type_width(0),
+			scaled_n_type_depletion_width(0),
+			scaled_p_type_depletion_width(0),
+			scaled_schottky_depletion_width(0),
+			scaled_schottky_electron_density(0),
+			schottky(false)
 			{}
+			virtual ~Initial_condition_electrons(){}
 
 			void set_values(const double & n_type_donor_density,
 							const double & p_type_donor_density,
 							const double & p_type_width,
 							const double & n_type_depletion_width,
-							const double & p_type_depletion_width);
+							const double & p_type_depletion_width,
+							const bool   & schottky_status = false,
+							const double & schottky_depletion_width  = 0,
+							const double & schottky_electron_density = 0);
 
 
 			/** \brief Returns value of \f$\rho_{r}^{\infty}\f$ at point p.*/
@@ -80,6 +94,10 @@ class Doping_profile_donors : public Function<dim>
 			double scaled_p_type_width;
 			double scaled_n_type_depletion_width;
 			double scaled_p_type_depletion_width;
+			double scaled_schottky_depletion_width;
+			double scaled_schottky_electron_density;
+
+			bool schottky;
 	};
 
 
@@ -92,14 +110,26 @@ class Doping_profile_donors : public Function<dim>
 	{
 		public:
 			/** \brief Default constructor. */
-			Initial_condition_holes() : Function<dim>(dim+1)
+			Initial_condition_holes() :
+			Function<dim>(dim+1),
+			scaled_n_type_acceptor_density(0),
+			scaled_p_type_acceptor_density(0),
+			scaled_p_type_width(0),
+			scaled_n_type_depletion_width(0),
+			scaled_p_type_depletion_width(0),
+			scaled_schottky_depletion_width(0),
+			scaled_schottky_hole_density(0),
+			schottky(false)
 			{}
-
+			virtual ~Initial_condition_holes(){}
 			void set_values(const double & n_type_acceptor_density,
 							const double & p_type_acceptor_density,
 							const double & p_type_width,
 							const double & n_type_depletion_width,
-							const double & p_type_depletion_width);
+							const double & p_type_depletion_width,
+							const bool   & schottky_status = false,
+							const double & schottky_depletion_width  = 0,
+							const double & schottky_hole_density     = 0);
 
 
 			/** \brief Returns value of \f$\rho_{r}^{\infty}\f$ at point p.*/
@@ -112,6 +142,10 @@ class Doping_profile_donors : public Function<dim>
 			double scaled_p_type_width;
 			double scaled_n_type_depletion_width;
 			double scaled_p_type_depletion_width;
+			double scaled_schottky_depletion_width;
+			double scaled_schottky_hole_density;
+
+			bool schottky;
 	};
 
 	template<int dim>
@@ -121,6 +155,7 @@ class Doping_profile_donors : public Function<dim>
 			/** \brief Default constructor. */
 			LDG_Dirichlet_electron_density_bc() : Function<dim>(dim+1)
 			{}
+			virtual ~LDG_Dirichlet_electron_density_bc(){}
 
 			void set_values(const double & n_type_acceptor_density,
 							const double & p_type_acceptor_density,
@@ -156,6 +191,7 @@ class Doping_profile_donors : public Function<dim>
 			/** \brief Default constructor. */
 			LDG_Dirichlet_hole_density_bc() : Function<dim>(dim+1)
 			{}
+			virtual ~LDG_Dirichlet_hole_density_bc(){}
 
 			void set_values(const double & n_type_acceptor_density,
 							const double & p_type_acceptor_density,

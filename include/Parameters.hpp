@@ -82,6 +82,7 @@ namespace ParameterSpace
 			double scaled_hole_recombo_v;
 			double hole_effective_mass;
 			double scaled_p_type_depletion_width;
+			double scaled_p_type_schottky_dwidth;
 
 			//for calculating outputs currents in postprocesor, should be deleted in near future
 			double mobility;
@@ -243,7 +244,7 @@ namespace ParameterSpace
 
 
 
-				//tmp NEED TO CHANGE IT AS SOON AS POSSIBLE
+				//TODO: NEED TO CHANGE IT AS SOON AS POSSIBLE
 				//it is for scaling of outputs values
 				this->mobility = this->scaled_electron_mobility;
 
@@ -341,18 +342,27 @@ namespace ParameterSpace
 						  << "[V]"
 						  << std::endl;
 
-				//calculate carrier densities on schottky contact
-				//Note: all biases need to be without scaling, that is in volts: [V]
-				this->scaled_schottky_electron_density = this->Nc_effective_dos
-														*std::exp( -(this->scaled_built_in_bias - this->scaled_schottky_bias)
-																	/this->thermal_voltage);
 
-				this->scaled_schottky_hole_density     = this->Nv_effective_dos
-														 *std::exp( -(this->scaled_schottky_bias)
-																 	 /this->thermal_voltage);
-				//change Schottky densities to [cm^-3]
-				this->scaled_schottky_electron_density *= 1e-6;
-				this->scaled_schottky_hole_density     *= 1e-6;
+				//const double n_type_resultant_doping = (scaled_n_type_donor_density - scaled_n_type_acceptor_density);
+				const double p_type_resultant_doping = (scaled_p_type_donor_density - scaled_p_type_acceptor_density);
+
+				scaled_schottky_hole_density     = 0.5*(-p_type_resultant_doping + std::sqrt(p_type_resultant_doping*p_type_resultant_doping + 4*scaled_intrinsic_density*scaled_intrinsic_density));
+				scaled_schottky_electron_density = 0.5*( p_type_resultant_doping + std::sqrt(p_type_resultant_doping*p_type_resultant_doping + 4*scaled_intrinsic_density*scaled_intrinsic_density));
+
+				scaled_schottky_hole_density    *= std::exp( -(this->scaled_schottky_bias)
+					 	 	 	 	 	 	 	 	 	 	  /this->thermal_voltage);
+
+				scaled_schottky_electron_density*= std::exp( (this->scaled_schottky_bias)
+									 	 	 	 	 	 	 /this->thermal_voltage);
+
+				std::cout << "schottky_electron_density:   "
+						  << this->scaled_schottky_electron_density
+						  << "cm^-3"
+						  << std::endl
+						  << "schottky_hole_density:       "
+						  << this->scaled_schottky_hole_density
+						  << "cm^-3"
+						  << std::endl;
 
 
 				//Initial condition depends on depletion width,
@@ -370,12 +380,21 @@ namespace ParameterSpace
 															(PhysicalConstants::electron_charge*this->scaled_p_type_acceptor_density
 															* (this->scaled_n_type_donor_density + this->scaled_p_type_acceptor_density)));
 
+				this->scaled_p_type_schottky_dwidth = sqrt(2*PhysicalConstants::vacuum_permittivity*this->semiconductor_permittivity
+															*(this->scaled_schottky_bias)
+															/
+															(PhysicalConstants::electron_charge*this->scaled_p_type_acceptor_density));
+
 				std::cout << "scaled_n_type_depletion_width:   "
 						  << this->scaled_n_type_depletion_width*10000
 						  << "um"
 						  << std::endl
 						  << "scaled_p_type_depletion_width:   "
 						  << this->scaled_p_type_depletion_width*10000
+						  << "um"
+						  << std::endl
+						  << "scaled_p_type_schottky_dwidth:   "
+						  << this->scaled_p_type_schottky_dwidth*10000
 						  << "um"
 						  << std::endl;
 
@@ -426,6 +445,7 @@ namespace ParameterSpace
 				//CHRACTERISTIC LENGTH MUST BE IN CM!
 				this->scaled_n_type_depletion_width /= (this->characteristic_length);
 				this->scaled_p_type_depletion_width /= (this->characteristic_length);
+				this->scaled_p_type_schottky_dwidth /= (this->characteristic_length);
 
 
 				this->scaled_electron_recombo_t /= this->characteristic_time;

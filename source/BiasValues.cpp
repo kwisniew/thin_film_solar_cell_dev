@@ -92,25 +92,3 @@ value(const dealii::Point<dim> &p,
 //		return_value += 20.0*p[i];
 //	return return_value;
 }
-
-
-// TODO: THIS DOESNT WORK SO WELL FOR ANY NONZERO SINCE
-// NEEDS TO BE ON SCALED_DOMAIN_LENGTH
-template <int dim>
-double 
-Bulk_Bias<dim>::
-value(const dealii::Point<dim> &p, 
-	  const unsigned int ) const
-{
-	// potential applied at y = 0, a positive potential is a foward bias,
-	// a negative potential is a reverse bias
-	if(p[0] == 1.0)
-		return 0.0;
-	else 
-		return 0;
-//	double return_value = 0.0;
-//	for(unsigned int i = 0; i < dim; i++)
-//		return_value += 20.0*p[i];
-//	return return_value;
-}
-
