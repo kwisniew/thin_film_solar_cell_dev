@@ -700,6 +700,9 @@ namespace SOLARCELL
 			double
 			calculate_currents(const Vector<double> & joint_solution_vector);
 
+			void
+			scale_time_steps(const double scaling_factor, const unsigned int number_outputs, std::vector<double> & timeStamps, TimerOutput 	& timer);
+
 			/** Print the results into three .vtu files using multi-threading. 
  			* One thread prints poisson, one thread prints electron/holes, one thread prints
  			* reductant/oxidant.*/
