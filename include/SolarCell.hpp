@@ -578,23 +578,10 @@ namespace SOLARCELL
 			copy_local_to_global_semiconductor_mass_matrix(						
 					const Assembly::DriftDiffusion::CopyData<dim>	& data);
 
-			/** Copies the local calculations into the global mass matrix for the
- 			*		redox pair. */
-			void
-			copy_local_to_global_electrolyte_mass_matrix(						
-					const Assembly::DriftDiffusion::CopyData<dim>	& data);
-
-
 			/** Copies the local calculations into the global system matrix for the
  			*		electron hole pair. */
 			void
 			copy_local_to_global_semiconductor_system_matrix(						
-					const Assembly::DriftDiffusion::CopyData<dim>	& data);
-
-			/** Copies the local calculations into the global system matrix for the
- 			*		redox pair. */
-			void
-			copy_local_to_global_electrolyte_system_matrix(						
 					const Assembly::DriftDiffusion::CopyData<dim>	& data);
 
 			/** Copies the local calculations into the global right hand side for the
@@ -668,15 +655,19 @@ namespace SOLARCELL
 			void
 			solve_one_time_step(TimerOutput & timer);
 
+
+			void
+			check_first_time_steps(const double & old_current, TimerOutput & timer);
+
 			/**\brief Calculate uncompensated charge over all domain*/
 			 /** This function is needed to calculate capacitance:
 			  * C=dQ/dV --> we need to calculate dQ = Q(t[n+1])-Q(t[n])
 			 */
-			void
+			char
 			calculate_one_IV_point(double 				voltage,
 								   Convergence<dim>     & ConverganceCheck,
-								   unsigned int			max_number_of_time_stamps,
-								   std::vector<double> 	& timeStamps,
+								   unsigned int			number_of_outputs,
+								   //std::vector<double> 	& timeStamps,
 								   TimerOutput 			& timer,
 								   bool 				make_output);
 
@@ -701,7 +692,7 @@ namespace SOLARCELL
 			calculate_currents(const Vector<double> & joint_solution_vector);
 
 			void
-			scale_time_steps(const double scaling_factor, const unsigned int number_outputs, std::vector<double> & timeStamps, TimerOutput 	& timer);
+			scale_time_steps(const double scaling_factor, const double end_time_scaling_factor, TimerOutput 	& timer);
 
 			/** Print the results into three .vtu files using multi-threading. 
  			* One thread prints poisson, one thread prints electron/holes, one thread prints
@@ -747,17 +738,7 @@ namespace SOLARCELL
 					Assembly::AssemblyScratch<dim>		 				 & scratch,
 					Assembly::DriftDiffusion::CopyData<dim>	 			 & data,
 					const double										 & time,
-					const double 				 						 & penalty);								
-
-			/** Assembles the local cell rhs term for the \f$ v \f$ in problem defined in
- 			*	SOLARCELL::SolarCellProblem::test_interface_coupling.*/
-			void
-			assemble_local_test_electrolyte_rhs(
-					const typename DoFHandler<dim>::active_cell_iterator & cell,
-					Assembly::AssemblyScratch<dim>						 & scratch,
-					Assembly::DriftDiffusion::CopyData<dim>				 & data,
-					const double 										 & time,
-					const double 					 					 & penalty);									
+					const double 				 						 & penalty);
 
 
 	}; // END CLASS

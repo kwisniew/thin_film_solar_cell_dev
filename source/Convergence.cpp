@@ -42,6 +42,7 @@ electron_density_scale_factor(0.0),
 old_potential_res(10.0),
 old_elec_density_res(10.0),
 old_hole_density_res(10.0),
+old_electric_field_res(10.0),
 steady_state(false)
 {
 }
@@ -75,6 +76,7 @@ electron_density_scale_factor(0.0),
 old_potential_res(10.0),
 old_elec_density_res(10.0),
 old_hole_density_res(10.0),
+old_electric_field_res(10.0),
 steady_state(false)
 {
 
@@ -119,6 +121,7 @@ set_old_solutions(const Vector<double>  & Poisson_solution,
 	old_Continuity_solution_electrons = Continuity_solution_electron;
 	old_Continuity_solution_holes     = Continuity_solution_hole;
 	old_potential_res    = 10.0;
+	old_electric_field_res=10.0;
 	old_elec_density_res = 10.0;
 	old_hole_density_res = 10.0;
 }
@@ -175,11 +178,12 @@ calculate_residuum(const Vector<double> & Poisson_solution,
 	hole_density_residuum 	/= hole_density_scale_factor;
 
 	steady_state = check_steady_state();
-	std::cout<< "steady state:   " << steady_state << std::endl;
+	//std::cout<< "steady state:   " << steady_state << std::endl;
 
-	old_potential_res = potential_residuum;
-	old_elec_density_res= electron_density_residuum;
-	old_hole_density_res= hole_density_residuum;
+	old_potential_res      = potential_residuum;
+	old_electric_field_res = electric_field_residuum;
+	old_elec_density_res   = electron_density_residuum;
+	old_hole_density_res   = hole_density_residuum;
 
 	old_Poisson_solution = Poisson_solution;
 	old_Continuity_solution_electrons = Continuity_solution_electron;
@@ -209,8 +213,9 @@ bool
 Convergence<dim>::check_steady_state()
 {
 	return (
-			(-potential_residuum        + old_potential_res)    < 0.0 /*||
-			(-hole_density_residuum     + old_hole_density_res) < 0.0 ||
+			(-potential_residuum        + old_potential_res)    < 0.0 /*&&
+			 -electric_field_residuum   + old_electric_field_res< 0.0*/&&
+			(-hole_density_residuum     + old_hole_density_res) < 0.0 /*||
 			(-electron_density_residuum + old_elec_density_res) < 0.0*/
 			);
 }
