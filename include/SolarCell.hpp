@@ -668,15 +668,19 @@ namespace SOLARCELL
 			void
 			solve_one_time_step(TimerOutput & timer);
 
+
+			void
+			check_first_time_steps(const double & old_current, TimerOutput & timer);
+
 			/**\brief Calculate uncompensated charge over all domain*/
 			 /** This function is needed to calculate capacitance:
 			  * C=dQ/dV --> we need to calculate dQ = Q(t[n+1])-Q(t[n])
 			 */
-			void
+			bool
 			calculate_one_IV_point(double 				voltage,
 								   Convergence<dim>     & ConverganceCheck,
-								   unsigned int			max_number_of_time_stamps,
-								   std::vector<double> 	& timeStamps,
+								   unsigned int			number_of_outputs,
+								   //std::vector<double> 	& timeStamps,
 								   TimerOutput 			& timer,
 								   bool 				make_output);
 
@@ -701,7 +705,7 @@ namespace SOLARCELL
 			calculate_currents(const Vector<double> & joint_solution_vector);
 
 			void
-			scale_time_steps(const double scaling_factor, const unsigned int number_outputs, std::vector<double> & timeStamps, TimerOutput 	& timer);
+			scale_time_steps(const double scaling_factor, const double end_time_scaling_factor, TimerOutput 	& timer);
 
 			/** Print the results into three .vtu files using multi-threading. 
  			* One thread prints poisson, one thread prints electron/holes, one thread prints

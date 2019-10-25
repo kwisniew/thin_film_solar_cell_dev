@@ -107,6 +107,7 @@ template <int dim>
 			double old_potential_res;
 			double old_elec_density_res;
 			double old_hole_density_res;
+			double old_electric_field_res;
 
 			bool steady_state;
 

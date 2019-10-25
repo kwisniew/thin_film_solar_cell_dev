@@ -1120,28 +1120,122 @@ namespace SOLARCELL
 		solve_Poisson();
 		timer.leave_subsection("Solve Poisson system");
 	}
+
+	template<int dim>
+	void
+	SolarCellProblem<dim>::
+	check_first_time_steps(const double & old_current, TimerOutput & timer)
+	{
+		std::cout<< "CHECK FIRST 10 STEPS"
+				 << "\n";
+		unsigned int number_of_steps = 10;
+		char number_of_rescaling=0;
+		double total_current=0;
+		double total_charge=0;
+
+		std::cout<< "Old Current:         "
+				 << old_current
+				 << "\n";
+
+		//checking first 10 steps:
+		while(number_of_rescaling < 2)
+		{
+			//solve 10 time steps:
+			for(unsigned int i=0; i < number_of_steps; i++)
+			{
+				this->solve_one_time_step(timer);
+				calculate_joint_solution_vector();
+				total_current = calculate_currents(joint_solution);
+				total_charge =calculate_uncompensated_charge();
+
+				std::cout<< "\nStep:     "
+						 << i
+						 << "\n"
+						 << "Current:  "
+						 << total_current
+						 << "\n"
+						 << "Charge:   "
+						 << total_charge
+						 << "\n";
+
+			}
+
+			if(   !( (total_current > (0.1*old_current) && total_current < (1.9*old_current))
+														||
+					 (total_current < (0.1*old_current) && total_current > (1.9*old_current)) )
+			  )
+			{
+				if(number_of_rescaling==2)
+				{
+					std::cout << "You rescale 2 times and that was not effective!\n SOMEKHING GO WRONG! ABORTING..."
+							  << std::endl;
+					break;
+				}
+				std::cout << "Too big step! RESTARTING!"
+						  <<std::endl;
+				scale_time_steps(0.1,1,timer);
+				++number_of_rescaling;
+			}
+			else
+			{
+				std::cout << "THIS STEP SIZE IS OK!   "
+						  << delta_t
+						  <<std::endl;
+				break;
+			}
+
+		}
+	}
 	////////////////////////////////////////////////////////////////////////
 	//			PRINTING & POSTPROCESSING
 	////////////////////////////////////////////////////////////////////////
 	template<int dim>
-	void
+	bool
 	SolarCellProblem<dim>::
 	calculate_one_IV_point(double 				voltage,
 						   Convergence<dim>     & ConverganceCheck,
-						   unsigned int			max_number_of_time_stamps,
-						   std::vector<double> 	& timeStamps,
+						   unsigned int			number_of_outputs,
+						   //std::vector<double> 	& timeStamps,
 						   TimerOutput 			& timer,
 						   bool 				make_output)
 	{
+		//write dofs in case of restart
+		electron_hole_pair.print_dofs(sim_params.type_of_simulation);
+
 		std::cout << "\nVoltage:   " << voltage*sim_params.thermal_voltage <<"\n";
 		//set new bias values
 		applied_bias.set_value(voltage);
 		int time_step_number = 0;
 		double time	  		 = 0.0;
 
+		//double old_uncompensated_charge = calculate_uncompensated_charge();
+
+		//unsigned int max_number_of_time_stamps = 3*number_outputs;
+		std::vector<double>	timeStamps(number_of_outputs);
+		// make the time stamps
+		for(unsigned int i=0; i<number_of_outputs; i++)
+			timeStamps[i] = (i+1) * sim_params.t_end / number_of_outputs;
+		std::cout << "running until t = " << sim_params.t_end << std::endl;
+
 		// with new Vapp we need to recalculate Poisson equation
 		assemble_Poisson_rhs();
 		solve_Poisson();
+
+		calculate_joint_solution_vector();
+		double previous_current_delta = 0;
+		double uptodate_current_delta = 0;
+		bool   steady_state           = false;
+		bool   reset_current_delta    = false;
+		char   number_of_rescaling    = 0;
+		//double real_t_end=0;
+		//double time_till_restaling=0;
+		double max_number_of_steps=5000;
+		double number_of_steps=0;
+
+		double old_current 				= calculate_currents(joint_solution);
+		std::cout << "\nZero_time_current:   "
+				  << old_current
+				  <<"\n";
 
 		// for testing convergence to steady state
 		timer.enter_subsection("Checking convergence");
@@ -1151,16 +1245,32 @@ namespace SOLARCELL
 		ConverganceCheck.scale_factors_are_set = false;
 		timer.leave_subsection("Checking convergence");
 
+
+
+		check_first_time_steps(old_current,timer);
+
+
 		// time stepping until the semiconductor converges
-		for(unsigned int k = 0;
-				k < max_number_of_time_stamps;
-				k++)
+		/*##########################
+		 *       MAIN LOOP!
+		 * ########################
+		 */
+		unsigned int k = 1;
+		while(k < (number_of_outputs+1) )
 		{
+			if(number_of_steps > max_number_of_steps)
+					break;
+
+			std::cout << "\nPrzystanek nr:   "
+							  << k-1
+							  <<"\n";
+
 			// while time < next print stamp time
-			while(time < timeStamps[k])
+			while(time < timeStamps[k-1])
 			{
 				this->solve_one_time_step(timer);
 				time += delta_t;
+				number_of_steps+=1;
 
 			} // while
 
@@ -1171,16 +1281,16 @@ namespace SOLARCELL
 			ConverganceCheck.calculate_residuum(Poisson_object.solution,
 												electron_hole_pair.carrier_1.solution,
 												electron_hole_pair.carrier_2.solution);
-			ConverganceCheck.print_residuums(time_step_number);
+			//ConverganceCheck.print_residuums(time_step_number);
 			timer.leave_subsection("Checking convergence");
-			if(ConverganceCheck.get_steady_state_idicator())
+			/*if(ConverganceCheck.get_steady_state_idicator())
 			{
 				std::cout << "STEADY STATE WAS ACHIEVED in "
 						  << time_step_number
 						  << " time step."
 						  <<std::endl;
 				break;
-			}
+			}*/
 			if(!ConverganceCheck.sanity_check())
 			{
 				std::cout << "SIMULATION CRASH! LAST TIME STEP:  "
@@ -1190,6 +1300,129 @@ namespace SOLARCELL
 				break;
 			}
 
+			calculate_joint_solution_vector();
+			double total_current = calculate_currents(joint_solution);
+			double total_charge =calculate_uncompensated_charge();
+			std::cout<< "Current:         "
+					 << total_current
+					 << "\n"
+					 << "Old Current:         "
+					 << old_current
+					 << "\n"
+					 << "Uncompensated charge:    "
+					 << total_charge
+					 << "\nRelative change:   "
+					 << std::abs(total_current/old_current)
+					 << "\n";
+
+			if(k==1 || reset_current_delta)
+			{
+				if(   !( (total_current > (0.1*old_current) && total_current < (1.9*old_current))
+														   ||
+					     (total_current < (0.1*old_current) && total_current > (1.9*old_current)) )
+				  )
+				{
+					if(number_of_rescaling>1)
+					{
+						std::cout << "You rescale 2 times and that was not effective!\n SOMEKHING GO WRONG! ABORTING..."
+								  << std::endl;
+						break;
+					}
+
+					std::cout << "Too big step! RESTARTING!"
+							  <<std::endl;
+					electron_hole_pair.read_dofs(sim_params.type_of_restart);
+					assemble_Poisson_rhs();
+					solve_Poisson();
+					calculate_joint_solution_vector();
+					total_current = calculate_currents(joint_solution);
+
+					if(k>1)
+						time -= timeStamps[k-1]-timeStamps[k-2];
+					else
+						time = 0.0;
+
+					scale_time_steps(0.1,1,timer);
+
+					std::cout << "\nRecalculated Zero_time_current:   "
+							  << total_current
+							  << "\nNEW time step:   "
+							  << delta_t
+							  << "\nNew starting time:   "
+							  << time
+							  <<"\n";
+
+					if(sim_params.t_end/delta_t > (max_number_of_steps-number_of_steps) )
+					{
+						std::cout << "\nTHE TIME STEP IS TOO SMALL RELATIVE TO T_END\n"
+								     "THE SIMULATION WILL BE TO LONG! CHANGING T_END...."
+								  <<"\n";
+
+						sim_params.t_end = (max_number_of_steps-number_of_steps)*delta_t;
+						for(unsigned int i=(k-1); i<number_of_outputs; i++)
+									timeStamps[i] = (i+1) * sim_params.t_end / number_of_outputs;
+								std::cout << "running until t = " << sim_params.t_end << std::endl;
+
+					}
+
+					reset_current_delta = true;
+					++number_of_rescaling;
+					--time_step_number;
+					--k;
+				}
+				else
+				{
+					std::cout << "THIS STEP SIZE IS OK!   "
+							  << delta_t
+							  <<std::endl;
+					previous_current_delta = std::abs(old_current - total_current);
+					/*previous_current_delta = old_current - total_current;*/
+					//initial_sign = previous_current_delta < 0.0;
+					std::cout << "current_delta= "
+							  << previous_current_delta
+							  <<std::endl;
+					number_of_rescaling = 0;
+					reset_current_delta = false;
+				}
+			}
+			else if(k>1 && !reset_current_delta)
+			{
+				uptodate_current_delta = std::abs(old_current - total_current);
+				/*uptodate_current_delta = old_current - total_current;*/
+				std::cout << "current_delta= "
+						  << uptodate_current_delta
+						  << "        delta_i/i:           "
+						  << std::abs(uptodate_current_delta/old_current)
+						  <<std::endl;
+				if( /*(uptodate_current_delta < 0.0) != initial_sign*/uptodate_current_delta > previous_current_delta)
+				{
+					std::cout << "STEADY STATE WAS ACHIEVED in "
+							  << time_step_number
+							  << " time step."
+							  << std::endl;
+					steady_state = true;
+					break;
+				}
+				else
+					previous_current_delta = uptodate_current_delta;
+
+				if( std::abs(uptodate_current_delta/old_current) < 0.05 )
+				{
+					//just in case save dofs
+					electron_hole_pair.print_dofs(sim_params.type_of_simulation);
+					/*time_till_restaling += (k+1)*(sim_params.t_end / number_of_outputs);
+					number_of_steps = time_till_restaling/delta_t;*/
+
+					std::cout << "CHANGING STEP SIZE BECOUSE IT IS TOO SMALL"
+							  <<std::endl;
+					scale_time_steps(1.5,1.0,timer);
+                    reset_current_delta = true;
+				}
+			}
+
+			old_current = total_current;
+
+			++k;
 		} // end for
 
 		if(ConverganceCheck.sanity_check())
@@ -1247,7 +1480,8 @@ namespace SOLARCELL
 			}
 			timer.leave_subsection("Printing");
 		}
-
+		std::cout<< "Time step number:   " << time_step_number<< std::endl;
+		return steady_state;
 
 	}
 
@@ -1306,12 +1540,12 @@ namespace SOLARCELL
 										fe_values.JxW(q_index);
 			} //quad points
 	    }// cells
-		std::cout<< "\nChecking uncompensated charge!\n"
+		/*std::cout<< "\nChecking uncompensated charge!\n"
 				 << "Full depletion approximation:       "
 				 << (sim_params.scaled_n_type_depletion_width + sim_params.scaled_p_type_depletion_width)*
 				    sim_params.scaled_domain_height * 1
 				 << "\nCalculated uncompensated charge:    "
-				 << uncompendated_charge;
+				 << uncompendated_charge;*/
 
 		return uncompendated_charge/2;
 	}
@@ -1323,14 +1557,19 @@ namespace SOLARCELL
 	{
 		/*const FESystem<dim> joint_fe(Poisson_fe, 1, carrier_fe, 1, carrier_fe, 1);
 		DoFHandler<dim> joint_dof_handler(Poisson_triangulation);*/
-		joint_dof_handler.distribute_dofs(joint_fe);
-		std::cout << "Sanity check!\n"
-				  << "Number of dofs in joint dof_handler:              "
-				  << joint_dof_handler.n_dofs()
-				  << "\n"
-				  << "Number of sum of dofs in poisson and continuity:  "
-				  << Poisson_dof_handler.n_dofs()+2*semiconductor_dof_handler.n_dofs()
-				  << std::endl;
+		//joint_dof_handler.distribute_dofs(joint_fe);
+		if(joint_dof_handler.n_dofs() != (Poisson_dof_handler.n_dofs()+2*semiconductor_dof_handler.n_dofs()))
+		{
+			std::cout << "Sanity check!\n"
+					  << "Number of dofs in joint dof_handler:              "
+					  << joint_dof_handler.n_dofs()
+					  << "\n"
+					  << "Number of sum of dofs in poisson and continuity:  "
+					  << Poisson_dof_handler.n_dofs()+2*semiconductor_dof_handler.n_dofs()
+					  << "\n THE NUMBERS OF DOFs ARE NOT THE SAME!!!"
+					  << std::endl;
+		}
+
 		joint_solution.reinit(joint_dof_handler.n_dofs());
 
 
@@ -1491,22 +1730,19 @@ namespace SOLARCELL
 
 		total_current/=sim_params.scaled_domain_height;
 		total_current*=(sim_params.real_domain_height*sim_params.device_thickness);
-		std::cout << "\nCałkowita uśredniona gęstość prądu po prawej stronie:    "
+		/*std::cout << "\nCałkowita uśredniona gęstość prądu po prawej stronie:    "
 				  << total_current
-				  << std::endl;
+				  << std::endl;*/
 		return total_current;
 	}
 
 	template<int dim>
 	void
 	SolarCellProblem<dim>::
-	scale_time_steps(const double scaling_factor, const unsigned int number_outputs, std::vector<double> & timeStamps, TimerOutput 	& timer)
+	scale_time_steps(const double step_scaling_factor, const double end_time_scaling_factor, TimerOutput 	& timer)
 	{
-		delta_t 		 *= scaling_factor;
-		sim_params.t_end *= scaling_factor;
-
-		for(unsigned int i=0; i<number_outputs; i++)
-			timeStamps[i] = (i+1) * sim_params.t_end / number_outputs;
+		delta_t 		 *= step_scaling_factor;
+		sim_params.t_end *= end_time_scaling_factor;
 
 		timer.enter_subsection("Assemble LDG Matrices");
 		assemble_LDG_system(1.0);
@@ -1629,6 +1865,7 @@ namespace SOLARCELL
 		// allocate the memory
 		timer.enter_subsection("Allocate Memory");
 		setup_dofs();
+		joint_dof_handler.distribute_dofs(joint_fe);
 		timer.leave_subsection("Allocate Memory");
 
 		
@@ -1714,12 +1951,14 @@ namespace SOLARCELL
 		if(!sim_params.calculate_IV_curve)
 		{
 
-			std::vector<double>	timeStamps(number_outputs);
+			//std::vector<double>	timeStamps(number_outputs);
 			// make the time stamps
-			for(unsigned int i=0; i<number_outputs; i++)
-				timeStamps[i] = (i+1) * sim_params.t_end / number_outputs;
+			/*for(unsigned int i=0; i<number_outputs; i++)
+				timeStamps[i] = (i+1) * sim_params.t_end / number_outputs;*/
 			//time 			= 0.0/*sim_params.t_end*/;
-			std::cout << "running until t = " << sim_params.t_end << std::endl;
+			//std::cout << "running until t = " << sim_params.t_end << std::endl;
+
+			bool have_steady_state = false;
 
 			if(sim_params.restart_status)
 			{
@@ -1744,7 +1983,7 @@ namespace SOLARCELL
 											electron_hole_pair.carrier_2.solution);
 			ConverganceCheck.print_indexes();
 	
-			calculate_one_IV_point(sim_params.scaled_applied_bias,ConverganceCheck,30,timeStamps,timer,true);
+			calculate_one_IV_point(sim_params.scaled_applied_bias,ConverganceCheck,number_outputs/*,timeStamps*/,timer,true);
 
 			if(ConverganceCheck.sanity_check())
 			{
@@ -1755,7 +1994,7 @@ namespace SOLARCELL
 					if(time_step_number < (last_run_number + 4) )
 					{
 						delta_t          /= 10;
-						sim_params.t_end /= 10;
+						sim_params.t_end /= 5;
 
 						std::cout << "Recalculate from steady state dofs!\n"
 								  <<"running until t = "
@@ -1773,20 +2012,22 @@ namespace SOLARCELL
 						timer.leave_subsection("Factor Matrices");
 
 						electron_hole_pair.read_dofs(sim_params.type_of_restart);
-						unsigned int max_n_of_time_stamps=30;
-						calculate_one_IV_point(sim_params.scaled_applied_bias, ConverganceCheck, max_n_of_time_stamps, timeStamps, timer,true);
+						//unsigned int max_n_of_time_stamps=30;
+						calculate_one_IV_point(sim_params.scaled_applied_bias, ConverganceCheck, number_outputs/*, timeStamps*/, timer,true);
 					} //end if we only calculate less than 4 stamps
 				}
 				else
 				{
-					if(time_step_number < 4)
+					if(time_step_number < 1)
 					{
-						scale_time_steps(0.05,number_outputs, timeStamps,timer);
+						/*sim_params.t_end *= 10;*/
+						scale_time_steps(0.1,0.1,timer);
 						/*for(unsigned int i=0; i<number_outputs; i++)
 							timeStamps[i] = (i+1) * sim_params.t_end / number_outputs;*/
-						std::cout << "\n\nRecalculate from initial conditions!\n"
+						std::cout << "\n\n####Recalculate from initial conditions!####\n"
 								  <<"running until t = "
 								  << sim_params.t_end
+								  << "\n###############################################"
 								  << std::endl
 								  << std::endl;
 
@@ -1804,23 +2045,24 @@ namespace SOLARCELL
 									electron_hole_pair.carrier_2.solution);
 
 						/*unsigned int max_n_of_time_stamps=30;*/
-						calculate_one_IV_point(sim_params.scaled_applied_bias, ConverganceCheck, /*max_n_of_time_stamps*/number_outputs, timeStamps, timer,true);
+						have_steady_state = calculate_one_IV_point(sim_params.scaled_applied_bias, ConverganceCheck, /*max_n_of_time_stamps*/number_outputs*10/*, timeStamps*/, timer,true);
 
 					}//end if we only calculate less than 4 stamps
 					else if(!ConverganceCheck.get_steady_state_idicator())
 					{
-						scale_time_steps(50,number_outputs, timeStamps,timer);
+						scale_time_steps(50,50,timer);
 						/*unsigned int max_n_of_time_stamps=30;*/
-						calculate_one_IV_point(sim_params.scaled_applied_bias, ConverganceCheck, number_outputs, timeStamps, timer,true);
+						calculate_one_IV_point(sim_params.scaled_applied_bias, ConverganceCheck, number_outputs/*, timeStamps*/, timer,true);
 					}
 				}
 
-				if(sim_params.calculate_CV_curve)
+				if(sim_params.calculate_CV_curve && have_steady_state)
 				{
-					scale_time_steps(0.3,number_outputs, timeStamps,timer);
+					/*sim_params.t_end /= 2;*/
+					scale_time_steps(0.5,0.25,timer);
 					//capacitance:
 					double total_charge =calculate_uncompensated_charge();
-					calculate_one_IV_point(sim_params.scaled_delta_V, ConverganceCheck, number_outputs, timeStamps, timer,false);
+					calculate_one_IV_point(sim_params.scaled_delta_V, ConverganceCheck, number_outputs/*, timeStamps*/, timer,false);
 					std::ofstream CV_data;
 					if(sim_params.calculate_steady_state)
 					{
@@ -1859,12 +2101,7 @@ namespace SOLARCELL
 			double total_charge = 0;
 			std::cout << "CALCULATING IV CURVE \n";
 
-			unsigned int max_number_of_time_stamps = 3*number_outputs;
-			std::vector<double>	timeStamps(max_number_of_time_stamps);
-			// make the time stamps
-			for(unsigned int i=0; i<max_number_of_time_stamps; i++)
-				timeStamps[i] = (i+1) * sim_params.t_end / number_outputs;
-			std::cout << "running until t = " << sim_params.t_end << std::endl;
+			number_outputs *= 2;
 
 			// get the initial potential and electric field
 			assemble_Poisson_rhs();
@@ -1881,7 +2118,7 @@ namespace SOLARCELL
 			{
 				for(double voltage = -voltage_step; voltage >= V_min; voltage-=voltage_step)
 				{
-					calculate_one_IV_point(voltage, ConverganceCheck, max_number_of_time_stamps, timeStamps, timer, true);
+					calculate_one_IV_point(voltage, ConverganceCheck, number_outputs/*, timeStamps*/, timer, true);
 					if(!ConverganceCheck.sanity_check())
 					{
 						std::cout << "SIMULATION CRASH! LAST TIME STEP:  "
@@ -1893,7 +2130,7 @@ namespace SOLARCELL
 					if(sim_params.calculate_CV_curve)
 					{
 						total_charge =calculate_uncompensated_charge();
-						calculate_one_IV_point(voltage+sim_params.scaled_delta_V, ConverganceCheck, max_number_of_time_stamps, timeStamps, timer,false);
+						calculate_one_IV_point(voltage+sim_params.scaled_delta_V, ConverganceCheck, number_outputs/*, timeStamps*/, timer,false);
 						std::ofstream CV_data;
 						CV_data.open("CV_data.txt", std::ios_base::app);
 						CV_data  << voltage*sim_params.thermal_voltage
@@ -1915,7 +2152,7 @@ namespace SOLARCELL
 
 				for(double voltage = voltage_step; voltage <= V_max; voltage+=voltage_step)
 				{
-					calculate_one_IV_point(voltage, ConverganceCheck, max_number_of_time_stamps, timeStamps, timer, true);
+					calculate_one_IV_point(voltage, ConverganceCheck, number_outputs/*, timeStamps*/, timer, true);
 					if(!ConverganceCheck.sanity_check())
 					{
 						std::cout << "SIMULATION CRASH! LAST TIME STEP:  "
@@ -1927,7 +2164,7 @@ namespace SOLARCELL
 					if(sim_params.calculate_CV_curve)
 					{
 						total_charge =calculate_uncompensated_charge();
-						calculate_one_IV_point(voltage+sim_params.scaled_delta_V, ConverganceCheck, max_number_of_time_stamps, timeStamps, timer,false);
+						calculate_one_IV_point(voltage+sim_params.scaled_delta_V, ConverganceCheck, number_outputs/*, timeStamps*/, timer,false);
 						std::ofstream CV_data;
 						CV_data.open("CV_data.txt", std::ios_base::app);
 						CV_data  << voltage*sim_params.thermal_voltage
@@ -1950,7 +2187,7 @@ namespace SOLARCELL
 				double catch_up_V = 0.1/sim_params.thermal_voltage;
 				while(catch_up_V < V_min)
 				{
-					calculate_one_IV_point(catch_up_V, ConverganceCheck, max_number_of_time_stamps, timeStamps, timer,false);
+					calculate_one_IV_point(catch_up_V, ConverganceCheck, number_outputs/*, timeStamps*/, timer,false);
 					if(!ConverganceCheck.sanity_check())
 					{
 						std::cout << "SIMULATION CRASH! LAST TIME STEP:  "
@@ -1963,7 +2200,7 @@ namespace SOLARCELL
 				}
 				for(double voltage = V_min; voltage <= V_max; voltage+=voltage_step)
 				{
-					calculate_one_IV_point(voltage, ConverganceCheck, max_number_of_time_stamps, timeStamps, timer, true);
+					calculate_one_IV_point(voltage, ConverganceCheck, number_outputs/*, timeStamps*/, timer, true);
 					if(!ConverganceCheck.sanity_check())
 					{
 						std::cout << "SIMULATION CRASH! LAST TIME STEP:  "
@@ -1975,7 +2212,7 @@ namespace SOLARCELL
 					if(sim_params.calculate_CV_curve)
 					{
 						total_charge =calculate_uncompensated_charge();
-						calculate_one_IV_point(voltage+sim_params.scaled_delta_V, ConverganceCheck, max_number_of_time_stamps, timeStamps, timer,false);
+						calculate_one_IV_point(voltage+sim_params.scaled_delta_V, ConverganceCheck, number_outputs/*, timeStamps*/, timer,false);
 						std::ofstream CV_data;
 						CV_data.open("CV_data.txt", std::ios_base::app);
 						CV_data  << voltage*sim_params.thermal_voltage
