@@ -314,6 +314,8 @@ namespace SOLARCELL
  			* 	problem or semiconductor-electrolyte-Poisson. This is for testing. */
 			bool full_system;
 
+			unsigned int time_step_number;
+
 	
 			enum
 			{

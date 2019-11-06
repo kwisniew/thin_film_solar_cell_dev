@@ -31,6 +31,9 @@
 		scaled_n_type_donor_doping = n_type_donor_doping;
 		scaled_p_type_donor_doping = p_type_donor_doping;
 		scaled_p_type_width  = p_type_width;
+		/*std::cout<< scaled_n_type_donor_doping << "   "
+				 << scaled_p_type_donor_doping << "   "
+				 << scaled_p_type_width <<std::endl;*/
 	}
 
 
