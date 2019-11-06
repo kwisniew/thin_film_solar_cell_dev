@@ -8,6 +8,14 @@ set_value(const double & bias_value)
 	built_in_bias = bias_value;
 }
 
+template<int dim>
+void
+Built_In_Bias<dim>::
+set_location(const double & bias_location)
+{
+	built_in_bias_location = bias_location;
+}
+
 template <int dim>
 double 
 Built_In_Bias<dim>::
@@ -16,7 +24,7 @@ value(const dealii::Point<dim> &p,
 {
 	// potential applied at y = 0, a positive potential is a foward bias,
 	// a negative potential is a reverse bias
-	if(p[0] > (9.0 - 1e-10)/*p[0] == 0.0*/) //|| (p[1] == 0.0))
+	if(p[0] > (built_in_bias_location - 1e-10)/*p[0] == 0.0*/) //|| (p[1] == 0.0))
 	{
 //		std::cout << "Built in" << std::endl;
 		return built_in_bias; // volts
@@ -72,6 +80,15 @@ set_value(const double & bias_value)
 	applied_bias = bias_value;
 }
 
+template<int dim>
+void
+Applied_Bias<dim>::
+set_location(const double & bias_location)
+{
+	applied_bias_location = bias_location;
+}
+
+
 template <int dim>
 double 
 Applied_Bias<dim>::
@@ -80,7 +97,7 @@ value(const dealii::Point<dim> &p,
 {
 	// potential applied at y = 0, a positive potential is a foward bias,
 	// a negative potential is a reverse bias
-	if(p[0] > (9.0 - 1e-10)/*p[0] == 0.0*/) //|| (p[1] == 0))
+	if(p[0] > (applied_bias_location - 1e-10)/*p[0] == 0.0*/) //|| (p[1] == 0))
 	{
 //		std::cout << "Applied" << std::endl;
 		return applied_bias; // volts

@@ -20,6 +20,8 @@ class Built_In_Bias : public dealii::Function<dim>
 		{}
 		virtual ~Built_In_Bias(){}
 	
+		void set_location(const double & bias_location);
+
 		void set_value(const double & bias_value);
 
 		/** \brief Returns value of \$f\Phi_{\text{bi}}\f$ at point p.*/ 
@@ -28,6 +30,7 @@ class Built_In_Bias : public dealii::Function<dim>
 
 	private:
 		double built_in_bias;
+		double built_in_bias_location;
 };
 
 /** \brief The schottky bias \$f\Phi_{\text{sch}}\f$.*/
@@ -66,6 +69,8 @@ class Applied_Bias : public dealii::Function<dim>
 		{}
 		virtual ~Applied_Bias(){}
 
+		void set_location(const double & bias_location);
+
 		void set_value(const double & bias_value);
 		
 		/** \brief Returns value of \$f\Phi_{\text{app.}}\f$ at point p.*/ 
@@ -74,6 +79,7 @@ class Applied_Bias : public dealii::Function<dim>
 
 	private:
 		double applied_bias;
+		double applied_bias_location;
 };
 
 #endif
