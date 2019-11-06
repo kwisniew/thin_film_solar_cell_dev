@@ -333,9 +333,17 @@ namespace ParameterSpace
 				//calculate build in bias (not scaled yet):
 				//Note: all densities (n_type_doping, p_type_doping and intrinsic_density)
 				//      need to be "unscaled" and in [cm^-3]
-				this->scaled_built_in_bias =  this->thermal_voltage
-											 *log(this->scaled_n_type_donor_density*this->scaled_p_type_acceptor_density
-												  /(this->scaled_intrinsic_density*this->scaled_intrinsic_density));
+				if(this->scaled_n_type_donor_density > 0 && this->scaled_p_type_acceptor_density > 0)
+				{
+					this->scaled_built_in_bias =  this->thermal_voltage
+												 *log(this->scaled_n_type_donor_density*this->scaled_p_type_acceptor_density
+													  /(this->scaled_intrinsic_density*this->scaled_intrinsic_density));
+				}
+				else if(schottky_status==true)
+					this->scaled_built_in_bias = -scaled_schottky_bias;
+				else
+					this->scaled_built_in_bias = 0;
+
 
 				std::cout << "Potencjał wbudowany:   "
 						  << this->scaled_built_in_bias
@@ -368,17 +376,27 @@ namespace ParameterSpace
 				//Initial condition depends on depletion width,
 				//in case when Vapp > Vbi other initial value need to be impose eg. very low free carrier density at the beginning
 				// depletion width will be in [cm] since dopings and permittivity ~ [cm]
-				this->scaled_n_type_depletion_width = sqrt(2*PhysicalConstants::vacuum_permittivity*this->semiconductor_permittivity
-															*this->scaled_p_type_acceptor_density*(this->scaled_built_in_bias - this->scaled_applied_bias)
-															/
-															(PhysicalConstants::electron_charge*this->scaled_n_type_donor_density
-															* (this->scaled_n_type_donor_density + this->scaled_p_type_acceptor_density)));
+				if(this->scaled_n_type_donor_density > 0)
+				{
+					this->scaled_n_type_depletion_width = sqrt(2*PhysicalConstants::vacuum_permittivity*this->semiconductor_permittivity
+																*this->scaled_p_type_acceptor_density*(this->scaled_built_in_bias - this->scaled_applied_bias)
+																/
+																(PhysicalConstants::electron_charge*this->scaled_n_type_donor_density
+																* (this->scaled_n_type_donor_density + this->scaled_p_type_acceptor_density)));
+				}
+				else
+					this->scaled_n_type_depletion_width = 0.0;
 
-				this->scaled_p_type_depletion_width = sqrt(2*PhysicalConstants::vacuum_permittivity*this->semiconductor_permittivity
-															*this->scaled_n_type_donor_density*(this->scaled_built_in_bias - this->scaled_applied_bias)
-															/
-															(PhysicalConstants::electron_charge*this->scaled_p_type_acceptor_density
-															* (this->scaled_n_type_donor_density + this->scaled_p_type_acceptor_density)));
+				if(this->scaled_p_type_acceptor_density > 0)
+				{
+					this->scaled_p_type_depletion_width = sqrt(2*PhysicalConstants::vacuum_permittivity*this->semiconductor_permittivity
+																*this->scaled_n_type_donor_density*(this->scaled_built_in_bias - this->scaled_applied_bias)
+																/
+																(PhysicalConstants::electron_charge*this->scaled_p_type_acceptor_density
+																* (this->scaled_n_type_donor_density + this->scaled_p_type_acceptor_density)));
+				}
+				else
+					this->scaled_p_type_depletion_width = 0.0;
 
 				this->scaled_p_type_schottky_dwidth = sqrt(2*PhysicalConstants::vacuum_permittivity*this->semiconductor_permittivity
 															*(this->scaled_schottky_bias)
@@ -431,6 +449,8 @@ namespace ParameterSpace
 				this->characteristic_denisty =
 				// MAX(a, b) == ((a > b) ? a : b)
 				(this->scaled_p_type_acceptor_density < this->scaled_n_type_donor_density ? this->scaled_p_type_acceptor_density : this->scaled_n_type_donor_density);
+				if(characteristic_denisty == 0)
+					characteristic_denisty = scaled_p_type_acceptor_density;
 
 				this->scaled_n_type_donor_density      /= this->characteristic_denisty;
 				this->scaled_n_type_acceptor_density   /= this->characteristic_denisty;
