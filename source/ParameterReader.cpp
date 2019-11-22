@@ -40,9 +40,9 @@ namespace ParameterSpace
 				Patterns::Bool(),
 				"whether to calculate a equilibrium state (eg. with applied voltage)");
 
-		prm.declare_entry("small signal response", "false",
+		prm.declare_entry("DLTS", "false",
 				Patterns::Bool(),
-				"whether to calculate a small signal response");
+				"whether to calculate a DLTS (transient)");
 
 		prm.declare_entry("IV curve", "false",
 				Patterns::Bool(),
@@ -72,9 +72,9 @@ namespace ParameterSpace
 				Patterns::Double(0),
 				"time to equilibrium state (in terms of characteristic time)");
 
-		prm.declare_entry("end time small signal response", "1e3",
+		prm.declare_entry("end time DLTS", "1e3",
 				Patterns::Double(0),
-				"time to small signal response (in terms of characteristic time)");
+				"time to DLTS equilibrium state (in terms of characteristic time)");
 
 		prm.declare_entry("end time 2", "20",
 				Patterns::Double(0),
@@ -237,7 +237,7 @@ namespace ParameterSpace
 				Patterns::Double(0),
 				"the characteristic time scale [s]");
 
-		prm.declare_entry("characteristic time small signal response", "1.0e-12",
+		prm.declare_entry("characteristic time DLTS", "1.0e-12",
 				Patterns::Double(0),
 				"the characteristic time scale [s]");
 

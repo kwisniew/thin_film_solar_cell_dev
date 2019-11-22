@@ -88,7 +88,7 @@ namespace ChargeCarrierSpace
 	                {
 	                    for (unsigned int i = 0; i<dofs_per_cell; ++i)
 	                    {
-	                        // see documentation for these functions
+	                        // only normal components (jy) on he border can be nonzero:
 	                    	if(local_dof_indices.at(i)>(dof_handler.n_dofs()/3) &&
 	                    	   local_dof_indices.at(i)<(2*dof_handler.n_dofs()/3-1))
 	                    	{

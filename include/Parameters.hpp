@@ -33,7 +33,7 @@ namespace ParameterSpace
 			// computational
 			bool 		 calculate_steady_state;
 			bool 		 calculate_equilibrium_state;
-			bool 		 calculate_small_signal_response;
+			bool 		 calculate_DLTS;
 			bool		 calculate_IV_curve;
 			bool		 calculate_CV_curve;
 			std::string  type_of_simulation;
@@ -45,7 +45,7 @@ namespace ParameterSpace
 			double		 t_end;
 			double 		 t_end_steady_state;
 			double 		 t_end_equilibrium_state;
-			double 		 t_end_small_signal_response;
+			double 		 t_end_DLTS;
 			double 		 t_end_2;
 			double 		 delta_t;
 			double 		 penalty;
@@ -108,7 +108,7 @@ namespace ParameterSpace
 			double characteristic_time;
 			double characteristic_time_steady_state;
 			double characteristic_time_equilibrium_state;
-			double characteristic_time_small_signal_response;
+			double characteristic_time_DLTS;
 
 			double scaled_schottky_hole_density;
 			double scaled_schottky_electron_density;
@@ -132,6 +132,7 @@ namespace ParameterSpace
 			double scaled_IV_max_V;
 			unsigned int IV_n_of_data_points;
 			double scaled_delta_V;
+			double charge_scaling_factor;
 
 
 			/** This functions makes almost everythingn 1.0 that is relevant for testing.*/
@@ -168,7 +169,7 @@ namespace ParameterSpace
 				prm.enter_subsection("computational");
 				this->calculate_steady_state          = prm.get_bool("steady state");
 				this->calculate_equilibrium_state     = prm.get_bool("equilibrium state");
-				this->calculate_small_signal_response = prm.get_bool("small signal response");
+				this->calculate_DLTS 				  = prm.get_bool("DLTS");
 				this->calculate_IV_curve			  = prm.get_bool("IV curve");
 				this->calculate_CV_curve			  = prm.get_bool("CV curve");
 
@@ -178,7 +179,7 @@ namespace ParameterSpace
 
 				this->t_end_steady_state          = prm.get_double("end time steady state");
 				this->t_end_equilibrium_state     = prm.get_double("end time equilibrium state");
-				this->t_end_small_signal_response = prm.get_double("end time small signal response");
+				this->t_end_DLTS = prm.get_double("end time DLTS");
 
 				this->t_end_2 = prm.get_double("end time 2");
 				this->time_stamps = prm.get_integer("time stamps");
@@ -224,7 +225,7 @@ namespace ParameterSpace
 
 				this->characteristic_time_steady_state          = prm.get_double("characteristic time steady state");
 				this->characteristic_time_equilibrium_state     = prm.get_double("characteristic time equilibrium state");
-				this->characteristic_time_small_signal_response = prm.get_double("characteristic time small signal response");
+				this->characteristic_time_DLTS = prm.get_double("characteristic time DLTS");
 
 				this->scaled_n_type_donor_density     = prm.get_double("n_type donor density");
 				this->scaled_n_type_acceptor_density  = prm.get_double("n_type acceptor density");
@@ -253,7 +254,7 @@ namespace ParameterSpace
 				/*----------------------------------------------------------------------*/
 
 				std::cout <<std::endl;
-				if(this->calculate_steady_state  && !this->calculate_equilibrium_state && !this->calculate_small_signal_response)
+				if(this->calculate_steady_state  && !this->calculate_equilibrium_state && !this->calculate_DLTS)
 				{
 					std::cout << "STEADY STATE CALCULATION" <<std::endl;
 
@@ -262,7 +263,7 @@ namespace ParameterSpace
 					this->t_end               = this->t_end_steady_state;
 					this->scaled_applied_bias = 0;
 				}
-				else if(!this->calculate_steady_state  && this->calculate_equilibrium_state && !this->calculate_small_signal_response)
+				else if(!this->calculate_steady_state  && this->calculate_equilibrium_state && !this->calculate_DLTS)
 				{
 					std::cout << "EQUILIBRIUM STATE CALCULATION" <<std::endl;
 
@@ -270,13 +271,13 @@ namespace ParameterSpace
 					this->characteristic_time = this->characteristic_time_equilibrium_state;
 					this->t_end               = this->t_end_equilibrium_state;
 				}
-				else if(!this->calculate_steady_state  && !this->calculate_equilibrium_state && this->calculate_small_signal_response)
+				else if(!this->calculate_steady_state  && !this->calculate_equilibrium_state && this->calculate_DLTS)
 				{
-					std::cout << "SMALL SIGNAL RESPONSE CALCULATION" <<std::endl;
+					std::cout << "DLTS SIGNAL CALCULATION" <<std::endl;
 
 					type_of_simulation = "";
-					this->characteristic_time = this->characteristic_time_small_signal_response;
-					this->t_end               = this->t_end_small_signal_response;
+					this->characteristic_time = this->characteristic_time_DLTS;
+					this->t_end               = this->t_end_DLTS;
 				}
 				else
 				{
@@ -339,8 +340,8 @@ namespace ParameterSpace
 												 *log(this->scaled_n_type_donor_density*this->scaled_p_type_acceptor_density
 													  /(this->scaled_intrinsic_density*this->scaled_intrinsic_density));
 				}
-				else if(schottky_status==true)
-					this->scaled_built_in_bias = -scaled_schottky_bias;
+				/*else if(schottky_status==true)
+					this->scaled_built_in_bias = -scaled_schottky_bias;*/
 				else
 					this->scaled_built_in_bias = 0;
 
@@ -516,6 +517,12 @@ namespace ParameterSpace
 							* this->characteristic_denisty 
 							* this->characteristic_length)
 							/ this->characteristic_time;
+
+				this->charge_scaling_factor =   real_domain_height*device_thickness*characteristic_length*
+												characteristic_denisty*PhysicalConstants::electron_charge
+											   /scaled_domain_height;
+
+
 
 				std::cout 	<< std::endl
 							<< std::endl;
