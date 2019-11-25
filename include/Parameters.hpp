@@ -301,14 +301,14 @@ namespace ParameterSpace
 				this->thermal_voltage = PhysicalConstants::boltzman_constant*temperatue/PhysicalConstants::electron_charge;
 				std::cout << "thermal voltage:    " << this->thermal_voltage << std::endl;
 
-				//calculate intrinsic density:
+				//calculate intrinsic density [m^3]:
 				this->Nc_effective_dos = 2*pow(2*M_PI*PhysicalConstants::free_electron_mass*this->electron_effective_mass
 												*PhysicalConstants::boltzman_constant*this->temperatue
 												/(PhysicalConstants::planck_constant*PhysicalConstants::planck_constant)
 											  ,1.5);
 
 				std::cout << "Nc [cm^-3]:    " << this->Nc_effective_dos*1.0e-6 << std::endl;
-
+				//[m^3]
 				this->Nv_effective_dos = 2*pow(2*M_PI*PhysicalConstants::free_electron_mass*this->hole_effective_mass
 												*PhysicalConstants::boltzman_constant*this->temperatue
 												/(PhysicalConstants::planck_constant*PhysicalConstants::planck_constant)
@@ -317,11 +317,10 @@ namespace ParameterSpace
 				std::cout << "Nv [cm^-3]:    " << this->Nv_effective_dos*1.0e-6 << std::endl;
 
 				//band gap is multiplied by electron charge to convert eV [eV] to Joules [J].
+				//[m^3]
 				this->scaled_intrinsic_density = sqrt(this->Nv_effective_dos*this->Nc_effective_dos)
 												*std::exp(-this->band_gap*PhysicalConstants::electron_charge
 														  /(2*PhysicalConstants::boltzman_constant*this->temperatue));
-
-
 
 				//change intrinsic density to [cm^-3]
 				this->scaled_intrinsic_density *= 1.0e-6;
@@ -421,13 +420,19 @@ namespace ParameterSpace
 				this->defect_energy *= this->band_gap;
 				//defect energy is eV, so we need to change them to [J] by multiplying it by e
 				// see eg. p.105 Selberherr  (srh_electron_density=n1)
+				//[m^3]
 				this->scaled_srh_electron_density = Nc_effective_dos
 											*std::exp(-this->defect_energy*PhysicalConstants::electron_charge
 													  /(PhysicalConstants::boltzman_constant*this->temperatue));
+				//[cm^3]
+				scaled_srh_electron_density *= 1.0e-6;
 
+				//[m^3]
 				this->scaled_srh_hole_density = Nv_effective_dos
 										*std::exp( (this->defect_energy - this->band_gap)*PhysicalConstants::electron_charge
 												  /(PhysicalConstants::boltzman_constant*this->temperatue));
+				//[cm^3]
+				scaled_srh_hole_density *= 1.0e-6;
 
 				std::cout << "srh_electron_density:   "
 						  << this->scaled_srh_electron_density

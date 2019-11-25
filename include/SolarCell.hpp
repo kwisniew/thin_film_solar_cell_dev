@@ -444,7 +444,7 @@ namespace SOLARCELL
 			/// \f$ \Phi^{\infty} \f$
 			/*Bulk_Bias<dim>						bulk_bias;*/
 			/// \f$ \Phi_{\text{Sch}} \f$ 	
-			/*Schottky_Bias<dim>					schottky_bias;*/
+			Schottky_Bias<dim>					schottky_bias;
 
 			/*-------------------------------------------------------------*/
 			/* Generation function						*/
@@ -661,9 +661,12 @@ namespace SOLARCELL
 			void
 			check_first_time_steps(const double & old_current, TimerOutput & timer);
 
-			/**\brief Calculate uncompensated charge over all domain*/
-			 /** This function is needed to calculate capacitance:
-			  * C=dQ/dV --> we need to calculate dQ = Q(t[n+1])-Q(t[n])
+			/**\brief Calculate one point on IV curve*/
+			 /** This function calculate transient from some starting point
+			  * described in primarily saved .dofs to other point with some applied voltage.
+			  * This function begin with taking dofs from file, than it applied some voltage
+			  * and after that it will iteratively solve equations in time domain till
+			  * 1000 steps. Algorithm can stop earlier if accuracy of result will be enough.
 			 */
 			char
 			calculate_one_IV_point(double 				voltage,
@@ -672,6 +675,21 @@ namespace SOLARCELL
 								   //std::vector<double> 	& timeStamps,
 								   TimerOutput 			& timer,
 								   bool 				make_output);
+
+			char
+			calculate_DLTS(double 				voltage,
+						   double				delta_Q,
+						   unsigned int         max_number_of_steps,
+						   TimerOutput 			& timer/*,
+						   unsigned int 		output_intervals*/);
+
+			char
+			calculate_capacitance( double 				voltage,
+								   double				start_time,
+								   double 				duration_time,
+								   unsigned int         max_number_of_steps,
+								   TimerOutput 			& timer);
+
 
 			/**\brief Calculate uncompensated charge over all domain*/
 			 /** This function is needed to calculate capacitance:
@@ -695,6 +713,17 @@ namespace SOLARCELL
 
 			void
 			scale_time_steps(const double scaling_factor, const double end_time_scaling_factor, TimerOutput 	& timer);
+
+			std::pair<double, double>
+			potential_department();
+
+			void
+			change_temperature(double temperature);
+
+			void
+			print_step_values(std::string Title, unsigned int step_number, double total_current, double old_current, bool is_current_decreasing,
+							  double uptodate_current_delta, double previous_current_delta,
+							  double total_charge, double old_charge, double uptodate_charge_delta);
 
 			/** Print the results into three .vtu files using multi-threading. 
  			* One thread prints poisson, one thread prints electron/holes, one thread prints

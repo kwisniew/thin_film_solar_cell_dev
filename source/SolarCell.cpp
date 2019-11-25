@@ -48,7 +48,7 @@ namespace SOLARCELL
 	built_in_bias(),
 	applied_bias(),
 	/*bulk_bias(),*/
-	/*schottky_bias(),*/
+	schottky_bias(),
 	generation()
 	{
 		// set the parameters
@@ -63,7 +63,9 @@ namespace SOLARCELL
 		else*/
 		built_in_bias.set_value(sim_params.scaled_built_in_bias);
 		built_in_bias.set_location(sim_params.scaled_p_type_width+sim_params.scaled_n_type_width);
-		/*schottky_bias.set_value(sim_params.scaled_schottky_bias);*/
+
+		schottky_bias.set_value(sim_params.scaled_schottky_bias);
+		schottky_bias.set_location(0.0);
 
 		donor_doping_profile.set_values(
 								sim_params.scaled_n_type_donor_density,
@@ -564,7 +566,7 @@ namespace SOLARCELL
 							data.local_rhs(i) +=	
 									-(scratch.psi_i_field[i] *
 									scratch.normals[q] *
-									(scratch.Poisson_bi_values[q] 
+									(scratch.Poisson_bi_values[q]
 									-
 									scratch.Poisson_bc_values[q]) *
 									scratch.Poisson_fe_face_values.JxW(q));
@@ -587,17 +589,17 @@ namespace SOLARCELL
 			
 					// get the values of the dirichlet boundary conditions evaluated
 					// on the quadrature points of this face
-					built_in_bias.value_list(
+					/*built_in_bias.value_list(
 								scratch.Poisson_fe_face_values.get_quadrature_points(),
-								scratch.Poisson_bi_values);
+								scratch.Poisson_bi_values);*/
 					
-					/*schottky_bias.value_list(
-								scratch.Poisson_fe_face_values.get_quadrature_points(),
-								scratch.Poisson_bc_values);*/
-
-					applied_bias.value_list(
+					schottky_bias.value_list(
 								scratch.Poisson_fe_face_values.get_quadrature_points(),
 								scratch.Poisson_bc_values);
+
+					/*applied_bias.value_list(
+								scratch.Poisson_fe_face_values.get_quadrature_points(),
+								scratch.Poisson_bc_values);*/
 
 			
 					// copy over the normal vectors
@@ -621,8 +623,8 @@ namespace SOLARCELL
 							data.local_rhs(i) +=	
 								 -(scratch.psi_i_field[i] *
 								 scratch.normals[q] *
-								(scratch.Poisson_bi_values[q] 
-								 -
+								(/*scratch.Poisson_bi_values[q]*/
+								 /*-*/
 								scratch.Poisson_bc_values[q]) *
 								scratch.Poisson_fe_face_values.JxW(q));
 						} // for i
@@ -1013,22 +1015,28 @@ namespace SOLARCELL
 						for(unsigned int i=0; i<dofs_per_cell; i++)
 						{
 							// int_{\Sigma} -v^{-} ket (rho_n - rho_n^e) rho_o ds
-							data.local_carrier_1_rhs(i) += 
-									-1.0 * scratch.psi_i_density[i] *
+							/*double barrier_exist = 0.0;
+							if(scratch.electron_interface_values[q] > scratch.carrier_1_bc_values[q])
+								barrier_exist = 0.0;*/
+							data.local_carrier_1_rhs(i) +=
+									-/*-*/1.0 * scratch.psi_i_density[i] *
 									sim_params.scaled_electron_recombo_v*
 									(scratch.electron_interface_values[q]
 									-
 									scratch.carrier_1_bc_values[q] ) * 
-									scratch.carrier_fe_face_values.JxW(q);			
+									scratch.carrier_fe_face_values.JxW(q)/**(-1.0)*barrier_exist*/;
 					
 							// int_{\Sigma}  v^{-} kht (rho_p - rho_p^e) rho_r ds
+							/*barrier_exist = 0.0;
+							if(scratch.hole_interface_values[q] > scratch.carrier_2_bc_values[q])
+								barrier_exist = 0.0;*/
 							data.local_carrier_2_rhs(i) +=  
-									+1.0 * scratch.psi_i_density[i] *
+									-/*+*/1.0 * scratch.psi_i_density[i] *
 									sim_params.scaled_hole_recombo_v *
 									(scratch.hole_interface_values[q]
 									-
 									scratch.carrier_2_bc_values[q] ) *
-									scratch.carrier_fe_face_values.JxW(q);						
+									scratch.carrier_fe_face_values.JxW(q)/**(-1.0)*barrier_exist*/;
 						} // for i
 					} // for q
 				}
@@ -1209,6 +1217,13 @@ namespace SOLARCELL
 	{
 		//write dofs in case of restart
 		electron_hole_pair.print_dofs(sim_params.type_of_simulation);
+		Vector<double> solution_carrier1_0 = electron_hole_pair.carrier_1.solution;
+		Vector<double> solution_carrier2_0 = electron_hole_pair.carrier_2.solution;
+		Vector<double> solution_carrier1_1 = electron_hole_pair.carrier_1.solution;
+		Vector<double> solution_carrier2_1 = electron_hole_pair.carrier_2.solution;
+		Vector<double> solution_carrier1_2 = electron_hole_pair.carrier_1.solution;
+		Vector<double> solution_carrier2_2 = electron_hole_pair.carrier_2.solution;
+
 
 		std::cout << "\n#####INITIAL PARAMETERS####" <<"\n";
 		std::cout << "Voltage:   " << voltage*sim_params.thermal_voltage <<"\n";
@@ -1248,8 +1263,10 @@ namespace SOLARCELL
 		double uptodate_current_delta = 0;
 		double previous_charge_delta = 0;
 		double uptodate_charge_delta = 0;
-		double time_step_multiplication=2.0;
+		double time_step_multiplication=0.1;
 		char   steady_state           = 0;
+		bool   is_current_decreasing  = true;
+		bool   is_uptodate_current_decreasing  = true;
 		bool   reset_current_delta    = false;
 		bool   crash                  = false;
 		char   number_of_rescaling    = 0;
@@ -1257,11 +1274,15 @@ namespace SOLARCELL
 		//double real_t_end=0;
 		//double time_till_restaling=0;
 		unsigned int max_number_of_steps=1000;
+		/*if(voltage*sim_params.thermal_voltage <= -0.3)
+			max_number_of_steps=5000;*/
 		//unsigned int output_after_n_steps=max_number_of_steps/number_of_outputs;
 		unsigned int step_number=0;
+		unsigned int step_after_reset=0;
 
 
 		double total_current=old_current;
+		double total_charge =old_charge;
 		//check_first_time_steps(old_current,timer);
 
 
@@ -1276,10 +1297,11 @@ namespace SOLARCELL
 			this->solve_one_time_step(timer);
 			time += delta_t;
 			step_number+=1;
+			step_after_reset+=1;
 
 			calculate_joint_solution_vector();
 			total_current = calculate_currents(joint_solution);
-			double total_charge =calculate_uncompensated_charge();
+			total_charge =calculate_uncompensated_charge();
 
 			if(std::isnan(total_current) || std::isnan(total_charge))
 			{
@@ -1288,7 +1310,7 @@ namespace SOLARCELL
 						  << "\nABORTING..."
 						  <<std::endl;
 				crash = true;
-				steady_state= false;
+				steady_state= -1;
 				return steady_state;
 			}
 
@@ -1297,9 +1319,8 @@ namespace SOLARCELL
 				std::cout << "\nStep number:   "
 						  << step_number
 						  <<"\n";
-
-
-				std::cout<< "Current:         "
+				std::cout
+						 << "Current:         "
 						 << total_current
 						 << "\n"
 						 << "Old Current:         "
@@ -1307,10 +1328,14 @@ namespace SOLARCELL
 						 << "\n"
 						 << "Relative current change:   "
 						 << std::abs(total_current/old_current)
-						 << "\nUncompensated charge:    "
+						 << "\nCharge:    "
 						 << total_charge
+						 << "\nOld Charge:    "
+						 << old_charge
 						 << "\n Relative charge change:   "
 						 << total_charge/old_charge
+						 << "\n current is decreasing:   "
+						 << is_current_decreasing
 						 << "\n";
 			}
 
@@ -1337,7 +1362,7 @@ namespace SOLARCELL
 					solve_Poisson();
 					calculate_joint_solution_vector();
 					total_current = calculate_currents(joint_solution);
-					/*total_current = old_current;*/
+					total_charge = calculate_uncompensated_charge();
 
 					time = 0.0;
 					std::cout << "OLD time step:   "
@@ -1362,17 +1387,26 @@ namespace SOLARCELL
 				}
 				else
 				{
-					std::cout << "THIS STEP SIZE IS OK!   "
+					std::cout << "\nTHIS STEP SIZE IS OK!   "
 							  << delta_t
 							  <<std::endl;
 					previous_current_delta = std::abs(old_current - total_current);
 					previous_charge_delta  = std::abs(old_charge - total_charge);
+					is_current_decreasing  = std::abs(total_current) < std::abs(old_current);
+					solution_carrier1_2 = electron_hole_pair.carrier_1.solution;
+					solution_carrier2_2 = electron_hole_pair.carrier_2.solution;
+					solution_carrier1_1 = solution_carrier1_0;
+					solution_carrier2_1 = solution_carrier2_0;
 					/*previous_current_delta = old_current - total_current;*/
 					//initial_sign = previous_current_delta < 0.0;
 					std::cout << "current_delta= "
 							  << previous_current_delta
-							  << "charge_delta= "
+							  << "\ncharge_delta= "
 							  << previous_charge_delta
+							  << "\nCurrent:    "
+							  << total_current
+							  << "\nCharge:    "
+							  << total_charge
 							  <<std::endl;
 					//number_of_rescaling = 0;
 					//reset_current_delta = false;
@@ -1399,16 +1433,24 @@ namespace SOLARCELL
 					solve_Poisson();
 					calculate_joint_solution_vector();
 					total_current = calculate_currents(joint_solution);
-					/*total_current = old_current;*/
+					total_charge = calculate_uncompensated_charge();
 
 
-					if(number_of_rescaling==0)
+					if(time_step_multiplication < 1.0)
 					{
-						time_step_multiplication = std::sqrt(time_step_multiplication);
+						scale_time_steps(time_step_multiplication,1,timer);
 					}
-					time -= delta_t;
+					else
+					{
+						if(number_of_rescaling==0)
+						{
+							time_step_multiplication = std::sqrt(time_step_multiplication);
+						}
+						time -= delta_t;
 
-					scale_time_steps(1.0/time_step_multiplication,1,timer);
+						scale_time_steps(1.0/time_step_multiplication,1,timer);
+					}
+
 					reset_current_delta = true;
 					++number_of_rescaling;
 
@@ -1422,8 +1464,25 @@ namespace SOLARCELL
 							  << delta_t
 							  <<std::endl;
 					previous_current_delta = std::abs(old_current - total_current);
+					previous_charge_delta = std::abs(old_charge - total_charge);
+					is_current_decreasing  = std::abs(total_current) < std::abs(old_current);
+					solution_carrier1_2 = electron_hole_pair.carrier_1.solution;
+					solution_carrier2_2 = electron_hole_pair.carrier_2.solution;
+					solution_carrier1_1 = solution_carrier1_0;
+					solution_carrier2_1 = solution_carrier2_0;
 					std::cout << "current_delta= "
 							  << previous_current_delta
+							  << "\ncharge_delta= "
+							  << previous_charge_delta
+							  << "\nCurrent:    "
+							  << total_current
+							  << "\nPrevious Current:    "
+							  << old_current
+							  << "\nCharge:    "
+							  << total_charge
+							  /*<< "\nIs current delta decreasing:   "
+							  << (uptodate_current_delta < previous_current_delta)*/
+							  <<std::endl
 							  <<std::endl;
 					number_of_rescaling = 0;
 					reset_current_delta = false;
@@ -1434,20 +1493,43 @@ namespace SOLARCELL
 			{
 				uptodate_current_delta = std::abs(old_current - total_current);
 				uptodate_charge_delta = std::abs(old_charge - total_charge);
+				is_uptodate_current_decreasing = std::abs(total_current) < std::abs(old_current);
+				if(step_after_reset==2)
+				{
+					solution_carrier1_1 = solution_carrier1_2;
+					solution_carrier2_1 = solution_carrier2_2;
+					solution_carrier1_2 = electron_hole_pair.carrier_1.solution;
+					solution_carrier2_2 = electron_hole_pair.carrier_2.solution;
+				}
+				else
+				{
+					solution_carrier1_0 = solution_carrier1_1;
+					solution_carrier2_0 = solution_carrier2_1;
+					solution_carrier1_1 = solution_carrier1_2;
+					solution_carrier2_1 = solution_carrier2_2;
+					solution_carrier1_2 = electron_hole_pair.carrier_1.solution;
+					solution_carrier2_2 = electron_hole_pair.carrier_2.solution;
+				}
+
 				if(step_number%100 == 0)
 				{
 					std::cout << "current_delta= "
 							  << uptodate_current_delta
 							  << "        delta_i/i:           "
 							  << std::abs(uptodate_current_delta/old_current)
-							  << "charge_delta= "
+							  << "\ncharge_delta= "
 							  << uptodate_charge_delta
 							  << "        delta_q/q:           "
 							  << std::abs(uptodate_charge_delta/old_charge)
+							  << "\nIs current delta decreasing:   "
+							  << (uptodate_current_delta < previous_current_delta)
 							  <<std::endl;
 				}
 
-				if( /*(uptodate_current_delta < 0.0) != initial_sign*/uptodate_current_delta > previous_current_delta && step_number<5)
+				if( (uptodate_current_delta > previous_current_delta && step_number<5) &&
+						(uptodate_charge_delta > previous_charge_delta && step_number<5)
+						/*( is_uptodate_current_decreasing != is_current_decreasing ) && step_number<5*/
+				  )
 				{
 					if(number_of_rescaling>7)
 					{
@@ -1456,16 +1538,50 @@ namespace SOLARCELL
 						steady_state= -1;
 						return steady_state;
 					}
-					std::cout << "RESTARTING & CHANGING STEP SIZE BECOUSE IT IS TOO BIG"
+					print_step_values("RESTARTING & CHANGING STEP SIZE BECOUSE IT IS TOO BIG! ",
+									  step_number, total_current, old_current, is_current_decreasing,
+									  uptodate_current_delta, previous_current_delta,
+									  total_charge, old_charge, uptodate_charge_delta);
+					/*std::cout << "RESTARTING & CHANGING STEP SIZE BECOUSE IT IS TOO BIG! "
+							  << "After: "
+							  << step_number
+							  << " step number \n"
+							  << "Current:         "
+							  << total_current
+							  << "\n"
+							  << "Old Current:         "
+							  << old_current
+							  << "\n"
+							  << "Relative current change:   "
+							  << std::abs(total_current/old_current)
+							  << "\nCharge:    "
+							  << total_charge
+							  << "\nOld Charge:    "
+							  << old_charge
+							  << "\n Relative charge change:   "
+							  << total_charge/old_charge
+							  << "\n current is decreasing:   "
+							  << is_current_decreasing
+							  << "\nRelative current delta = "
+							  << std::abs(uptodate_current_delta/old_current)
+							  << "\nRelative charge delta = "
+							  << std::abs(uptodate_charge_delta/old_charge)
+							  << "\ncurrent_delta= "
+							  << uptodate_current_delta
+							  << "\ncharge_delta= "
+							  << uptodate_charge_delta
+							  << "\nIs current delta decreasing:   "
+							  << (uptodate_current_delta < previous_current_delta)
 							  <<std::endl
 							  << "OLD time step   "
 							  << delta_t
-							  <<std::endl;
+							  <<std::endl;*/
 					electron_hole_pair.read_dofs(sim_params.type_of_simulation);
 					assemble_Poisson_rhs();
 					solve_Poisson();
 					calculate_joint_solution_vector();
 					total_current = calculate_currents(joint_solution);
+					total_charge = calculate_uncompensated_charge();
 
 					time_step_multiplication = 0.1;
 					scale_time_steps(time_step_multiplication,1,timer);
@@ -1481,52 +1597,127 @@ namespace SOLARCELL
 					step_number=0;
 					++number_of_rescaling;
 				}
-				else if(uptodate_current_delta > previous_current_delta && std::abs(uptodate_current_delta/old_current) < 0.0001)
+				else if(uptodate_current_delta > previous_current_delta && std::abs(uptodate_current_delta/old_current) < 0.0001
+						/*uptodate_charge_delta > previous_charge_delta && std::abs(uptodate_charge_delta/old_charge) < 0.0001*/
+						/*( is_uptodate_current_decreasing != is_current_decreasing ) &&
+						          std::abs(uptodate_current_delta/old_current) < 0.0001*/
+						)
 				{
-					std::cout << "\n\nSTEADY STATE WAS ACHIEVED after: "
-							  << time
-							  << "  times char_time\n"
-							  << "After: "
-							  << step_number
-							  << " step number \n"
-							  << "Steady state current:"
-							  << total_current
-							  << "\ncurrent_delta= "
-							  << uptodate_current_delta
-							  << "\nSteady state charge:"
-							  << total_charge
-							  << "\ncharge_delta= "
-							  << uptodate_charge_delta
-							  << std::endl;
+					if(uptodate_charge_delta > previous_charge_delta && std::abs(uptodate_charge_delta/old_charge) < 1e-8)
+					{
+						std::cout << "\n\nSTEADY STATE WAS ACHIEVED after: "
+								  << time
+								  << "  times char_time\n"
+								  << "After: "
+								  << step_number
+								  << " step number \n"
+								  << "Steady state current:"
+								  << total_current
+								  << "\ncurrent_delta= "
+								  << uptodate_current_delta
+								  << "\nSteady state charge:"
+								  << total_charge
+								  << "\ncharge_delta= "
+								  << uptodate_charge_delta
+								  << std::endl;
 
-					steady_state = 1;
-					break;
+						steady_state = 1;
+						break;
+					}
+					else
+					{
+						if(step_number%20 == 1)
+						{
+							std::cout << "\n\nCharge is still converging...\n "
+									  << "After: "
+									  << step_number
+									  << " step number \n"
+									  << "current:"
+									  << total_current
+									  << "\ncurrent_delta= "
+									  << uptodate_current_delta
+									  << "\ncharge:"
+									  << total_charge
+									  << "\ncharge_delta= "
+									  << uptodate_charge_delta
+									  << std::endl
+									  << std::endl;
+						}
+
+						previous_current_delta = uptodate_current_delta;
+						previous_charge_delta = uptodate_charge_delta;
+					}
+
+
 					//return steady_state;
 				}
-				else if(uptodate_current_delta > previous_current_delta)
+				// here we assume that the problem will not blow up. That is: we assume eg. that when current stop decreasing than it will
+				// start to decrease at some point after (it was long above equilibrium state, now it is above but it will try to come back).
+				// Otherwise current will constantly grow up and explode at some time.
+				else if(uptodate_current_delta > previous_current_delta &&
+						uptodate_charge_delta > previous_charge_delta
+						/*( is_uptodate_current_decreasing != is_current_decreasing )*/
+					   )
 				{
-					std::cout << "\n\nSTEADY STATE WAS ACHIEVED BUT ACCURACY WAS INSUFFICIENT!"
-							  << "\nRelative current delta = "
-							  << std::abs(uptodate_current_delta/old_current)
-							  << "\nRelative charge delta = "
-							  << std::abs(uptodate_charge_delta/old_charge)
-							  << std::endl;
-					electron_hole_pair.print_dofs(sim_params.type_of_simulation);
-					std::cout << "OLD time step   "
-							  << delta_t
-							  <<std::endl;
+					/*if(voltage*sim_params.thermal_voltage > -0.3)
+					{*/
 
-					time_step_multiplication = 0.1;
-					scale_time_steps(time_step_multiplication,1,timer);
+					print_step_values("\n\nSTEADY STATE WAS ACHIEVED BUT ACCURACY WAS INSUFFICIENT!",
+									  step_number, total_current, old_current, is_current_decreasing,
+									  uptodate_current_delta, previous_current_delta,
+									  total_charge, old_charge, uptodate_charge_delta);
+					/*std::cout << "\n\nSTEADY STATE WAS ACHIEVED BUT ACCURACY WAS INSUFFICIENT!"
+								  << "After: "
+								  << step_number
+								  << " step number \n"
+								  << "\nRelative current delta = "
+								  << std::abs(uptodate_current_delta/old_current)
+								  << "\nRelative charge delta = "
+								  << std::abs(uptodate_charge_delta/old_charge)
+								  << "\nSteady state current:"
+								  << total_current
+								  << "\nPrevious current= "
+								  << old_current
+								  << "\ncurrent_delta= "
+								  << uptodate_current_delta
+								  << "\nSteady state charge:"
+								  << total_charge
+								  << "\ncharge_delta= "
+								  << uptodate_charge_delta
+								  << "\nIs current delta decreasing:   "
+								  << (uptodate_current_delta < previous_current_delta)
+								  << std::endl;*/
 
-					std::cout << "NEW time step:   "
-							  << delta_t
-							  <<std::endl;
-					reset_current_delta=true;
+						electron_hole_pair.carrier_1.solution = solution_carrier1_0;
+						electron_hole_pair.carrier_2.solution = solution_carrier2_0;
+						electron_hole_pair.print_dofs(sim_params.type_of_simulation);
+						step_after_reset = 0;
+
+						assemble_Poisson_rhs();
+						solve_Poisson();
+						calculate_joint_solution_vector();
+						total_current = calculate_currents(joint_solution);
+						total_charge = calculate_uncompensated_charge();
+
+						std::cout << "OLD time step:   "
+								  << delta_t
+								  <<std::endl;
+
+						time_step_multiplication = 0.1;
+						scale_time_steps(time_step_multiplication,1,timer);
+
+						std::cout << "NEW time step:   "
+								  << delta_t
+								  <<std::endl;
+						reset_current_delta=true;
+					/*}*/
+
 				}
 				else
+				{
 					previous_current_delta = uptodate_current_delta;
-
+					previous_charge_delta = uptodate_charge_delta;
+				}
 				/*if( std::abs(uptodate_current_delta/old_current) < 0.05 )
 				{
 					//just in case save dofs
@@ -1547,7 +1738,8 @@ namespace SOLARCELL
 			}
 
 			old_current = total_current;
-		} // end for
+			old_charge = total_charge;
+		} // end while
 
 		if(!crash)
 		{
@@ -1566,8 +1758,25 @@ namespace SOLARCELL
 					{
 						IV_data.open("IV_data.txt", std::ios::out | std::ios::trunc);
 					}
-					else IV_data.open("IV_data_restart.txt", std::ios::out | std::ios::trunc);
-					IV_data << sim_params.scaled_applied_bias/sim_params.thermal_voltage
+					else
+						IV_data.open("IV_data.txt", std::ios_base::app);/*IV_data.open("IV_data_restart.txt", std::ios::out | std::ios::trunc);*/
+					if(steady_state == -1)
+					{
+						IV_data << "Crash!:   ";
+					}
+					if(steady_state == 0)
+					{
+						IV_data << "Not steady state:   ";
+					}
+					if(steady_state == 1)
+					{
+						std::pair voltage_part(potential_department());
+						IV_data << "Part on Schottky:   " << voltage_part.first *sim_params.thermal_voltage
+								<< "   "
+								<< "Part on PN junct:   " << voltage*sim_params.thermal_voltage - voltage_part.second*sim_params.thermal_voltage-voltage
+								<< std::endl;
+					}
+					IV_data << voltage*sim_params.thermal_voltage
 							 << "\t"
 							 << total_current/*calculate_currents(joint_solution)*/
 							 << "\n";
@@ -1587,21 +1796,1057 @@ namespace SOLARCELL
 				{
 					std::string file_prefix = "IV_Vapp_"+std::to_string(voltage*sim_params.thermal_voltage);
 					print_results(0, file_prefix);
-					print_currents(0, joint_solution, file_prefix);
+					//print_currents(0, joint_solution, file_prefix);
 
 					std::ofstream IV_data;
 					IV_data.open("IV_data.txt", std::ios_base::app);
+					if(steady_state == -1)
+					{
+						IV_data << "Crash!:   ";
+					}
+					if(steady_state == 0)
+					{
+						IV_data << "Not steady state:   ";
+					}
+					if(steady_state == 1)
+					{
+						std::pair voltage_part(potential_department());
+						IV_data << "Part on Schottky:   " << voltage_part.first *sim_params.thermal_voltage
+								<< "   "
+								<< "Part on PN junct:   " << voltage*sim_params.thermal_voltage - voltage_part.second*sim_params.thermal_voltage
+								<< std::endl;
+					}
 					IV_data  << voltage*sim_params.thermal_voltage
 							 << "\t"
 							 << old_current
 							 << "\n";
 					IV_data.close();
+
+					std::ofstream Charge_data;
+					Charge_data.open("Charge_data.txt", std::ios_base::app);
+					Charge_data  << "IV:   "
+							     << voltage*sim_params.thermal_voltage
+							 	 << "\t"
+								 << old_charge
+								 << "\t"
+								 << old_current
+								 << "\n";
+					Charge_data.close();
 				}
 			}
-			timer.leave_subsection("Printing");
+			else
+			{
+				std::ofstream Charge_data;
+				Charge_data.open("Charge_data.txt", std::ios_base::app);
+				Charge_data  << "CV:   "
+						     << voltage*sim_params.thermal_voltage
+						 	 << "\t"
+							 << old_charge
+							 << "\t"
+							 << old_current
+							 << "\n";
+				Charge_data.close();
+				timer.leave_subsection("Printing");
+			}
+
 		}
 		//std::cout<< "Time step number:   " << time_step_number<< std::endl;
 		std::cout<< "End time:           " << time            << std::endl;
+		/*if(voltage*sim_params.thermal_voltage <= -0.3)
+			steady_state = 1;*/
+		return steady_state;
+
+	}
+
+	template<int dim>
+	char
+	SolarCellProblem<dim>::
+	calculate_DLTS(double 				voltage,
+				   double				delta_Q,
+				   unsigned int         max_number_of_steps,
+				   TimerOutput 			& timer/*,
+				   unsigned int 		output_intervals*/)
+	{
+		//write dofs in case of restart
+		electron_hole_pair.print_dofs(sim_params.type_of_simulation);
+		Vector<double> solution_carrier1_0 = electron_hole_pair.carrier_1.solution;
+		Vector<double> solution_carrier2_0 = electron_hole_pair.carrier_2.solution;
+		Vector<double> solution_carrier1_1 = electron_hole_pair.carrier_1.solution;
+		Vector<double> solution_carrier2_1 = electron_hole_pair.carrier_2.solution;
+		Vector<double> solution_carrier1_2 = electron_hole_pair.carrier_1.solution;
+		Vector<double> solution_carrier2_2 = electron_hole_pair.carrier_2.solution;
+
+
+		std::cout << "\n#####DLTS  INITIAL  PARAMETERS####" <<"\n";
+		std::cout << "Voltage:   " << voltage*sim_params.thermal_voltage <<"\n";
+		std::cout << "delta t:   " << delta_t                            <<"\n";
+
+		//set new bias values
+		applied_bias.set_value(voltage);
+		double transient_time	  		 = 0.0;
+
+		// with new Vapp we need to recalculate Poisson equation
+		assemble_Poisson_rhs();
+		solve_Poisson();
+		calculate_joint_solution_vector();
+		double old_current = calculate_currents(joint_solution);
+		double old_charge = calculate_uncompensated_charge();
+		std::cout << "Zero_time_current:   "
+				  << old_current
+				  <<"\n";
+
+		double previous_current_delta = 0;
+		double uptodate_current_delta = 0;
+		double previous_charge_delta = 0;
+		double uptodate_charge_delta = 0;
+		double time_step_multiplication=0.1;
+		char   steady_state           = 0;
+		bool   is_current_decreasing  = true;
+		bool   reset_current_delta    = false;
+		char   number_of_rescaling    = 0;
+
+		//unsigned int output_after_n_steps=max_number_of_steps/number_of_outputs;
+		unsigned int step_number=0;
+		unsigned int step_after_reset=0;
+
+		double total_current=old_current;
+		double total_charge =old_charge;
+
+		double capacitance_measurements_interval = 250*delta_t;
+	    double start_time_of_next_cap_measur     =  50*delta_t;
+	    double time_of_cap_measur                =  50*delta_t;
+	    double old_delta_t = delta_t;
+	    double charge_after_cap_measur = old_charge;
+
+		std::ofstream DLTS_data;
+		DLTS_data.open("DLTS.txt", std::ios::out | std::ios::app);
+		DLTS_data << "\nCharacteristic time:\t"
+				  << sim_params.characteristic_time;
+		DLTS_data.close();
+
+		// time stepping until the semiconductor converges
+		/*##########################
+		 *       MAIN LOOP!
+		 * ########################
+		 */
+		while(step_number < (max_number_of_steps+1))
+		{
+			//SOLVING!
+			if(   (transient_time   >= start_time_of_next_cap_measur)
+			   && (step_after_reset > 50)
+			   && std::abs(charge_after_cap_measur - total_charge)>delta_Q)
+			{
+				print_results(step_number);
+				electron_hole_pair.print_dofs(sim_params.type_of_simulation);
+				old_delta_t = delta_t;
+				calculate_capacitance(sim_params.scaled_applied_bias,transient_time,time_of_cap_measur,1e4,timer);
+				electron_hole_pair.read_dofs(sim_params.type_of_simulation);
+				scale_time_steps(old_delta_t/delta_t,1,timer);
+				applied_bias.set_value(voltage);
+				assemble_Poisson_rhs();
+				solve_Poisson();
+				calculate_joint_solution_vector();
+				old_current = calculate_currents(joint_solution);
+				old_charge = calculate_uncompensated_charge();
+				start_time_of_next_cap_measur+=capacitance_measurements_interval;
+				charge_after_cap_measur = old_charge;
+			}
+			this->solve_one_time_step(timer);
+			transient_time += delta_t;
+			step_number+=1;
+			step_after_reset+=1;
+
+			calculate_joint_solution_vector();
+			total_current = calculate_currents(joint_solution);
+			total_charge =calculate_uncompensated_charge();
+
+			if(std::isnan(total_current) || std::isnan(total_charge))
+			{
+				std::cout << "SIMULATION CRASH! LAST TIME STEP:  "
+						  << step_number
+						  << "\nABORTING..."
+						  <<std::endl;
+				steady_state= -1;
+				return steady_state;
+			}
+
+			if(step_number%100 == 1)
+			{
+				std::cout << "\nStep number:   "
+						  << step_number
+						  <<"\n";
+				std::cout
+						 << "Current:         "
+						 << total_current
+						 << "\n"
+						 << "Old Current:         "
+						 << old_current
+						 << "\n"
+						 << "Relative current change:   "
+						 << std::abs(total_current/old_current)
+						 << "\nCharge:    "
+						 << total_charge
+						 << "\nOld Charge:    "
+						 << old_charge
+						 << "\n Relative charge change:   "
+						 << total_charge/old_charge
+						 << "\n current is decreasing:   "
+						 << is_current_decreasing
+						 << "\n transient_time:         "
+						 << transient_time
+						 << "\n";
+			}
+
+
+			if(step_number==1)
+			{
+				if(   !( (total_current > (0.1*old_current) && total_current < (1.9*old_current))
+														   ||
+					     (total_current < (0.1*old_current) && total_current > (1.9*old_current)) )
+				  )
+				{
+					if(number_of_rescaling>1)
+					{
+						std::cout << "You rescale 2 times and that was not effective!\n SOMEKHING GO WRONG! ABORTING..."
+								  << std::endl;
+						steady_state= -1;
+						return steady_state;
+					}
+
+					std::cout << "Too big step! RESTARTING!"
+							  <<std::endl;
+					electron_hole_pair.read_dofs(sim_params.type_of_simulation);
+					assemble_Poisson_rhs();
+					solve_Poisson();
+					calculate_joint_solution_vector();
+					total_current = calculate_currents(joint_solution);
+					total_charge = calculate_uncompensated_charge();
+
+					transient_time = 0.0;
+					std::cout << "OLD time step:   "
+							  << delta_t
+							  <<"\n";
+
+					scale_time_steps(0.1,1,timer);
+					/*scale_time_steps(10.0,1,timer);*/
+
+					std::cout << "NEW transient_time step:   "
+							  << delta_t
+							  << "\nNew starting transient_time:   "
+							  << transient_time
+							  <<"\n";
+
+					std::cout << "Recalculated Zero_time_current:   "
+							  << total_current
+							  <<"\n";
+
+					++number_of_rescaling;
+					--step_number;
+				}
+				else
+				{
+					std::cout << "\nTHIS STEP SIZE IS OK!   "
+							  << delta_t
+							  <<std::endl;
+					previous_current_delta = std::abs(old_current - total_current);
+					previous_charge_delta  = std::abs(old_charge - total_charge);
+					is_current_decreasing  = std::abs(total_current) < std::abs(old_current);
+
+					capacitance_measurements_interval = 250*delta_t;
+					start_time_of_next_cap_measur     =  50*delta_t;
+					time_of_cap_measur                =  50*delta_t;
+
+					solution_carrier1_2 = electron_hole_pair.carrier_1.solution;
+					solution_carrier2_2 = electron_hole_pair.carrier_2.solution;
+					solution_carrier1_1 = solution_carrier1_0;
+					solution_carrier2_1 = solution_carrier2_0;
+					/*previous_current_delta = old_current - total_current;*/
+					//initial_sign = previous_current_delta < 0.0;
+					std::cout << "current_delta= "
+							  << previous_current_delta
+							  << "\ncharge_delta= "
+							  << previous_charge_delta
+							  << "\nCurrent:    "
+							  << total_current
+							  << "\nCharge:    "
+							  << total_charge
+							  <<std::endl;
+					//number_of_rescaling = 0;
+					//reset_current_delta = false;
+				}
+			}
+			else if(reset_current_delta)
+			{
+				if(   !( (total_current > (0.1*old_current) && total_current < (1.9*old_current))
+														    ||
+						 (total_current < (0.1*old_current) && total_current > (1.9*old_current)) )
+				  )
+				{
+					if(number_of_rescaling>1)
+					{
+						std::cout << "You try to make it better but you make it worse!\n SOMEKHING GO WRONG! ABORTING..."
+								  << std::endl;
+						steady_state= -1;
+						return steady_state;
+					}
+					std::cout << "Too big multiplication of transient_time step! RESTARTING!"
+							  << std::endl;
+					electron_hole_pair.read_dofs(sim_params.type_of_simulation);
+					assemble_Poisson_rhs();
+					solve_Poisson();
+					calculate_joint_solution_vector();
+					total_current = calculate_currents(joint_solution);
+					total_charge = calculate_uncompensated_charge();
+
+
+					if(time_step_multiplication < 1.0)
+					{
+						scale_time_steps(time_step_multiplication,1,timer);
+					}
+					else
+					{
+						if(number_of_rescaling==0)
+						{
+							time_step_multiplication = std::sqrt(time_step_multiplication);
+						}
+						transient_time -= delta_t;
+
+						scale_time_steps(1.0/time_step_multiplication,1,timer);
+					}
+
+					reset_current_delta = true;
+					++number_of_rescaling;
+
+					std::cout << "NEW transient_time step:   "
+							  << delta_t
+							  << std::endl;
+				}
+				else
+				{
+					std::cout << "THIS STEP SIZE IS OK!   "
+							  << delta_t
+							  <<std::endl;
+					previous_current_delta = std::abs(old_current - total_current);
+					previous_charge_delta = std::abs(old_charge - total_charge);
+					is_current_decreasing  = std::abs(total_current) < std::abs(old_current);
+					solution_carrier1_2 = electron_hole_pair.carrier_1.solution;
+					solution_carrier2_2 = electron_hole_pair.carrier_2.solution;
+					solution_carrier1_1 = solution_carrier1_0;
+					solution_carrier2_1 = solution_carrier2_0;
+					std::cout << "current_delta= "
+							  << previous_current_delta
+							  << "\ncharge_delta= "
+							  << previous_charge_delta
+							  << "\nCurrent:    "
+							  << total_current
+							  << "\nPrevious Current:    "
+							  << old_current
+							  << "\nCharge:    "
+							  << total_charge
+							  /*<< "\nIs current delta decreasing:   "
+							  << (uptodate_current_delta < previous_current_delta)*/
+							  <<std::endl
+							  <<std::endl;
+					number_of_rescaling = 0;
+					reset_current_delta = false;
+				}
+
+			}
+			else /*if(step_number > 1)*/
+			{
+				uptodate_current_delta = std::abs(old_current - total_current);
+				uptodate_charge_delta = std::abs(old_charge - total_charge);
+				if(step_after_reset==2)
+				{
+					solution_carrier1_1 = solution_carrier1_2;
+					solution_carrier2_1 = solution_carrier2_2;
+					solution_carrier1_2 = electron_hole_pair.carrier_1.solution;
+					solution_carrier2_2 = electron_hole_pair.carrier_2.solution;
+				}
+				else
+				{
+					solution_carrier1_0 = solution_carrier1_1;
+					solution_carrier2_0 = solution_carrier2_1;
+					solution_carrier1_1 = solution_carrier1_2;
+					solution_carrier2_1 = solution_carrier2_2;
+					solution_carrier1_2 = electron_hole_pair.carrier_1.solution;
+					solution_carrier2_2 = electron_hole_pair.carrier_2.solution;
+				}
+
+				if(step_number%100 == 0)
+				{
+					std::cout << "current_delta= "
+							  << uptodate_current_delta
+							  << "        delta_i/i:           "
+							  << std::abs(uptodate_current_delta/old_current)
+							  << "\ncharge_delta= "
+							  << uptodate_charge_delta
+							  << "        delta_q/q:           "
+							  << std::abs(uptodate_charge_delta/old_charge)
+							  << "\nIs current delta decreasing:   "
+							  << (uptodate_current_delta < previous_current_delta)
+							  <<std::endl;
+				}
+
+				if( (uptodate_current_delta > previous_current_delta && step_number<5) &&
+						(uptodate_charge_delta > previous_charge_delta && step_number<5)
+						/*( is_uptodate_current_decreasing != is_current_decreasing ) && step_number<5*/
+				  )
+				{
+					if(number_of_rescaling>7)
+					{
+						std::cout << "You change delta_t more than 7 times!\n SOMEKHING GO WRONG! ABORTING..."
+								  << std::endl;
+						steady_state= -1;
+						return steady_state;
+					}
+					print_step_values("RESTARTING & CHANGING STEP SIZE BECOUSE IT IS TOO BIG! ",
+									  step_number, total_current, old_current, is_current_decreasing,
+									  uptodate_current_delta, previous_current_delta,
+									  total_charge, old_charge, uptodate_charge_delta);
+
+					electron_hole_pair.read_dofs(sim_params.type_of_simulation);
+					assemble_Poisson_rhs();
+					solve_Poisson();
+					calculate_joint_solution_vector();
+					total_current = calculate_currents(joint_solution);
+					total_charge = calculate_uncompensated_charge();
+
+					time_step_multiplication = 0.1;
+					scale_time_steps(time_step_multiplication,1,timer);
+					std::cout << "NEW transient_time step:   "
+							  << delta_t
+							  <<std::endl;
+
+					std::cout << "Current will restart from:   "
+							  << total_current
+							  <<std::endl;
+
+					transient_time = 0.0;
+					step_number=0;
+					++number_of_rescaling;
+				}
+				else if(uptodate_current_delta > previous_current_delta && std::abs(uptodate_current_delta/old_current) < 1e-6
+						/*uptodate_charge_delta > previous_charge_delta && std::abs(uptodate_charge_delta/old_charge) < 0.0001*/
+						/*( is_uptodate_current_decreasing != is_current_decreasing ) &&
+						          std::abs(uptodate_current_delta/old_current) < 0.0001*/
+						)
+				{
+					if(uptodate_charge_delta > previous_charge_delta && std::abs(uptodate_charge_delta/old_charge) < (1e-8*delta_t))
+					{
+						std::cout << "\n\nSTEADY STATE WAS ACHIEVED after: "
+								  << transient_time
+								  << "  times char_time\n"
+								  << "After: "
+								  << step_number
+								  << " step number \n"
+								  << "Steady state current:"
+								  << total_current
+								  << "\ncurrent_delta= "
+								  << uptodate_current_delta
+								  << "\nSteady state charge:"
+								  << total_charge
+								  << "\ncharge_delta= "
+								  << uptodate_charge_delta
+								  << std::endl;
+
+						steady_state = 1;
+						break;
+					}
+					else
+					{
+						if(step_number%20 == 1)
+						{
+							std::cout << "\n\nCharge is still converging...\n "
+									  << "After: "
+									  << step_number
+									  << " step number \n"
+									  << "current:"
+									  << total_current
+									  << "\ncurrent_delta= "
+									  << uptodate_current_delta
+									  << "\ncharge:"
+									  << total_charge
+									  << "\ncharge_delta= "
+									  << uptodate_charge_delta
+									  << std::endl
+									  << std::endl;
+						}
+
+						previous_current_delta = uptodate_current_delta;
+						previous_charge_delta = uptodate_charge_delta;
+					}
+
+
+					//return steady_state;
+				}
+				// here we assume that the problem will not blow up. That is: we assume eg. that when current stop decreasing than it will
+				// start to decrease at some point after (it was long above equilibrium state, now it is above but it will try to come back).
+				// Otherwise current will constantly grow up and explode at some transient_time.
+				else if(uptodate_current_delta > previous_current_delta &&
+						uptodate_charge_delta > previous_charge_delta
+						/*( is_uptodate_current_decreasing != is_current_decreasing )*/
+					   )
+				{
+					print_step_values("\n\nSTEADY STATE WAS ACHIEVED BUT ACCURACY WAS INSUFFICIENT!",
+									  step_number, total_current, old_current, is_current_decreasing,
+									  uptodate_current_delta, previous_current_delta,
+									  total_charge, old_charge, uptodate_charge_delta);
+
+						electron_hole_pair.carrier_1.solution = solution_carrier1_0;
+						electron_hole_pair.carrier_2.solution = solution_carrier2_0;
+						electron_hole_pair.print_dofs(sim_params.type_of_simulation);
+						step_after_reset = 0;
+						transient_time -= 2*delta_t;
+
+						assemble_Poisson_rhs();
+						solve_Poisson();
+						calculate_joint_solution_vector();
+						total_current = calculate_currents(joint_solution);
+						total_charge = calculate_uncompensated_charge();
+
+						std::cout << "OLD transient_time step:   "
+								  << delta_t
+								  <<std::endl;
+
+						time_step_multiplication = 0.1;
+						scale_time_steps(time_step_multiplication,1,timer);
+
+						std::cout << "NEW transient_time step:   "
+								  << delta_t
+								  <<std::endl;
+						reset_current_delta=true;
+
+				}
+				else
+				{
+					previous_current_delta = uptodate_current_delta;
+					previous_charge_delta = uptodate_charge_delta;
+				}
+			}
+
+			old_current = total_current;
+			old_charge = total_charge;
+			if(step_number%1000==5 && step_number>999)
+			{
+				std::cout << "\n1000 STEPS ACHIEVED! WE WILL TRY TO MAKE TIME STEP BIGGER!\n"
+						  << transient_time << "\t"
+						  << step_number
+						  <<std::endl;
+
+				electron_hole_pair.print_dofs(sim_params.type_of_simulation);
+				step_after_reset = 0;
+
+				assemble_Poisson_rhs();
+				solve_Poisson();
+				calculate_joint_solution_vector();
+				total_current = calculate_currents(joint_solution);
+				total_charge = calculate_uncompensated_charge();
+
+				std::cout << "OLD transient_time step:   "
+						  << delta_t
+						  <<std::endl;
+
+				time_step_multiplication = 10.0;
+				scale_time_steps(time_step_multiplication,1,timer);
+
+				std::cout << "NEW transient_time step:   "
+						  << delta_t
+						  <<std::endl;
+				reset_current_delta=true;
+
+			}
+		} // end while
+
+		std::cout<< "End transient_time:           " << transient_time            << std::endl;
+		return steady_state;
+
+	}
+
+	template<int dim>
+	char
+	SolarCellProblem<dim>::
+	calculate_capacitance( double 				voltage,
+						   double				start_time,
+						   double 				duration_time,
+						   unsigned int         max_number_of_steps,
+						   TimerOutput 			& timer)
+	{
+		//write dofs in case of restart
+		electron_hole_pair.print_dofs("CV" + sim_params.type_of_simulation);
+		Vector<double> solution_carrier1_0 = electron_hole_pair.carrier_1.solution;
+		Vector<double> solution_carrier2_0 = electron_hole_pair.carrier_2.solution;
+		Vector<double> solution_carrier1_1 = electron_hole_pair.carrier_1.solution;
+		Vector<double> solution_carrier2_1 = electron_hole_pair.carrier_2.solution;
+		Vector<double> solution_carrier1_2 = electron_hole_pair.carrier_1.solution;
+		Vector<double> solution_carrier2_2 = electron_hole_pair.carrier_2.solution;
+
+
+		std::cout << "\n#####CAPACITANCE  INITIAL  PARAMETERS####" <<"\n";
+		std::cout << "Voltage:   " << voltage*sim_params.thermal_voltage+sim_params.scaled_delta_V*sim_params.thermal_voltage <<"\n";
+		std::cout << "delta t:   " << delta_t <<"\n";
+
+		// charge before small voltage increment
+		double charge_before_dV = calculate_uncompensated_charge();
+		//set new bias values
+		applied_bias.set_value(voltage+sim_params.scaled_delta_V);
+		double cap_measur_time	  		 = 0.0;
+
+		// with new Vapp we need to recalculate Poisson equation
+		assemble_Poisson_rhs();
+		solve_Poisson();
+		calculate_joint_solution_vector();
+		double old_current = calculate_currents(joint_solution);
+		double old_charge = calculate_uncompensated_charge();
+		std::cout << "Zero_time_current:   "
+				  << old_current
+				  <<"\n";
+
+		double previous_current_delta = 0;
+		double uptodate_current_delta = 0;
+		double previous_charge_delta = 0;
+		double uptodate_charge_delta = 0;
+		double time_step_multiplication=0.1;
+		char   steady_state           = 0;
+		bool   is_current_decreasing  = true;
+		bool   reset_current_delta    = false;
+		char   number_of_rescaling    = 0;
+
+		//unsigned int output_after_n_steps=max_number_of_steps/number_of_outputs;
+		unsigned int step_number=0;
+		unsigned int step_after_reset=0;
+
+		double total_current=old_current;
+		double total_charge =old_charge;
+
+
+		// time stepping until the semiconductor converges
+		/*##########################
+		 *       MAIN LOOP!
+		 * ########################
+		 */
+		while(step_number < (max_number_of_steps+1))
+		{
+			//SOLVING!
+			if(cap_measur_time>=duration_time) break;
+			this->solve_one_time_step(timer);
+			cap_measur_time += delta_t;
+			step_number+=1;
+			step_after_reset+=1;
+
+			calculate_joint_solution_vector();
+			total_current = calculate_currents(joint_solution);
+			total_charge =calculate_uncompensated_charge();
+
+			if(std::isnan(total_current) || std::isnan(total_charge))
+			{
+				std::cout << "SIMULATION CRASH! LAST TIME STEP:  "
+						  << step_number
+						  << "\nABORTING..."
+						  <<std::endl;
+				steady_state= -1;
+				return steady_state;
+			}
+
+			if(step_number%100 == 1)
+			{
+				std::cout << "\nStep number:   "
+						  << step_number
+						  <<"\n";
+				std::cout
+						 << "Current:         "
+						 << total_current
+						 << "\n"
+						 << "Old Current:         "
+						 << old_current
+						 << "\n"
+						 << "Relative current change:   "
+						 << std::abs(total_current/old_current)
+						 << "\nCharge:    "
+						 << total_charge
+						 << "\nOld Charge:    "
+						 << old_charge
+						 << "\n Relative charge change:   "
+						 << total_charge/old_charge
+						 << "\n current is decreasing:   "
+						 << is_current_decreasing
+						 << "\n time:         "
+						 << cap_measur_time
+						 << "\n";
+			}
+
+
+			if(step_number==1)
+			{
+				if(   !( (total_current > (0.1*old_current) && total_current < (1.9*old_current))
+														   ||
+					     (total_current < (0.1*old_current) && total_current > (1.9*old_current)) )
+				  )
+				{
+					if(number_of_rescaling>1)
+					{
+						std::cout << "You rescale 2 times and that was not effective!\n SOMEKHING GO WRONG! ABORTING..."
+								  << std::endl;
+						steady_state= -1;
+						return steady_state;
+					}
+
+					std::cout << "Too big step! RESTARTING!"
+							  <<std::endl;
+					electron_hole_pair.read_dofs("CV" + sim_params.type_of_simulation);
+					assemble_Poisson_rhs();
+					solve_Poisson();
+					calculate_joint_solution_vector();
+					total_current = calculate_currents(joint_solution);
+					total_charge = calculate_uncompensated_charge();
+
+					cap_measur_time = 0.0;
+					std::cout << "OLD time step:   "
+							  << delta_t
+							  <<"\n";
+
+					scale_time_steps(0.1,1,timer);
+					/*scale_time_steps(10.0,1,timer);*/
+
+					std::cout << "NEW time step:   "
+							  << delta_t
+							  << "\nNew starting time:   "
+							  << cap_measur_time
+							  <<"\n";
+
+					std::cout << "Recalculated Zero_time_current:   "
+							  << total_current
+							  <<"\n";
+
+					++number_of_rescaling;
+					--step_number;
+				}
+				else
+				{
+					std::cout << "\nTHIS STEP SIZE IS OK!   "
+							  << delta_t
+							  <<std::endl;
+					previous_current_delta = std::abs(old_current - total_current);
+					previous_charge_delta  = std::abs(old_charge - total_charge);
+					is_current_decreasing  = std::abs(total_current) < std::abs(old_current);
+					solution_carrier1_2 = electron_hole_pair.carrier_1.solution;
+					solution_carrier2_2 = electron_hole_pair.carrier_2.solution;
+					solution_carrier1_1 = solution_carrier1_0;
+					solution_carrier2_1 = solution_carrier2_0;
+					/*previous_current_delta = old_current - total_current;*/
+					//initial_sign = previous_current_delta < 0.0;
+					std::cout << "current_delta= "
+							  << previous_current_delta
+							  << "\ncharge_delta= "
+							  << previous_charge_delta
+							  << "\nCurrent:    "
+							  << total_current
+							  << "\nCharge:    "
+							  << total_charge
+							  <<std::endl;
+					//number_of_rescaling = 0;
+					//reset_current_delta = false;
+				}
+			}
+			else if(reset_current_delta)
+			{
+				if(   !( (total_current > (0.1*old_current) && total_current < (1.9*old_current))
+														    ||
+						 (total_current < (0.1*old_current) && total_current > (1.9*old_current)) )
+				  )
+				{
+					if(number_of_rescaling>1)
+					{
+						std::cout << "You try to make it better but you make it worse!\n SOMEKHING GO WRONG! ABORTING..."
+								  << std::endl;
+						steady_state= -1;
+						return steady_state;
+					}
+					std::cout << "Too big multiplication of time step! RESTARTING!"
+							  << std::endl;
+					electron_hole_pair.read_dofs("CV" + sim_params.type_of_simulation);
+					assemble_Poisson_rhs();
+					solve_Poisson();
+					calculate_joint_solution_vector();
+					total_current = calculate_currents(joint_solution);
+					total_charge = calculate_uncompensated_charge();
+
+
+					if(time_step_multiplication < 1.0)
+					{
+						scale_time_steps(time_step_multiplication,1,timer);
+					}
+					else
+					{
+						if(number_of_rescaling==0)
+						{
+							time_step_multiplication = std::sqrt(time_step_multiplication);
+						}
+						cap_measur_time -= delta_t;
+
+						scale_time_steps(1.0/time_step_multiplication,1,timer);
+					}
+
+					reset_current_delta = true;
+					++number_of_rescaling;
+
+					std::cout << "NEW time step:   "
+							  << delta_t
+							  << std::endl;
+				}
+				else
+				{
+					std::cout << "THIS STEP SIZE IS OK!   "
+							  << delta_t
+							  <<std::endl;
+					previous_current_delta = std::abs(old_current - total_current);
+					previous_charge_delta = std::abs(old_charge - total_charge);
+					is_current_decreasing  = std::abs(total_current) < std::abs(old_current);
+					solution_carrier1_2 = electron_hole_pair.carrier_1.solution;
+					solution_carrier2_2 = electron_hole_pair.carrier_2.solution;
+					solution_carrier1_1 = solution_carrier1_0;
+					solution_carrier2_1 = solution_carrier2_0;
+					std::cout << "current_delta= "
+							  << previous_current_delta
+							  << "\ncharge_delta= "
+							  << previous_charge_delta
+							  << "\nCurrent:    "
+							  << total_current
+							  << "\nPrevious Current:    "
+							  << old_current
+							  << "\nCharge:    "
+							  << total_charge
+							  /*<< "\nIs current delta decreasing:   "
+							  << (uptodate_current_delta < previous_current_delta)*/
+							  <<std::endl
+							  <<std::endl;
+					number_of_rescaling = 0;
+					reset_current_delta = false;
+				}
+
+			}
+			else /*if(step_number > 1)*/
+			{
+				uptodate_current_delta = std::abs(old_current - total_current);
+				uptodate_charge_delta = std::abs(old_charge - total_charge);
+				if(step_after_reset==2)
+				{
+					solution_carrier1_1 = solution_carrier1_2;
+					solution_carrier2_1 = solution_carrier2_2;
+					solution_carrier1_2 = electron_hole_pair.carrier_1.solution;
+					solution_carrier2_2 = electron_hole_pair.carrier_2.solution;
+				}
+				else
+				{
+					solution_carrier1_0 = solution_carrier1_1;
+					solution_carrier2_0 = solution_carrier2_1;
+					solution_carrier1_1 = solution_carrier1_2;
+					solution_carrier2_1 = solution_carrier2_2;
+					solution_carrier1_2 = electron_hole_pair.carrier_1.solution;
+					solution_carrier2_2 = electron_hole_pair.carrier_2.solution;
+				}
+
+				if(step_number%100 == 0)
+				{
+					std::cout << "current_delta= "
+							  << uptodate_current_delta
+							  << "        delta_i/i:           "
+							  << std::abs(uptodate_current_delta/old_current)
+							  << "\ncharge_delta= "
+							  << uptodate_charge_delta
+							  << "        delta_q/q:           "
+							  << std::abs(uptodate_charge_delta/old_charge)
+							  << "\nIs current delta decreasing:   "
+							  << (uptodate_current_delta < previous_current_delta)
+							  <<std::endl;
+				}
+
+				if( (uptodate_current_delta > previous_current_delta && step_number<5) &&
+						(uptodate_charge_delta > previous_charge_delta && step_number<5)
+						/*( is_uptodate_current_decreasing != is_current_decreasing ) && step_number<5*/
+				  )
+				{
+					if(number_of_rescaling>7)
+					{
+						std::cout << "You change delta_t more than 7 times!\n SOMEKHING GO WRONG! ABORTING..."
+								  << std::endl;
+						steady_state= -1;
+						return steady_state;
+					}
+					print_step_values("RESTARTING & CHANGING STEP SIZE BECOUSE IT IS TOO BIG! ",
+									  step_number, total_current, old_current, is_current_decreasing,
+									  uptodate_current_delta, previous_current_delta,
+									  total_charge, old_charge, uptodate_charge_delta);
+
+					electron_hole_pair.read_dofs("CV"+sim_params.type_of_simulation);
+					assemble_Poisson_rhs();
+					solve_Poisson();
+					calculate_joint_solution_vector();
+					total_current = calculate_currents(joint_solution);
+					total_charge = calculate_uncompensated_charge();
+
+					time_step_multiplication = 0.1;
+					scale_time_steps(time_step_multiplication,1,timer);
+					std::cout << "NEW time step:   "
+							  << delta_t
+							  <<std::endl;
+
+					std::cout << "Current will restart from:   "
+							  << total_current
+							  <<std::endl;
+
+					cap_measur_time = 0.0;
+					step_number=0;
+					++number_of_rescaling;
+				}
+				else if(uptodate_current_delta > previous_current_delta && std::abs(uptodate_current_delta/old_current) < 1e-6
+						/*uptodate_charge_delta > previous_charge_delta && std::abs(uptodate_charge_delta/old_charge) < 0.0001*/
+						/*( is_uptodate_current_decreasing != is_current_decreasing ) &&
+						          std::abs(uptodate_current_delta/old_current) < 0.0001*/
+						)
+				{
+					if(uptodate_charge_delta > previous_charge_delta && std::abs(uptodate_charge_delta/old_charge) < (1e-8*delta_t))
+					{
+						std::cout << "\n\nSTEADY STATE WAS ACHIEVED after: "
+								  << cap_measur_time
+								  << "  times char_time\n"
+								  << "After: "
+								  << step_number
+								  << " step number \n"
+								  << "Steady state current:"
+								  << total_current
+								  << "\ncurrent_delta= "
+								  << uptodate_current_delta
+								  << "\nSteady state charge:"
+								  << total_charge
+								  << "\ncharge_delta= "
+								  << uptodate_charge_delta
+								  << std::endl;
+
+						steady_state = 1;
+						break;
+					}
+					else
+					{
+						if(step_number%20 == 1)
+						{
+							std::cout << "\n\nCharge is still converging...\n "
+									  << "After: "
+									  << step_number
+									  << " step number \n"
+									  << "current:"
+									  << total_current
+									  << "\ncurrent_delta= "
+									  << uptodate_current_delta
+									  << "\ncharge:"
+									  << total_charge
+									  << "\ncharge_delta= "
+									  << uptodate_charge_delta
+									  << std::endl
+									  << std::endl;
+						}
+
+						previous_current_delta = uptodate_current_delta;
+						previous_charge_delta = uptodate_charge_delta;
+					}
+
+
+					//return steady_state;
+				}
+				// here we assume that the problem will not blow up. That is: we assume eg. that when current stop decreasing than it will
+				// start to decrease at some point after (it was long above equilibrium state, now it is above but it will try to come back).
+				// Otherwise current will constantly grow up and explode at some time.
+				else if(uptodate_current_delta > previous_current_delta &&
+						uptodate_charge_delta > previous_charge_delta
+						/*( is_uptodate_current_decreasing != is_current_decreasing )*/
+					   )
+				{
+					print_step_values("\n\nSTEADY STATE WAS ACHIEVED BUT ACCURACY WAS INSUFFICIENT!",
+									  step_number, total_current, old_current, is_current_decreasing,
+									  uptodate_current_delta, previous_current_delta,
+									  total_charge, old_charge, uptodate_charge_delta);
+
+						electron_hole_pair.carrier_1.solution = solution_carrier1_0;
+						electron_hole_pair.carrier_2.solution = solution_carrier2_0;
+						electron_hole_pair.print_dofs("CV" + sim_params.type_of_simulation);
+						step_after_reset = 0;
+						cap_measur_time -= 2*delta_t;
+
+						assemble_Poisson_rhs();
+						solve_Poisson();
+						calculate_joint_solution_vector();
+						total_current = calculate_currents(joint_solution);
+						total_charge = calculate_uncompensated_charge();
+
+						std::cout << "OLD time step:   "
+								  << delta_t
+								  <<std::endl;
+
+						time_step_multiplication = 0.1;
+						scale_time_steps(time_step_multiplication,1,timer);
+
+						std::cout << "NEW time step:   "
+								  << delta_t
+								  <<std::endl;
+						reset_current_delta=true;
+
+				}
+				else
+				{
+					previous_current_delta = uptodate_current_delta;
+					previous_charge_delta = uptodate_charge_delta;
+				}
+			}
+
+			old_current = total_current;
+			old_charge = total_charge;
+			if(step_number%1000==0 && step_number>999)
+			{
+
+				std::cout << "\n1000 STEPS ACHIEVED! WE WILL TRY TO MAKE TIME STEP BIGGER!"
+						  <<std::endl;
+
+				electron_hole_pair.print_dofs("CV" + sim_params.type_of_simulation);
+				step_after_reset = 0;
+
+				assemble_Poisson_rhs();
+				solve_Poisson();
+				calculate_joint_solution_vector();
+				total_current = calculate_currents(joint_solution);
+				total_charge = calculate_uncompensated_charge();
+
+				std::cout << "OLD time step:   "
+						  << delta_t
+						  <<std::endl;
+
+				time_step_multiplication = 10.0;
+				scale_time_steps(time_step_multiplication,1,timer);
+
+				std::cout << "NEW time step:   "
+						  << delta_t
+						  <<std::endl;
+				reset_current_delta=true;
+
+
+			}
+		} // end while
+
+		std::cout<< "End time:           " << cap_measur_time            << std::endl;
+		std::ofstream DLTS_data;
+		DLTS_data.open("DLTS.txt", std::ios::out | std::ios::app);
+		DLTS_data << "\nEnd_cap_cal:\t"
+				  << start_time << "\t"
+				  << cap_measur_time << "\t"
+				  << step_number << "\t"
+				  << charge_before_dV << "\t"
+				  << total_charge << "\t"
+				  << (total_charge - charge_before_dV)*sim_params.charge_scaling_factor/
+					 (sim_params.scaled_delta_V*sim_params.thermal_voltage);
+		std::pair voltage_part(potential_department());
+		DLTS_data << "\t Part_on_Schottky:   " << voltage_part.first *sim_params.thermal_voltage
+				  << "   "
+				  << "Part_on_PN_junct:   " << voltage*sim_params.thermal_voltage - voltage_part.second*sim_params.thermal_voltage;
+		DLTS_data.close();
 		return steady_state;
 
 	}
@@ -1852,10 +3097,10 @@ namespace SOLARCELL
 											 joint_fe_face_values.JxW(q_index);
 
 							/*std::cout<< "gradient dziur na brzegu:  " << hole_density_gradient_values[0] << "\n";
-							std::cout<< "gradient elekt na brzegu:  " << electron_density_gradient_values[0] << "\n";*/
-							/*std::cout<< "pole elekt na brzegu:  " << scale_elec_field*electric_field_values[0] << "\n";
-							std::cout<<"Wektor normalny do brzegu:   " << normal_vector << "\n";*/
-
+							std::cout<< "gradient elekt na brzegu:  " << electron_density_gradient_values[0] << "\n";
+							std::cout<< "pole elekt na brzegu:  " << scale_elec_field*electric_field_values[0] << "\n";
+							std::cout<<"Wektor normalny do brzegu:   " << normal_vector << "\n";
+*/
 
 						}//q_index
 					}//cell on right hand side
@@ -1866,13 +3111,136 @@ namespace SOLARCELL
 
 //		std::cout<<"Całkowita liczba komórek na prawym brzegu:   " << numbers_of_cells_on_right_border <<"\n";
 
-		total_current/=sim_params.scaled_domain_height;
+		/*total_current/=sim_params.scaled_domain_height;
 		total_current*=(sim_params.real_domain_height*sim_params.device_thickness);
-		/*std::cout << "\nCałkowita uśredniona gęstość prądu po prawej stronie:    "
+		std::cout << "\nCałkowita uśredniona gęstość prądu po prawej stronie:    "
 				  << total_current
 				  << std::endl;*/
 		return total_current;
 	}
+
+/*	template<int dim>
+	double
+	SolarCellProblem<dim>::
+	calculate_currents(const Vector<double> & joint_solution_vector)
+	{
+		if(joint_solution_vector.size() != joint_dof_handler.n_dofs())
+		{
+			std::cout<<"Vector size is not equal to the number of dofs! Aborting calculate_currents()!\n";
+		}
+		QGauss<dim> quad_rule(degree+2);
+		FEValues<dim> joint_fe_values( joint_fe,
+												quad_rule,
+												update_values | update_gradients | update_normal_vectors |	update_JxW_values | update_quadrature_points);
+
+		//const unsigned int dofs_per_cell    = joint_fe_face_values.dofs_per_cell;
+		const unsigned int n_q_face_points  = joint_fe_values.n_quadrature_points;
+
+		double total_current = 0;
+
+		//std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
+		std::vector<double>			electron_density_values(n_q_face_points);
+		std::vector<double>			hole_density_values(n_q_face_points);
+		std::vector< Tensor<1,dim>> electron_density_gradient_values(n_q_face_points);
+		std::vector< Tensor<1,dim>> hole_density_gradient_values(n_q_face_points);
+		std::vector< Tensor<1,dim>> electric_field_values(n_q_face_points);
+
+		const FEValuesExtractors::Vector ElectricFiled(0);
+		//const FEValuesExtractors::Scalar Potential(dim);
+		//const FEValuesExtractors::Vector ElectronCurrent(dim+1);
+		const FEValuesExtractors::Scalar ElectronDensity(dim+3);
+		//const FEValuesExtractors::Vector HoleCurrent(dim+4);
+		const FEValuesExtractors::Scalar HoleDensity(dim+6);
+
+		double scale_elec_field = sim_params.thermal_voltage/
+							  (sim_params.characteristic_length*(sim_params.scaled_debye_length*sim_params.semiconductor_permittivity));
+		double scale_dryf_current     = PhysicalConstants::electron_charge*sim_params.mobility*sim_params.characteristic_denisty*scale_elec_field;
+
+
+		double scale_gradient	  =  sim_params.characteristic_denisty  / sim_params.characteristic_length;
+		double diffusion_constant =  sim_params.mobility * sim_params.thermal_voltage;
+		double scale_diff_current   =  PhysicalConstants::electron_charge*diffusion_constant*scale_gradient;
+
+		//unsigned int numbers_of_cells_on_right_border = 0;
+		bool is_faces_on_p_type_region=true;
+		Tensor<1,dim> normal_vector;
+		normal_vector[0]=1;
+
+		for (const auto &cell : joint_dof_handler.active_cell_iterators())
+		{
+			// loop over all the faces of the cell and find which are on the boundary
+			is_faces_on_p_type_region=true;
+			for(unsigned int face_no=0;
+							 face_no < GeometryInfo<dim>::faces_per_cell;
+							 face_no++)
+			{
+				if(  (cell->face(face_no)->center()[0] > sim_params.scaled_p_type_width) )
+				{
+					is_faces_on_p_type_region = false;
+					break;
+				}
+			} // for face_no
+
+				if(is_faces_on_p_type_region)
+				{
+				//++numbers_of_cells_on_right_border;
+				for (unsigned int q_index = 0; q_index < n_q_face_points; ++q_index)
+				{
+					joint_fe_values.reinit(cell);
+					//const Tensor<1,dim> normal_vector(joint_fe_values.normal_vector(q_index));
+
+					// get the electron density
+					joint_fe_values[ElectronDensity].get_function_values(
+									joint_solution_vector,
+									electron_density_values);
+
+					// get the hole density
+					joint_fe_values[HoleDensity].get_function_values(
+									joint_solution_vector,
+									hole_density_values);
+
+					// get electric field vector
+					joint_fe_values[ElectricFiled].get_function_values(
+									joint_solution_vector,
+									electric_field_values);
+
+					// get the hole density gradient
+					joint_fe_values[HoleDensity].get_function_gradients(
+									joint_solution_vector,
+									hole_density_gradient_values);
+
+					// get the electron density gradient
+					joint_fe_values[ElectronDensity].get_function_gradients(
+									joint_solution_vector,
+									electron_density_gradient_values);
+
+
+					total_current += (scale_dryf_current*hole_density_values[q_index]*electric_field_values[q_index] -
+									  scale_diff_current*hole_density_gradient_values[q_index]+
+									  scale_dryf_current*electron_density_values[q_index]*electric_field_values[q_index] +
+									  scale_diff_current*electron_density_gradient_values[q_index])*
+									 normal_vector*
+									 joint_fe_values.JxW(q_index);
+
+					std::cout<< "gradient dziur na brzegu:  " << hole_density_gradient_values[0] << "\n";
+					std::cout<< "gradient elekt na brzegu:  " << electron_density_gradient_values[0] << "\n";
+					std::cout<< "pole elekt na brzegu:  " << scale_elec_field*electric_field_values[0] << "\n";
+					std::cout<<"Wektor normalny do brzegu:   " << normal_vector << "\n";
+
+
+						}//q_index
+				}//cell face at boundary
+		}//cell
+
+//		std::cout<<"Całkowita liczba komórek na prawym brzegu:   " << numbers_of_cells_on_right_border <<"\n";
+
+		total_current/=(sim_params.scaled_domain_height*(sim_params.scaled_p_type_width+sim_params.scaled_n_type_width));
+		total_current*=(sim_params.real_domain_height*sim_params.device_thickness);
+		std::cout << "\nCałkowita uśredniona gęstość prądu po lewej stronie:    "
+				  << total_current
+				  << std::endl;
+		return total_current;
+	}*/
 
 	template<int dim>
 	void
@@ -1920,6 +3288,199 @@ namespace SOLARCELL
 	}
 
 	template<int dim>
+	std::pair<double, double>
+	SolarCellProblem<dim>::
+	potential_department()
+	{
+		std::vector<types::global_dof_index> dofs_per_component_Poisson(dim+1);
+		DoFTools::count_dofs_per_component(Poisson_dof_handler, dofs_per_component_Poisson);
+		/*Poisson_object.solution*/
+		const unsigned int n_electric_field = dofs_per_component_Poisson[0];
+		Vector<double>::iterator min_potential = std::min_element(Poisson_object.solution.begin()+n_electric_field,Poisson_object.solution.end());
+
+		/*std::vector<int> v{3, 1, 4, 1, 5, 9};
+		std::vector<int>::iterator min_potential = std::min_element(v.begin(), v.end());*/
+		//std::cout<< "Dzielę potencjał!   " << (*min_potential) << "   " << sim_params.scaled_applied_bias-(*min_potential) ;
+		std::pair<double, double> voltage_part;
+		voltage_part.first  = -(*min_potential);
+		voltage_part.second = -(*min_potential);
+//		std::pair<double, double> voltage_part(, -(*min_potential) );
+		return voltage_part;
+	}
+
+	template<int dim>
+	void
+	SolarCellProblem<dim>::
+	change_temperature(double temperature)
+	{
+		//(T_old/T_new)
+		double T_ratio = sim_params.temperatue/temperature;
+		sim_params.temperatue = temperature;
+
+		//parameters that depends on temperature:
+		// 1) thermal voltage influcene: 3.1) build_in_bias, 3.2) schottky hole&electron densities, 1.1) debay length 1.2) mobility scaling factor
+		// we also need to scale all parameters by this variable, but be careful! If the variable will be not recalculate below
+		// we will need to use ratio between new and old temperature: x1=x0/T_old, we want now x2=x0/T_new, but we have x0 this time, so:
+		// x2=x1*(T_old/T_new)
+		sim_params.thermal_voltage = PhysicalConstants::boltzman_constant*sim_params.temperatue/PhysicalConstants::electron_charge;
+
+		//2) Nv and Nv only influence 3) intrinsic density, 4) srh electron & hole density
+		sim_params.Nc_effective_dos = 2*pow(2*M_PI*PhysicalConstants::free_electron_mass*sim_params.electron_effective_mass
+										*PhysicalConstants::boltzman_constant*sim_params.temperatue
+										/(PhysicalConstants::planck_constant*PhysicalConstants::planck_constant)
+									  ,1.5);
+		sim_params.Nv_effective_dos = 2*pow(2*M_PI*PhysicalConstants::free_electron_mass*sim_params.hole_effective_mass
+										*PhysicalConstants::boltzman_constant*sim_params.temperatue
+										/(PhysicalConstants::planck_constant*PhysicalConstants::planck_constant)
+									  ,1.5);
+		//3) intrinsic density influence 3.1) build_in_bias, 3.2) schottky electron & hole density
+		sim_params.scaled_intrinsic_density = sqrt(sim_params.Nv_effective_dos*sim_params.Nc_effective_dos)
+										*std::exp(-sim_params.band_gap*PhysicalConstants::electron_charge
+										  /(2*PhysicalConstants::boltzman_constant*sim_params.temperatue));
+		sim_params.scaled_intrinsic_density *= 1.0e-6;
+
+		//4) srh densities do not influence any other variable
+		sim_params.scaled_srh_electron_density = sim_params.Nc_effective_dos
+									*std::exp(-sim_params.defect_energy*PhysicalConstants::electron_charge
+											  /(PhysicalConstants::boltzman_constant*sim_params.temperatue));
+		sim_params.scaled_srh_electron_density *= 1.0e-6;
+
+		sim_params.scaled_srh_hole_density = sim_params.Nv_effective_dos
+								*std::exp( (sim_params.defect_energy - sim_params.band_gap)*PhysicalConstants::electron_charge
+										  /(PhysicalConstants::boltzman_constant*sim_params.temperatue));
+		sim_params.scaled_srh_hole_density *= 1.0e-6;
+
+		//3.1) build_in_bias influence 3.1.1) n_type_depletion_width 3.1.2) p_type_depletion_width
+		if(sim_params.scaled_n_type_donor_density > 0 && sim_params.scaled_p_type_acceptor_density > 0)
+		{
+			sim_params.scaled_built_in_bias =  sim_params.thermal_voltage
+										 	  *log(sim_params.scaled_n_type_donor_density*sim_params.scaled_p_type_acceptor_density
+											  /(sim_params.scaled_intrinsic_density*sim_params.scaled_intrinsic_density));
+		}
+		//3.2) sch densities influence nothing
+		const double p_type_resultant_doping = (sim_params.scaled_p_type_donor_density - sim_params.scaled_p_type_acceptor_density);
+		sim_params.scaled_schottky_hole_density     = 0.5*(-p_type_resultant_doping
+														   +std::sqrt( p_type_resultant_doping*p_type_resultant_doping
+														              +4*sim_params.scaled_intrinsic_density*sim_params.scaled_intrinsic_density));
+		sim_params.scaled_schottky_electron_density = 0.5*( p_type_resultant_doping
+				 	 	 	 	 	 	 	 	 	 	   +std::sqrt( p_type_resultant_doping*p_type_resultant_doping
+				 	 	 	 	 	 	 	 	 	 			      +4*sim_params.scaled_intrinsic_density*sim_params.scaled_intrinsic_density));
+		sim_params.scaled_schottky_hole_density    *= std::exp( -(sim_params.scaled_schottky_bias)
+			 	 	 	 	 	 	 	 	 	 	  /sim_params.thermal_voltage);
+
+		sim_params.scaled_schottky_electron_density*= std::exp( (sim_params.scaled_schottky_bias)
+							 	 	 	 	 	 	 /sim_params.thermal_voltage);
+
+
+		//3.1.1 depletion widths influnce nothing
+		if(sim_params.scaled_n_type_donor_density > 0)
+		{
+			sim_params.scaled_n_type_depletion_width = sqrt(2*PhysicalConstants::vacuum_permittivity*sim_params.semiconductor_permittivity
+														*sim_params.scaled_p_type_acceptor_density*(sim_params.scaled_built_in_bias - sim_params.scaled_applied_bias)
+														/
+														(PhysicalConstants::electron_charge*sim_params.scaled_n_type_donor_density
+														* (sim_params.scaled_n_type_donor_density + sim_params.scaled_p_type_acceptor_density)));
+		}
+		//3.1.2 depletion widths influence nothing
+		if(sim_params.scaled_p_type_acceptor_density > 0)
+		{
+			sim_params.scaled_p_type_depletion_width = sqrt(2*PhysicalConstants::vacuum_permittivity*sim_params.semiconductor_permittivity
+														*sim_params.scaled_n_type_donor_density*(sim_params.scaled_built_in_bias - sim_params.scaled_applied_bias)
+														/
+														(PhysicalConstants::electron_charge*sim_params.scaled_p_type_acceptor_density
+														* (sim_params.scaled_n_type_donor_density + sim_params.scaled_p_type_acceptor_density)));
+		}
+
+		//1.1) scaled_debye_length influence nothing
+		sim_params.scaled_debye_length =
+								(sim_params.thermal_voltage *
+								PhysicalConstants::vacuum_permittivity) /
+								(PhysicalConstants::electron_charge *
+								sim_params.characteristic_denisty *
+								sim_params.characteristic_length *
+								sim_params.characteristic_length);
+
+		//1.2) mobility_scale influence mobilities 1.2.1)
+		double mobility_scale = (sim_params.characteristic_time *
+									 sim_params.thermal_voltage) /
+									 (sim_params.characteristic_length *
+									  sim_params.characteristic_length);
+
+		//1.2.1) mobilities influence nothing
+		sim_params.scaled_electron_mobility *= mobility_scale;
+		sim_params.scaled_hole_mobility     *= mobility_scale;
+
+		//scale again variables that was changed above:
+		sim_params.scaled_intrinsic_density         /= sim_params.characteristic_denisty;
+		sim_params.scaled_schottky_electron_density /= sim_params.characteristic_denisty;
+		sim_params.scaled_schottky_hole_density     /= sim_params.characteristic_denisty;
+		sim_params.scaled_srh_electron_density      /= sim_params.characteristic_denisty;
+		sim_params.scaled_srh_hole_density		    /= sim_params.characteristic_denisty;
+
+		sim_params.scaled_n_type_depletion_width /= (sim_params.characteristic_length);
+		sim_params.scaled_p_type_depletion_width /= (sim_params.characteristic_length);
+
+
+		//scaled by Vt variables which where recalculated above:
+		if(sim_params.scaled_n_type_donor_density > 0 && sim_params.scaled_p_type_acceptor_density > 0)
+		{
+			sim_params.scaled_built_in_bias /= sim_params.thermal_voltage;
+		}
+		//scaled by Vt variables which where NOT recalculated above:
+		sim_params.scaled_applied_bias  *= T_ratio;
+		sim_params.scaled_schottky_bias *= T_ratio;
+		sim_params.scaled_IV_max_V      *= T_ratio;
+		sim_params.scaled_IV_min_V      *= T_ratio;
+		sim_params.scaled_delta_V       *= T_ratio;
+
+
+	}
+
+
+	template<int dim>
+	void
+	SolarCellProblem<dim>::
+	print_step_values(std::string Title, unsigned int step_number, double total_current, double old_current, bool is_current_decreasing,
+					  double uptodate_current_delta, double previous_current_delta,
+					  double total_charge, double old_charge, double uptodate_charge_delta)
+	{
+		std::cout << Title
+				  << "After: "
+				  << step_number
+				  << " step number \n"
+				  << "Current:         "
+				  << total_current
+				  << "\n"
+				  << "Old Current:         "
+				  << old_current
+				  << "\n"
+				  << "Relative current change:   "
+				  << std::abs(total_current/old_current)
+				  << "\n current is decreasing:   "
+				  << is_current_decreasing
+				  << "\ncurrent_delta= "
+				  << uptodate_current_delta
+				  << "\nRelative current delta = "
+				  << std::abs(uptodate_current_delta/old_current)
+				  << "\nIs current delta decreasing:   "
+				  << (uptodate_current_delta < previous_current_delta)
+				  << "\nCharge:    "
+				  << total_charge
+				  << "\nOld Charge:    "
+				  << old_charge
+				  << "\n Relative charge change:   "
+				  << total_charge/old_charge
+				  << "\ncharge_delta= "
+				  << uptodate_charge_delta
+				  << "\nRelative charge delta = "
+				  << std::abs(uptodate_charge_delta/old_charge)
+				  <<std::endl
+				  << "OLD time step   "
+				  << delta_t
+				  <<std::endl;
+	}
+
+	template<int dim>
 	void
 	SolarCellProblem<dim>::
 	print_results(unsigned int time_step_number, std::string any_string)
@@ -1947,7 +3508,6 @@ namespace SOLARCELL
 		task_group.join_all();
 	} // print_results
 
-
 	template<int dim>
 	void
 	SolarCellProblem<dim>::
@@ -1966,7 +3526,6 @@ namespace SOLARCELL
 
 		task_group.join_all();
 		}
-
 
 	template<int dim>
 	void
@@ -2114,7 +3673,7 @@ namespace SOLARCELL
 		}
 
 
-		if(!sim_params.calculate_IV_curve)
+		if(!sim_params.calculate_IV_curve && !sim_params.calculate_DLTS)
 		{
 			char have_steady_state = 1;
 
@@ -2149,111 +3708,87 @@ namespace SOLARCELL
 				std::cout << "Calculating one IV point!\n"
 						  << std::endl;
 				//scale_time_steps(1.0,1.0,timer);
-				have_steady_state = calculate_one_IV_point(sim_params.scaled_applied_bias,ConverganceCheck,number_outputs,timer,true);
+				//have_steady_state = calculate_one_IV_point(sim_params.scaled_applied_bias,ConverganceCheck,number_outputs,timer,true);
+
+				unsigned int number_of_adjustment=0;
+				have_steady_state = 0;
+				while(have_steady_state==0 && number_of_adjustment < 5)
+				{
+					std::cout << "Number of adjustments:  "
+							  << number_of_adjustment
+							  << ""
+							  <<std::endl;
+					have_steady_state = calculate_one_IV_point(sim_params.scaled_applied_bias, ConverganceCheck, number_outputs, timer, true);
+					if(have_steady_state==0)
+						scale_time_steps(10,1,timer);
+					++number_of_adjustment;
+				}
+				electron_hole_pair.print_dofs(sim_params.type_of_simulation);
+
 				std::cout << "\nEND Calculating one IV point!\n"
 						  << std::endl;
 			}
 
-
-			if(ConverganceCheck.sanity_check())
+			if(sim_params.calculate_CV_curve /*&& have_steady_state == 1*/)
 			{
-				if(sim_params.restart_status)
+				scale_time_steps(sim_params.delta_t/delta_t,1,timer);
+				std::cout << "\n\n####Capacitance calculations!####\n"
+						  << std::endl;
+				double total_charge =calculate_uncompensated_charge();
+				char steady_state_flag= 0;
+				unsigned int number_of_adjustment = 0;
+				while(steady_state_flag==0 && number_of_adjustment < 5)
 				{
-					// if we need only 3 time stamps after the restart we will try to perform
-					// the same calculation with delta t smaller by an order of magnitude
-					if(time_step_number < 0/*(last_run_number + 4)*/ )
-					{
-						delta_t          /= 10;
-						sim_params.t_end /= 5;
-
-						std::cout << "Recalculate from steady state dofs!\n"
-								  <<"running until t = "
-								  << sim_params.t_end
-								  << std::endl;
-
-						time_step_number=last_run_number;
-
-						timer.enter_subsection("Assemble LDG Matrices");
-						assemble_LDG_system(1.0);
-						timer.leave_subsection("Assemble LDG Matrices");
-
-						timer.enter_subsection("Factor Matrices");
-						set_solvers();
-						timer.leave_subsection("Factor Matrices");
-
-						electron_hole_pair.read_dofs(sim_params.type_of_restart);
-						//unsigned int max_n_of_time_stamps=30;
-						calculate_one_IV_point(sim_params.scaled_applied_bias, ConverganceCheck, number_outputs, timer,true);
-					} //end if we only calculate less than 4 stamps
-				}
-				else
-				{
-					if(time_step_number < 0)
-					{
-						/*sim_params.t_end *= 10;*/
-						scale_time_steps(0.1,0.1,timer);
-						/*for(unsigned int i=0; i<number_outputs; i++)
-							timeStamps[i] = (i+1) * sim_params.t_end / number_outputs;*/
-						std::cout << "\n\n####Recalculate from initial conditions!####\n"
-								  <<"running until t = "
-								  << sim_params.t_end
-								  << "\n###############################################"
-								  << std::endl
-								  << std::endl;
-
-						// Get the initial conditions
-						VectorTools::project(semiconductor_dof_handler,
-									electron_hole_pair.constraints,
-									QGauss<dim>(degree+1),
-									electrons_initial_condition,
-									electron_hole_pair.carrier_1.solution);
-
-						VectorTools::project(semiconductor_dof_handler,
-									electron_hole_pair.constraints,
-									QGauss<dim>(degree+1),
-									holes_initial_condition,
-									electron_hole_pair.carrier_2.solution);
-
-						/*unsigned int max_n_of_time_stamps=30;*/
-						have_steady_state = calculate_one_IV_point(sim_params.scaled_applied_bias, ConverganceCheck, number_outputs*10, timer,true);
-
-					}//end if we only calculate less than 4 stamps
-					else if(!ConverganceCheck.get_steady_state_idicator())
-					{
-						/*scale_time_steps(50,50,timer);
-						calculate_one_IV_point(sim_params.scaled_applied_bias, ConverganceCheck, number_outputs, timer,true);*/
-					}
+					std::cout << "CV!!! Number of adjustments:  "
+							  << number_of_adjustment
+							  << ""
+							  <<std::endl;
+					steady_state_flag = calculate_one_IV_point(sim_params.scaled_applied_bias-sim_params.scaled_delta_V, ConverganceCheck, number_outputs, timer, false);
+					if(steady_state_flag==0)
+						scale_time_steps(10,1,timer);
+					++number_of_adjustment;
 				}
 
-				if(sim_params.calculate_CV_curve && have_steady_state == 1)
+				if(steady_state_flag == -1)
 				{
-					std::cout << "\n\n####Capacitance calculations!####\n"
-							  << std::endl;
-					/*sim_params.t_end /= 2;*/
-					//scale_time_steps(50,50,timer);
-					//capacitance:
-					double total_charge =calculate_uncompensated_charge();
-					calculate_one_IV_point(sim_params.scaled_delta_V, ConverganceCheck, number_outputs/*, timeStamps*/, timer,false);
-					std::ofstream CV_data;
-					if(sim_params.calculate_steady_state)
-					{
-						CV_data.open("CV_data.txt", std::ios::out | std::ios::trunc);
-					}
-					else CV_data.open("CV_data.txt", std::ios_base::app);
-					CV_data  << 0.0
-							 << "\t"
-							 <<  (sim_params.real_domain_height/(sim_params.scaled_domain_height*sim_params.characteristic_length))*
-								 ((-calculate_uncompensated_charge() + total_charge)*sim_params.device_thickness*
-								   sim_params.characteristic_denisty*PhysicalConstants::electron_charge*
-								   sim_params.characteristic_length*sim_params.characteristic_length)/
-								 (sim_params.scaled_delta_V*sim_params.thermal_voltage)
-							 << "\n";
-					CV_data.close();
+					std::cout << "SIMULATION CRASH! LAST TIME STEP:  "
+							  << time_step_number
+							  << "\nABORTING..."
+							  <<std::endl;
+					//break;
 				}
-				electron_hole_pair.print_dofs(sim_params.type_of_simulation);
-			}// end if there is no nan value in residuums
+
+				std::ofstream CV_data;
+				if(sim_params.calculate_steady_state)
+				{
+					CV_data.open("CV_data.txt", std::ios::out | std::ios::trunc);
+				}
+				else CV_data.open("CV_data.txt", std::ios_base::app);
+				if(steady_state_flag == -1)
+				{
+					CV_data << "Crash!:   ";
+				}
+				if(steady_state_flag == 0)
+				{
+					CV_data << "Not steady state:   ";
+				}
+
+				CV_data  << sim_params.scaled_applied_bias*sim_params.thermal_voltage
+						 << "\t"
+						 << (sim_params.real_domain_height/(sim_params.scaled_domain_height*sim_params.characteristic_length))*
+							 ((-calculate_uncompensated_charge() + total_charge)*sim_params.device_thickness*
+							   sim_params.characteristic_denisty*PhysicalConstants::electron_charge*
+							   sim_params.characteristic_length*sim_params.characteristic_length)/
+							 (sim_params.scaled_delta_V*sim_params.thermal_voltage)
+						 << "\n";
+				CV_data.close();
+			}
 		} // end if we do NOT calculate IV curve
-
+		else if(sim_params.calculate_DLTS)
+		{
+			calculate_DLTS(sim_params.scaled_applied_bias,0.01,1e6,timer/*,10*/);
+			electron_hole_pair.print_dofs("DLTS" + std::to_string(sim_params.scaled_applied_bias*sim_params.thermal_voltage));
+		}
 		else if(sim_params.calculate_IV_curve && sim_params.restart_from_steady_state)
 		/*
 		 *
@@ -2291,14 +3826,14 @@ namespace SOLARCELL
 
 			if(V_min < 0.0 )
 			{
-				for(double voltage = -voltage_step; voltage >= V_min; voltage-=voltage_step)
+				for(double voltage = /*V_max*/-voltage_step; voltage >= V_min; voltage-=voltage_step)
 				{
 					number_of_adjustment=0;
 					steady_state_flag = 0;
 					scale_time_steps(steady_state_delta_t/delta_t,1,timer);
-					while(steady_state_flag==0 && number_of_adjustment < 5)
+					while(steady_state_flag==0 && number_of_adjustment < 100)
 					{
-						std::cout << "Number f adjustments:  "
+						std::cout << "Number of adjustments:  "
 								  << number_of_adjustment
 								  << ""
 								  <<std::endl;
@@ -2315,7 +3850,7 @@ namespace SOLARCELL
 								  <<std::endl;
 						break;
 					}
-					if(delta_t > steady_state_delta_t)
+					/*if(delta_t > steady_state_delta_t)
 					{
 						std::cout << "TURNING BACK TO STEADY-STEATE FROM TIME STEP:  "
 								  << delta_t
@@ -2324,32 +3859,16 @@ namespace SOLARCELL
 						scale_time_steps(steady_state_delta_t/delta_t,1,timer);
 						number_of_adjustment=0;
 						steady_state_flag = 0;
-						while(steady_state_flag==0 && number_of_adjustment < 5)
+						while(steady_state_flag==0 && number_of_adjustment < 2)
 						{
 							steady_state_flag = calculate_one_IV_point(voltage, ConverganceCheck, number_outputs, timer, true);
 							++number_of_adjustment;
-						}
-					}
-					/*if(steady_state_flag == 0)
-					{
-						scale_time_steps(10,1,timer);
-						std::cout << "NO STEADY STATE! RESTARTING! \nMAKING TIME STEP BIGGER:  "
-								  << delta_t
-								  << ""
-								  <<std::endl;
-						steady_state_flag = calculate_one_IV_point(voltage, ConverganceCheck, number_outputs, timer, true);
-						if(steady_state_flag == -1)
-						{
-							std::cout << "SIMULATION CRASH! LAST TIME STEP:  "
-									  << delta_t
-									  << "\nABORTING..."
-									  <<std::endl;
-							break;
 						}
 					}*/
 
 					if(sim_params.calculate_CV_curve && steady_state_flag == 1)
 					{
+						electron_hole_pair.print_dofs(std::to_string(voltage*sim_params.thermal_voltage));
 						scale_time_steps(steady_state_delta_t/delta_t,1,timer);
 						std::cout << "\n\nCALCULATING CV POINT! \nTIME STEP:  "
 								  << delta_t
@@ -2360,13 +3879,13 @@ namespace SOLARCELL
 						steady_state_flag= 0;
 						number_of_adjustment = 0;
 						//calculate_one_IV_point(voltage+sim_params.scaled_delta_V, ConverganceCheck, number_outputs, timer,false);
-						while(steady_state_flag==0 && number_of_adjustment < 5)
+						while(steady_state_flag==0 && number_of_adjustment < 100)
 						{
 							std::cout << "CV!!! Number of adjustments:  "
 									  << number_of_adjustment
 									  << ""
 									  <<std::endl;
-							steady_state_flag = calculate_one_IV_point(voltage, ConverganceCheck, number_outputs, timer, true);
+							steady_state_flag = calculate_one_IV_point(voltage-sim_params.scaled_delta_V, ConverganceCheck, number_outputs, timer, false);
 							if(steady_state_flag==0)
 								scale_time_steps(10,1,timer);
 							++number_of_adjustment;
@@ -2380,11 +3899,20 @@ namespace SOLARCELL
 									  << time_step_number
 									  << "\nABORTING..."
 									  <<std::endl;
-							//break;
+							break;
 						}
 
 						std::ofstream CV_data;
 						CV_data.open("CV_data.txt", std::ios_base::app);
+						if(steady_state_flag == -1)
+						{
+							CV_data << "Crash!:   ";
+						}
+						if(steady_state_flag == 0)
+						{
+							CV_data << "Not steady state:   ";
+						}
+
 						CV_data  << voltage*sim_params.thermal_voltage
 								 << "\t"
 								 << (sim_params.real_domain_height/(sim_params.scaled_domain_height*sim_params.characteristic_length))*
@@ -2407,9 +3935,9 @@ namespace SOLARCELL
 					number_of_adjustment=0;
 					steady_state_flag = 0;
 					scale_time_steps(steady_state_delta_t/delta_t,1,timer);
-					while(steady_state_flag==0 && number_of_adjustment < 5)
+					while(steady_state_flag==0 && number_of_adjustment < 100)
 					{
-						std::cout << "Number f adjustments:  "
+						std::cout << "Number of adjustments:  "
 								  << number_of_adjustment
 								  << ""
 								  <<std::endl;
@@ -2426,7 +3954,7 @@ namespace SOLARCELL
 								  <<std::endl;
 						break;
 					}
-					if(delta_t > steady_state_delta_t)
+					/*if(delta_t > steady_state_delta_t)
 					{
 						std::cout << "TURNING BACK TO STEADY-STEATE FROM TIME STEP:  "
 								  << delta_t
@@ -2435,23 +3963,24 @@ namespace SOLARCELL
 						scale_time_steps(steady_state_delta_t/delta_t,1,timer);
 						number_of_adjustment=0;
 						steady_state_flag = 0;
-						while(steady_state_flag==0 && number_of_adjustment < 5)
+						while(steady_state_flag==0 && number_of_adjustment < 2)
 						{
-							/*std::cout << "CV!! Number f adjustments:  "
+							std::cout << "CV!! Number f adjustments:  "
 									  << number_of_adjustment
 									  << ""
 									  <<std::endl;
 							steady_state_flag = calculate_one_IV_point(voltage, ConverganceCheck, number_outputs, timer, true);
 							if(steady_state_flag==0)
 								scale_time_steps(10,1,timer);
-							++number_of_adjustment;*/
+							++number_of_adjustment;
 							steady_state_flag = calculate_one_IV_point(voltage, ConverganceCheck, number_outputs, timer, true);
 							++number_of_adjustment;
 						}
-					}
+					}*/
 
 					if(sim_params.calculate_CV_curve && steady_state_flag == 1)
 					{
+						electron_hole_pair.print_dofs(std::to_string(voltage*sim_params.thermal_voltage));
 						scale_time_steps(steady_state_delta_t/delta_t,1,timer);
 						std::cout << "\n\nCALCULATING CV POINT! \nTIME STEP:  "
 								  << delta_t
@@ -2462,13 +3991,13 @@ namespace SOLARCELL
 						steady_state_flag= 0;
 						number_of_adjustment = 0;
 						//calculate_one_IV_point(voltage+sim_params.scaled_delta_V, ConverganceCheck, number_outputs, timer,false);
-						while(steady_state_flag==0 && number_of_adjustment < 5)
+						while(steady_state_flag==0 && number_of_adjustment < 100)
 						{
 							std::cout << "CV!!! Number of adjustments:  "
 									  << number_of_adjustment
 									  << ""
 									  <<std::endl;
-							steady_state_flag = calculate_one_IV_point(voltage, ConverganceCheck, number_outputs, timer, true);
+							steady_state_flag = calculate_one_IV_point(voltage+sim_params.scaled_delta_V, ConverganceCheck, number_outputs, timer, false);
 							if(steady_state_flag==0)
 								scale_time_steps(10,1,timer);
 							++number_of_adjustment;
@@ -2487,6 +4016,14 @@ namespace SOLARCELL
 
 						std::ofstream CV_data;
 						CV_data.open("CV_data.txt", std::ios_base::app);
+						if(steady_state_flag == -1)
+						{
+							CV_data << "Crash!:   ";
+						}
+						if(steady_state_flag == 0)
+						{
+							CV_data << "Not steady state:   ";
+						}
 						CV_data  << voltage*sim_params.thermal_voltage
 								 << "\t"
 								 << (sim_params.real_domain_height/(sim_params.scaled_domain_height*sim_params.characteristic_length))*
@@ -2584,7 +4121,7 @@ namespace SOLARCELL
 					number_of_adjustment=0;
 					steady_state_flag = 0;
 					scale_time_steps(steady_state_delta_t/delta_t,1,timer);
-					while(steady_state_flag==0 && number_of_adjustment < 5)
+					while(steady_state_flag==0 && number_of_adjustment < 10)
 					{
 						std::cout << "Number f adjustments:  "
 								  << number_of_adjustment
@@ -2603,7 +4140,7 @@ namespace SOLARCELL
 								  <<std::endl;
 						break;
 					}
-					if(delta_t > steady_state_delta_t)
+					/*if(delta_t > steady_state_delta_t)
 					{
 						std::cout << "TURNING BACK TO STEADY-STEATE FROM TIME STEP:  "
 								  << delta_t
@@ -2617,7 +4154,7 @@ namespace SOLARCELL
 							steady_state_flag = calculate_one_IV_point(voltage, ConverganceCheck, number_outputs, timer, true);
 							++number_of_adjustment;
 						}
-					}
+					}*/
 					if(sim_params.calculate_CV_curve && steady_state_flag == 1)
 					{
 						scale_time_steps(steady_state_delta_t/delta_t,1,timer);
