@@ -3436,7 +3436,6 @@ namespace SOLARCELL
 
 	}
 
-
 	template<int dim>
 	void
 	SolarCellProblem<dim>::
