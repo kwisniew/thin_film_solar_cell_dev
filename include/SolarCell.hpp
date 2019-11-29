@@ -661,6 +661,7 @@ namespace SOLARCELL
 			void
 			check_first_time_steps(const double & old_current, TimerOutput & timer);
 
+<<<<<<< HEAD
 			/**\brief Calculate one point on IV curve*/
 			 /** This function calculate transient from some starting point
 			  * described in primarily saved .dofs to other point with some applied voltage.
@@ -669,6 +670,13 @@ namespace SOLARCELL
 			  * 1000 steps. Algorithm can stop earlier if accuracy of result will be enough.
 			 */
 			char
+=======
+			/**\brief Calculate uncompensated charge over all domain*/
+			 /** This function is needed to calculate capacitance:
+			  * C=dQ/dV --> we need to calculate dQ = Q(t[n+1])-Q(t[n])
+			 */
+			bool
+>>>>>>> f6445e27ca837976d340dd68443b283dc04ce8a4
 			calculate_one_IV_point(double 				voltage,
 								   Convergence<dim>     & ConverganceCheck,
 								   unsigned int			number_of_outputs,
@@ -713,6 +721,7 @@ namespace SOLARCELL
 
 			void
 			scale_time_steps(const double scaling_factor, const double end_time_scaling_factor, TimerOutput 	& timer);
+<<<<<<< HEAD
 
 			std::pair<double, double>
 			potential_department();
@@ -724,6 +733,8 @@ namespace SOLARCELL
 			print_step_values(std::string Title, unsigned int step_number, double total_current, double old_current, bool is_current_decreasing,
 							  double uptodate_current_delta, double previous_current_delta,
 							  double total_charge, double old_charge, double uptodate_charge_delta);
+=======
+>>>>>>> f6445e27ca837976d340dd68443b283dc04ce8a4
 
 			/** Print the results into three .vtu files using multi-threading. 
  			* One thread prints poisson, one thread prints electron/holes, one thread prints
