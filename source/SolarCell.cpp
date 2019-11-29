@@ -1020,7 +1020,7 @@ namespace SOLARCELL
 								barrier_exist = 0.0;*/
 							data.local_carrier_1_rhs(i) +=
 									-/*-*/1.0 * scratch.psi_i_density[i] *
-									sim_params.scaled_electron_recombo_v*
+									sim_params.scaled_electron_schottky_recombo_v*
 									(scratch.electron_interface_values[q]
 									-
 									scratch.carrier_1_bc_values[q] ) * 
@@ -1032,7 +1032,7 @@ namespace SOLARCELL
 								barrier_exist = 0.0;*/
 							data.local_carrier_2_rhs(i) +=  
 									-/*+*/1.0 * scratch.psi_i_density[i] *
-									sim_params.scaled_hole_recombo_v *
+									sim_params.scaled_hole_schottky_recombo_v *
 									(scratch.hole_interface_values[q]
 									-
 									scratch.carrier_2_bc_values[q] ) *
@@ -1603,7 +1603,7 @@ namespace SOLARCELL
 						          std::abs(uptodate_current_delta/old_current) < 0.0001*/
 						)
 				{
-					if(uptodate_charge_delta > previous_charge_delta && std::abs(uptodate_charge_delta/old_charge) < 1e-8)
+					if(uptodate_charge_delta > previous_charge_delta && std::abs(uptodate_charge_delta/old_charge) < 1e-8*delta_t)
 					{
 						std::cout << "\n\nSTEADY STATE WAS ACHIEVED after: "
 								  << time
@@ -1640,6 +1640,8 @@ namespace SOLARCELL
 									  << total_charge
 									  << "\ncharge_delta= "
 									  << uptodate_charge_delta
+									  << "\nprevious charge_delta= "
+									  << previous_charge_delta
 									  << std::endl
 									  << std::endl;
 						}
@@ -3314,40 +3316,41 @@ namespace SOLARCELL
 	change_temperature(double temperature)
 	{
 		//(T_old/T_new)
-		double T_ratio = sim_params.temperatue/temperature;
-		sim_params.temperatue = temperature;
+		double T_ratio = sim_params.temperature/temperature;
+		sim_params.temperature = temperature;
 
 		//parameters that depends on temperature:
 		// 1) thermal voltage influcene: 3.1) build_in_bias, 3.2) schottky hole&electron densities, 1.1) debay length 1.2) mobility scaling factor
+		// 1.3) recombination velocity on schottky 1.4) all potentials, becouse they are scaled by thermal voltage
 		// we also need to scale all parameters by this variable, but be careful! If the variable will be not recalculate below
 		// we will need to use ratio between new and old temperature: x1=x0/T_old, we want now x2=x0/T_new, but we have x0 this time, so:
 		// x2=x1*(T_old/T_new)
-		sim_params.thermal_voltage = PhysicalConstants::boltzman_constant*sim_params.temperatue/PhysicalConstants::electron_charge;
+		sim_params.thermal_voltage = PhysicalConstants::boltzman_constant*sim_params.temperature/PhysicalConstants::electron_charge;
 
-		//2) Nv and Nv only influence 3) intrinsic density, 4) srh electron & hole density
+		//2) Nv and Nc only influence 3) intrinsic density, 4) srh electron & hole density, 1.3) recombination velocity on schottky
 		sim_params.Nc_effective_dos = 2*pow(2*M_PI*PhysicalConstants::free_electron_mass*sim_params.electron_effective_mass
-										*PhysicalConstants::boltzman_constant*sim_params.temperatue
+										*PhysicalConstants::boltzman_constant*sim_params.temperature
 										/(PhysicalConstants::planck_constant*PhysicalConstants::planck_constant)
 									  ,1.5);
 		sim_params.Nv_effective_dos = 2*pow(2*M_PI*PhysicalConstants::free_electron_mass*sim_params.hole_effective_mass
-										*PhysicalConstants::boltzman_constant*sim_params.temperatue
+										*PhysicalConstants::boltzman_constant*sim_params.temperature
 										/(PhysicalConstants::planck_constant*PhysicalConstants::planck_constant)
 									  ,1.5);
 		//3) intrinsic density influence 3.1) build_in_bias, 3.2) schottky electron & hole density
 		sim_params.scaled_intrinsic_density = sqrt(sim_params.Nv_effective_dos*sim_params.Nc_effective_dos)
 										*std::exp(-sim_params.band_gap*PhysicalConstants::electron_charge
-										  /(2*PhysicalConstants::boltzman_constant*sim_params.temperatue));
+										  /(2*PhysicalConstants::boltzman_constant*sim_params.temperature));
 		sim_params.scaled_intrinsic_density *= 1.0e-6;
 
 		//4) srh densities do not influence any other variable
 		sim_params.scaled_srh_electron_density = sim_params.Nc_effective_dos
 									*std::exp(-sim_params.defect_energy*PhysicalConstants::electron_charge
-											  /(PhysicalConstants::boltzman_constant*sim_params.temperatue));
+											  /(PhysicalConstants::boltzman_constant*sim_params.temperature));
 		sim_params.scaled_srh_electron_density *= 1.0e-6;
 
 		sim_params.scaled_srh_hole_density = sim_params.Nv_effective_dos
 								*std::exp( (sim_params.defect_energy - sim_params.band_gap)*PhysicalConstants::electron_charge
-										  /(PhysicalConstants::boltzman_constant*sim_params.temperatue));
+										  /(PhysicalConstants::boltzman_constant*sim_params.temperature));
 		sim_params.scaled_srh_hole_density *= 1.0e-6;
 
 		//3.1) build_in_bias influence 3.1.1) n_type_depletion_width 3.1.2) p_type_depletion_width
@@ -3410,6 +3413,18 @@ namespace SOLARCELL
 		sim_params.scaled_electron_mobility *= mobility_scale;
 		sim_params.scaled_hole_mobility     *= mobility_scale;
 
+		//1.3)
+		sim_params.scaled_hole_schottky_recombo_v     = PhysicalConstants::richardson_constant*temperature*temperature
+														/(PhysicalConstants::electron_charge*sim_params.Nv_effective_dos);
+		sim_params.scaled_electron_schottky_recombo_v = PhysicalConstants::richardson_constant*temperature*temperature
+														/(PhysicalConstants::electron_charge*sim_params.Nv_effective_dos);
+		sim_params.scaled_hole_schottky_recombo_v     *=1e2;
+		sim_params.scaled_electron_schottky_recombo_v *=1e2;
+
+		/*----------------------------------------------------------------------*/
+		// 	Scale parameters
+		/*----------------------------------------------------------------------*/
+
 		//scale again variables that was changed above:
 		sim_params.scaled_intrinsic_density         /= sim_params.characteristic_denisty;
 		sim_params.scaled_schottky_electron_density /= sim_params.characteristic_denisty;
@@ -3420,13 +3435,20 @@ namespace SOLARCELL
 		sim_params.scaled_n_type_depletion_width /= (sim_params.characteristic_length);
 		sim_params.scaled_p_type_depletion_width /= (sim_params.characteristic_length);
 
+		sim_params.scaled_electron_schottky_recombo_v *= (sim_params.characteristic_time /
+														  sim_params.characteristic_length);
+
+		sim_params.scaled_hole_schottky_recombo_v *= (sim_params.characteristic_time /
+													  sim_params.characteristic_length);
+
 
 		//scaled by Vt variables which where recalculated above:
 		if(sim_params.scaled_n_type_donor_density > 0 && sim_params.scaled_p_type_acceptor_density > 0)
 		{
 			sim_params.scaled_built_in_bias /= sim_params.thermal_voltage;
 		}
-		//scaled by Vt variables which where NOT recalculated above:
+		//scaled by Vt variables which where NOT recalculated above BUT they still depends on temperature (via thermal_voltage):
+		//1.4)
 		sim_params.scaled_applied_bias  *= T_ratio;
 		sim_params.scaled_schottky_bias *= T_ratio;
 		sim_params.scaled_IV_max_V      *= T_ratio;

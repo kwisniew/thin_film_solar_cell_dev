@@ -5,8 +5,8 @@ subsection computational
   #                    (iii)small signal response: add small voltage increment 
   # NOTE: one and only one of the below conditions must be true!
   set steady state          = false
-  set equilibrium state     = true
-  set small signal response = false
+  set equilibrium state     = false
+  set DLTS 					= true
   set IV curve				= false
   set CV curve				= false
   
@@ -19,14 +19,14 @@ subsection computational
   # time at the end of a simulation (in terms of characteristic time) 1000
   set end time steady state          = 1000
   set end time equilibrium state     = 1000
-  set end time small signal response = 1000
+  set end time DLTS = 1000
 
   # 2nd end time (in terms of characteristic time) 
   # for restarting if the simulation hasn't converged by end of previous time
   set end time 2         = 2e3
 
   # number of global refinements
-  set global refinements = 4
+  set global refinements = 5
 
   # number of local refinements in predefined critical areas
   set local refinements  = 2
@@ -54,21 +54,18 @@ subsection mesh
   set radius two     = 2.5
   
   # n-type width
-  set n_type width   = 3.5
+  set n_type width   = 10
   
   # p_type width     
-  set p_type width   = 5.5 
+  set p_type width   = 15
 end
 
 subsection electrons
   # electron mobility [cm^{2}/(Vs)]
-  set mobility               = 30
+  set mobility               = 30.0
 
   # Recombination rate/time of electrons [s]
   set recombination time     = 1e-8
-
-  # Recombination velocity of electrons [cm/s] - for schottky junction
-  set recombination velocity = 3.0e4
 
   # electron effective mass [fraction of free electron mass]
   set electron effective mass = 0.2
@@ -77,13 +74,10 @@ end
 
 subsection holes
   # hole mobility [cm^{2}/(Vs)]
-  set mobility               = 30
+  set mobility               = 30.0
 
   # Recombination rate/time of holes [s]
   set recombination time     = 1e-8
-
-  # Recombination velocity of holes [cm/s]  - for schottky junction; 2.9
-  set recombination velocity = 3.0e4
 
   # hole effective mass [fraction of free electron mass] 0.9
   set hole effective mass = 0.2
@@ -95,7 +89,7 @@ subsection physical
   # real domain height [cm]
   # NOTE: we calculate planar current flow in a device so when you look
   # at the device the "height" is in fact width of a device, additionally 
-  # this with should be approx. 0.5cm which is to big for simulation
+  # this width should be approx. 0.5cm which is to big for simulation
   # if we use e.g. 5um as a width then we well need to scale global variable
   # by a factor of 1000
   set real domain height         = 0.5  
@@ -108,7 +102,7 @@ subsection physical
 
   # the applied bias [v]
   # NOTE: if type of calculation will be "steady state" then applied bias will be always 0! 
-  set applied bias               = -0.3
+  set applied bias               = 0.0
 
   # band gap in semiconductor [eV]
   set band gap                   = 1.0
@@ -121,10 +115,10 @@ subsection physical
 
   # scaled n type donor density [cm^{-3}]
   # the characteristic density by which the densities will be scaled in calculations 
-  # will be the smaller value of n-type donor density and p-type acceptor density 
+  # will be the smaller value of n-type donor density and p-type acceptor density //1.0e14
   set n_type donor density     = 1.0e14
   
-  # scaled n type acceptor density [cm^{-3}]
+  # scaled n type acceptor density [cm^{-3}] //0.0
   set n_type acceptor density     = 0.0
 
   # scaled p type donor density [cm^{-3}]
@@ -139,9 +133,9 @@ subsection physical
   set characteristic length      = 1.0e-4
 
   # the characteristic time scale [s]
-  set characteristic time steady state          = 2.5e-10
-  set characteristic time equilibrium state     = 2.5e-11
-  set characteristic time small signal response = 1.0e-10  
+  set characteristic time steady state          = 1.0e-11
+  set characteristic time equilibrium state     = 1.0e-11
+  set characteristic time DLTS = 1.0e-10 
 
   # true means that the cell is illuminated, false means its not.
   set illumination status        = false
@@ -166,13 +160,13 @@ end
 subsection IV
   # IV curve will be calculated from minimum to maximum potential establish by user
   # The lowest voltage value on IV curve [V]
-  set IV minimal voltage    = -0.7
+  set IV minimal voltage    = -1.0
 
   # The biggest voltage value on IV curve [V]
-  set IV maximal voltage    = 0.7
+  set IV maximal voltage    = 1.0
 
   # number of points on the curve (without 0V point).
-  set IV number of data points = 20
+  set IV number of data points = 80
   
   # small voltage increment for capacitance calculations
   set delta V = 0.001

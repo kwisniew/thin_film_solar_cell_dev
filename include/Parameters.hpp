@@ -13,6 +13,10 @@ namespace PhysicalConstants
 	const double vacuum_permittivity = 8.8541878e-14;// [C V^{-1} cm^{-1}] = [A^2 s^4 kg^-1 m^-3]
 	const double planck_constant     = 6.63e-34;// [m^{2} kg/s]
 	const double free_electron_mass  = 9.11e-31;// [kg]
+	const double richardson_constant = 4*PhysicalConstants::electron_charge*M_PI*PhysicalConstants::free_electron_mass
+								  	    *PhysicalConstants::boltzman_constant*PhysicalConstants::boltzman_constant
+										/(PhysicalConstants::planck_constant*PhysicalConstants::planck_constant*PhysicalConstants::planck_constant);
+										//C s^-1 m^-2 K^-2 = A m^-2 K^-2
 }
 
 namespace ParameterSpace
@@ -70,7 +74,7 @@ namespace ParameterSpace
 			//electron
 			double scaled_electron_mobility;
 			double scaled_electron_recombo_t;
-			double scaled_electron_recombo_v;
+			double scaled_electron_schottky_recombo_v;
 			double electron_effective_mass;
 			double scaled_n_type_depletion_width;
 			//double scaled_k_et;
@@ -79,7 +83,7 @@ namespace ParameterSpace
 			//hole
 			double scaled_hole_mobility;
 			double scaled_hole_recombo_t;
-			double scaled_hole_recombo_v;
+			double scaled_hole_schottky_recombo_v;
 			double hole_effective_mass;
 			double scaled_p_type_depletion_width;
 			double scaled_p_type_schottky_dwidth;
@@ -100,7 +104,7 @@ namespace ParameterSpace
 			double Nv_effective_dos;
 			double band_gap;
 			double defect_energy;
-			double temperatue;
+			double temperature;
 			double thermal_voltage;
 
 			double characteristic_length;
@@ -199,14 +203,14 @@ namespace ParameterSpace
 				prm.enter_subsection("electrons");
 				this->scaled_electron_mobility = prm.get_double("mobility");
 				this->scaled_electron_recombo_t = prm.get_double("recombination time");
-				this->scaled_electron_recombo_v = prm.get_double("recombination velocity");
+				//this->scaled_electron_recombo_v = prm.get_double("recombination velocity");
 				this->electron_effective_mass   = prm.get_double("electron effective mass");
 				prm.leave_subsection();
 
 				prm.enter_subsection("holes");
 				this->scaled_hole_mobility = prm.get_double("mobility");
 				this->scaled_hole_recombo_t = prm.get_double("recombination time");
-				this->scaled_hole_recombo_v = prm.get_double("recombination velocity");
+				//this->scaled_hole_recombo_v = prm.get_double("recombination velocity");
 				this->hole_effective_mass   = prm.get_double("hole effective mass");
 				prm.leave_subsection();
 
@@ -219,7 +223,7 @@ namespace ParameterSpace
 				this->scaled_applied_bias = prm.get_double("applied bias");
 				this->band_gap = prm.get_double("band gap");
 				this->defect_energy = prm.get_double("defect energy level");
-				this->temperatue = prm.get_double("temperature");
+				this->temperature = prm.get_double("temperature");
 				this->scaled_schottky_bias = prm.get_double("schottky bias");
 				this->characteristic_length = prm.get_double("characteristic length");
 
@@ -298,19 +302,19 @@ namespace ParameterSpace
 							<< std::endl;
 
 
-				this->thermal_voltage = PhysicalConstants::boltzman_constant*temperatue/PhysicalConstants::electron_charge;
+				this->thermal_voltage = PhysicalConstants::boltzman_constant*temperature/PhysicalConstants::electron_charge;
 				std::cout << "thermal voltage:    " << this->thermal_voltage << std::endl;
 
 				//calculate intrinsic density [m^3]:
 				this->Nc_effective_dos = 2*pow(2*M_PI*PhysicalConstants::free_electron_mass*this->electron_effective_mass
-												*PhysicalConstants::boltzman_constant*this->temperatue
+												*PhysicalConstants::boltzman_constant*this->temperature
 												/(PhysicalConstants::planck_constant*PhysicalConstants::planck_constant)
 											  ,1.5);
 
 				std::cout << "Nc [cm^-3]:    " << this->Nc_effective_dos*1.0e-6 << std::endl;
 				//[m^3]
 				this->Nv_effective_dos = 2*pow(2*M_PI*PhysicalConstants::free_electron_mass*this->hole_effective_mass
-												*PhysicalConstants::boltzman_constant*this->temperatue
+												*PhysicalConstants::boltzman_constant*this->temperature
 												/(PhysicalConstants::planck_constant*PhysicalConstants::planck_constant)
 											  ,1.5);
 
@@ -320,7 +324,7 @@ namespace ParameterSpace
 				//[m^3]
 				this->scaled_intrinsic_density = sqrt(this->Nv_effective_dos*this->Nc_effective_dos)
 												*std::exp(-this->band_gap*PhysicalConstants::electron_charge
-														  /(2*PhysicalConstants::boltzman_constant*this->temperatue));
+														  /(2*PhysicalConstants::boltzman_constant*this->temperature));
 
 				//change intrinsic density to [cm^-3]
 				this->scaled_intrinsic_density *= 1.0e-6;
@@ -423,14 +427,14 @@ namespace ParameterSpace
 				//[m^3]
 				this->scaled_srh_electron_density = Nc_effective_dos
 											*std::exp(-this->defect_energy*PhysicalConstants::electron_charge
-													  /(PhysicalConstants::boltzman_constant*this->temperatue));
+													  /(PhysicalConstants::boltzman_constant*this->temperature));
 				//[cm^3]
 				scaled_srh_electron_density *= 1.0e-6;
 
 				//[m^3]
 				this->scaled_srh_hole_density = Nv_effective_dos
 										*std::exp( (this->defect_energy - this->band_gap)*PhysicalConstants::electron_charge
-												  /(PhysicalConstants::boltzman_constant*this->temperatue));
+												  /(PhysicalConstants::boltzman_constant*this->temperature));
 				//[cm^3]
 				scaled_srh_hole_density *= 1.0e-6;
 
@@ -443,8 +447,22 @@ namespace ParameterSpace
 						  << "cm^-3"
 						  << std::endl;
 
+				std::cout << "Richardson constant:   "
+						  << PhysicalConstants::richardson_constant/1e4
+						  << std::endl;
+				//[m/s]
+				scaled_hole_schottky_recombo_v     = PhysicalConstants::richardson_constant*temperature*temperature
+													/(PhysicalConstants::electron_charge*Nv_effective_dos);
+				scaled_electron_schottky_recombo_v = PhysicalConstants::richardson_constant*temperature*temperature
+													/(PhysicalConstants::electron_charge*Nv_effective_dos);
 
+				//[cm/s]
+				scaled_hole_schottky_recombo_v     *=1e2;
+				scaled_electron_schottky_recombo_v *=1e2;
 
+				std::cout << "Recombination velocity on schottky[cm/s]:   "
+						  << scaled_electron_schottky_recombo_v
+						  << std::endl;
 
 
 				/*----------------------------------------------------------------------*/
@@ -477,10 +495,10 @@ namespace ParameterSpace
 				this->scaled_electron_recombo_t /= this->characteristic_time;
 				this->scaled_hole_recombo_t     /= this->characteristic_time;
 
-				this->scaled_electron_recombo_v *= (this->characteristic_time /
+				this->scaled_electron_schottky_recombo_v *= (this->characteristic_time /
 								this->characteristic_length);
 
-				this->scaled_hole_recombo_v *= (this->characteristic_time /
+				this->scaled_hole_schottky_recombo_v *= (this->characteristic_time /
 								this->characteristic_length);
 
 				this->scaled_photon_flux *= (this->characteristic_time /
