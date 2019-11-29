@@ -136,10 +136,6 @@ namespace ParameterSpace
 				Patterns::Double(0),
 				"Recombination rate/time of electrons [s]");
 
-		prm.declare_entry("recombination velocity", "3e5",
-				 Patterns::Double(0),
-				 "Recombination velocity of electrons [cm/s]");
-
 		prm.declare_entry("electron effective mass", "0.2",
 				 Patterns::Double(0),
 				 "electron effective mass in conduction band [cm/s]");
@@ -157,10 +153,6 @@ namespace ParameterSpace
 		prm.declare_entry("recombination time", "5e-5",
 				Patterns::Double(0),
 				"Recombination rate/time of holes [s]");
-
-		prm.declare_entry("recombination velocity", "2.9e-2",
-				Patterns::Double(0),
-				"Recombination velocity of holes [cm/s]");
 
 		prm.declare_entry("hole effective mass", "0.2",
 				 Patterns::Double(0),
