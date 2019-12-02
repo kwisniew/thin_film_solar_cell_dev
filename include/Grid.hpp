@@ -51,6 +51,8 @@ namespace Grid_Maker
 			*/
 			void make_semiconductor_grid(Triangulation<dim>  & triangulation);
 
+			void make_semiconductor_grid_with_gb(Triangulation<dim>  & triangulation);
+
 			/** Makes a grid which is of the form, \image html Poisson-grid.png 
 			*	The top radius is <code> radius one <code/> while the top radius is 
 			*	<code> radius two <code/>.   It does so by merging the two provided grids.*/
@@ -88,6 +90,9 @@ namespace Grid_Maker
 
 			/// \brief Tags boundaries between n_type and p_type region.
 			void mark_interface_boundaries(Triangulation<dim> & triangulation);
+
+			/// \brief Tags boundaries between n_type and p_type region.
+			void mark_grain_boundaries(Triangulation<dim> & triangulation);
 	
 	 		/** \brief Creates a simple cubic grid with mixed boundaries. */
 			/** Takes <code>triangulation<code/> object and creates a mesh on it.
@@ -135,7 +140,8 @@ namespace Grid_Maker
 				PN_Interface,
 				Dirichlet,
 				Neumann,
-				Schottky
+				Schottky,
+				gb_border
 			};
 
 
@@ -143,7 +149,7 @@ namespace Grid_Maker
 			{
 				semiconductor_id,
 				semi_boundary_layer_id,
-				electrolyte_id,
+				gb_id,
 				elec_boundary_layer_id,
 				n_type_id,
 				p_type_id
@@ -152,15 +158,19 @@ namespace Grid_Maker
 			/// Set in constructor.			
 			double scaled_domain_height;
 			/// Set in constructor.			
-			double scaled_radius_one;
-			/// Set in constructor.			
-			double scaled_radius_two;
+			double scaled_top_point_x;
+			/// Set in constructor.
+			double scaled_top_point_y;
+			/// Set in constructor.
+			double scaled_bottom_point_x;
+			/// Set in constructor.
+			double scaled_bottom_point_y;
 
 			double scaled_n_type_width;
 
 			double scaled_p_type_width;
 			/// Set in constructor.			
-			double scaled_boundary_layer;
+			double scaled_grain_boundary_width;
 			/// Set in constructor.			
 			unsigned int n_global_refine;
 			/// Set in constructor.			
@@ -173,6 +183,8 @@ namespace Grid_Maker
 			bool schottky;
 			/// check if we calculate steady state situation (without the bias)
 			bool steady_state;
+
+			bool grain_boundary_status;
 	
 	};
 
