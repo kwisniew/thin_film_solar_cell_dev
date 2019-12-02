@@ -231,7 +231,7 @@ namespace MixedPoisson
 				// Material id for cell to be boundary layer semiconductor cell.
 				semi_boundary_layer_id,
 				// Material id for cell to be bulk electrolyte cell.
-				electrolyte_id,
+				gb_id,
 				// Material id for cell to be boundary layer electrolyte cell.
 				elec_boundary_layer_id,
 				// Material id for cell to be bulk n-type semiconductor material

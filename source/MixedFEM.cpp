@@ -54,6 +54,8 @@ namespace MixedPoisson
 			(cell->material_id() == p_type_id)
 			||
 			(cell->material_id() == n_type_id)
+			||
+			(cell->material_id() == gb_id)
 		)
 		{
 			// loop over all the quadrature points in this cell

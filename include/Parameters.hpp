@@ -58,22 +58,21 @@ namespace ParameterSpace
 			std::string  type_of_restart;
 
 			//mesh
-			double scaled_boundary_layer;
+			double scaled_grain_boundary_width;
 			//double scaled_domain_length;
 			double scaled_domain_height;
-			double scaled_radius_one;
-			double scaled_radius_two;
+			double scaled_top_point_x;
+			double scaled_top_point_y;
+			double scaled_bottom_point_x;
+			double scaled_bottom_point_y;
 			double scaled_n_type_width;
 			double scaled_p_type_width;
-			double scaled_n_type_donor_density;
-			double scaled_n_type_acceptor_density;
-			double scaled_p_type_donor_density;
-			double scaled_p_type_acceptor_density;
 
 
 			//electron
 			double scaled_electron_mobility;
 			double scaled_electron_recombo_t;
+			double scaled_electron_recombo_t_gb;
 			double scaled_electron_schottky_recombo_v;
 			double electron_effective_mass;
 			double scaled_n_type_depletion_width;
@@ -83,6 +82,7 @@ namespace ParameterSpace
 			//hole
 			double scaled_hole_mobility;
 			double scaled_hole_recombo_t;
+			double scaled_hole_recombo_t_gb;
 			double scaled_hole_schottky_recombo_v;
 			double hole_effective_mass;
 			double scaled_p_type_depletion_width;
@@ -104,8 +104,14 @@ namespace ParameterSpace
 			double Nv_effective_dos;
 			double band_gap;
 			double defect_energy;
+			double defect_energy_gb;
 			double temperature;
 			double thermal_voltage;
+
+			double scaled_n_type_donor_density;
+			double scaled_n_type_acceptor_density;
+			double scaled_p_type_donor_density;
+			double scaled_p_type_acceptor_density;
 
 			double characteristic_length;
 			double characteristic_denisty;
@@ -118,11 +124,15 @@ namespace ParameterSpace
 			double scaled_schottky_electron_density;
 			double scaled_srh_electron_density;
 			double scaled_srh_hole_density;
+			double scaled_gb_defect_density;
+			double scaled_srh_electron_density_gb;
+			double scaled_srh_hole_density_gb;
 
 
 			bool illum_or_dark;
 			bool insulated;
 			bool schottky_status;
+			bool grain_boundary_status;
 	
 
 			double scaled_applied_bias;
@@ -149,8 +159,8 @@ namespace ParameterSpace
 				scaled_absorption_coeff  = 0.0;
 	
 				scaled_domain_height  = 1.0;
-				scaled_radius_one     = 0.5;
-				scaled_radius_two     = 0.5;
+				scaled_top_point_x     = 0.5;
+				scaled_bottom_point_x     = 0.5;
 
 				scaled_debye_length   = 1.0;
 				characteristic_length  = 1.0;
@@ -193,9 +203,11 @@ namespace ParameterSpace
 
 				prm.enter_subsection("mesh");
 				this->scaled_domain_height = prm.get_double("mesh height");
-				this->scaled_radius_one    = prm.get_double("radius one");
-				this->scaled_radius_two    = prm.get_double("radius two");
-				this->scaled_boundary_layer= prm.get_double("boundary layer");
+				this->scaled_top_point_x    = prm.get_double("top point x");
+				this->scaled_top_point_y    = prm.get_double("top point y");
+				this->scaled_bottom_point_x    = prm.get_double("bottom point x");
+				this->scaled_bottom_point_y    = prm.get_double("bottom point y");
+				this->scaled_grain_boundary_width= prm.get_double("grain boundary width");
 				this->scaled_n_type_width  = prm.get_double("n_type width");
 				this->scaled_p_type_width  = prm.get_double("p_type width");
 				prm.leave_subsection();
@@ -203,6 +215,7 @@ namespace ParameterSpace
 				prm.enter_subsection("electrons");
 				this->scaled_electron_mobility = prm.get_double("mobility");
 				this->scaled_electron_recombo_t = prm.get_double("recombination time");
+				scaled_electron_recombo_t_gb = prm.get_double("grain boundary recombination time");
 				//this->scaled_electron_recombo_v = prm.get_double("recombination velocity");
 				this->electron_effective_mass   = prm.get_double("electron effective mass");
 				prm.leave_subsection();
@@ -210,6 +223,7 @@ namespace ParameterSpace
 				prm.enter_subsection("holes");
 				this->scaled_hole_mobility = prm.get_double("mobility");
 				this->scaled_hole_recombo_t = prm.get_double("recombination time");
+				scaled_hole_recombo_t_gb = prm.get_double("grain boundary recombination time");
 				//this->scaled_hole_recombo_v = prm.get_double("recombination velocity");
 				this->hole_effective_mass   = prm.get_double("hole effective mass");
 				prm.leave_subsection();
@@ -220,9 +234,11 @@ namespace ParameterSpace
 				this->illum_or_dark = prm.get_bool("illumination status");
 				this->insulated = prm.get_bool("insulated");
 				this->schottky_status = prm.get_bool("schottky status");
+				this->grain_boundary_status = prm.get_bool("grain boundary status");
 				this->scaled_applied_bias = prm.get_double("applied bias");
 				this->band_gap = prm.get_double("band gap");
 				this->defect_energy = prm.get_double("defect energy level");
+				defect_energy_gb = prm.get_double("defect energy level");
 				this->temperature = prm.get_double("temperature");
 				this->scaled_schottky_bias = prm.get_double("schottky bias");
 				this->characteristic_length = prm.get_double("characteristic length");
@@ -235,6 +251,7 @@ namespace ParameterSpace
 				this->scaled_n_type_acceptor_density  = prm.get_double("n_type acceptor density");
 				this->scaled_p_type_donor_density     = prm.get_double("p_type donor density");
 				this->scaled_p_type_acceptor_density  = prm.get_double("p_type acceptor density");
+				scaled_gb_defect_density = prm.get_double("grain boundary defect density");
 				this->scaled_photon_flux = prm.get_double("photon flux");
 				this->scaled_absorption_coeff = prm.get_double("absorption coefficient"); 
 				this->semiconductor_permittivity = prm.get_double("semiconductor permittivity");
@@ -248,7 +265,7 @@ namespace ParameterSpace
 				prm.leave_subsection();
 
 
-
+				std::cout << "SZEROKOSC GRANICY ZIAREN:   " << scaled_grain_boundary_width << "\n";
 				//TODO: NEED TO CHANGE IT AS SOON AS POSSIBLE
 				//it is for scaling of outputs values
 				this->mobility = this->scaled_electron_mobility;
@@ -422,6 +439,9 @@ namespace ParameterSpace
 
 				//defect energy in [eV]:
 				this->defect_energy *= this->band_gap;
+				//defect energy on grain boundary
+				this->defect_energy_gb *= this->band_gap;
+
 				//defect energy is eV, so we need to change them to [J] by multiplying it by e
 				// see eg. p.105 Selberherr  (srh_electron_density=n1)
 				//[m^3]
@@ -437,6 +457,25 @@ namespace ParameterSpace
 												  /(PhysicalConstants::boltzman_constant*this->temperature));
 				//[cm^3]
 				scaled_srh_hole_density *= 1.0e-6;
+
+
+
+				// electron and hole density as if fermi level was equal defects energy levels on grain boundary
+				// the same as for srh_hole/electron_density
+				//[m^3]
+				this->scaled_srh_electron_density_gb = Nc_effective_dos
+											*std::exp(-this->defect_energy_gb*PhysicalConstants::electron_charge
+													  /(PhysicalConstants::boltzman_constant*this->temperature));
+				//[cm^3]
+				scaled_srh_electron_density_gb *= 1.0e-6;
+
+				//[m^3]
+				this->scaled_srh_hole_density_gb = Nv_effective_dos
+										*std::exp( (this->defect_energy_gb - this->band_gap)*PhysicalConstants::electron_charge
+												  /(PhysicalConstants::boltzman_constant*this->temperature));
+				//[cm^3]
+				scaled_srh_hole_density_gb *= 1.0e-6;
+
 
 				std::cout << "srh_electron_density:   "
 						  << this->scaled_srh_electron_density
@@ -481,10 +520,13 @@ namespace ParameterSpace
 				this->scaled_p_type_donor_density      /= this->characteristic_denisty;
 				this->scaled_p_type_acceptor_density   /= this->characteristic_denisty;
 				this->scaled_intrinsic_density         /= this->characteristic_denisty;
+				scaled_gb_defect_density               /= characteristic_denisty;
 				this->scaled_schottky_electron_density /= this->characteristic_denisty;
 				this->scaled_schottky_hole_density     /= this->characteristic_denisty;
 				this->scaled_srh_electron_density      /= this->characteristic_denisty;
+				this->scaled_srh_electron_density_gb   /= this->characteristic_denisty;
 				this->scaled_srh_hole_density		   /= this->characteristic_denisty;
+				this->scaled_srh_hole_density_gb	   /= this->characteristic_denisty;
 
 				//CHRACTERISTIC LENGTH MUST BE IN CM!
 				this->scaled_n_type_depletion_width /= (this->characteristic_length);
@@ -492,8 +534,10 @@ namespace ParameterSpace
 				this->scaled_p_type_schottky_dwidth /= (this->characteristic_length);
 
 
-				this->scaled_electron_recombo_t /= this->characteristic_time;
-				this->scaled_hole_recombo_t     /= this->characteristic_time;
+				this->scaled_electron_recombo_t    /= this->characteristic_time;
+				this->scaled_electron_recombo_t_gb /= this->characteristic_time;
+				this->scaled_hole_recombo_t        /= this->characteristic_time;
+				this->scaled_hole_recombo_t_gb     /= this->characteristic_time;
 
 				this->scaled_electron_schottky_recombo_v *= (this->characteristic_time /
 								this->characteristic_length);

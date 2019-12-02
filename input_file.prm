@@ -6,14 +6,14 @@ subsection computational
   # NOTE: one and only one of the below conditions must be true!
   set steady state          = false
   set equilibrium state     = false
-  set DLTS 					= true
-  set IV curve				= false
+  set DLTS 					= false
+  set IV curve				= true
   set CV curve				= false
   
   # if restarting, the end of last run is used as start for this one
   # if restarting from steady state, the end of last run of steady state is used as start for this one
   # NOTE: if "restart status" will be FALSE the "restart from steady state" will be ignored  
-  set restart status            = true
+  set restart status            = false
   set restart from steady state = false
 
   # time at the end of a simulation (in terms of characteristic time) 1000
@@ -26,12 +26,12 @@ subsection computational
   set end time 2         = 2e3
 
   # number of global refinements
-  set global refinements = 5
+  set global refinements = 3
 
   # number of local refinements in predefined critical areas
-  set local refinements  = 2
+  set local refinements  = 1
 
-  # number of output files from simulations 10
+  # number of output files from simulations 10 - out of date! 
   set time stamps        =10
 
   # scaled time step size of both subdomains
@@ -42,22 +42,28 @@ end
 subsection mesh
 #in units of characteristic length (see: subsection physical) [um]
   # width of boundary layer
-  set boundary layer = 0.6
+  set grain boundary width = 0.1
 
   # scaled domain height in y coordinate
-  set mesh height    = 5
+  set mesh height    = 5.0
 
-  # top radius of wire
-  set radius one     = 2.5
-
-  # bottom radius of wire
-  set radius two     = 2.5
+  # x coordinate of top point of grain boundary
+  set top point x    = 1.0
   
+  # y coordinate of top point of grain boundary
+  set top point y    = 5.0
+
+  # x coordinate of bottom radius of wire
+  set bottom point x     = 2.0
+  
+  # y coordinate of bottom radius of wire
+  set bottom point y     = 0.0
+
   # n-type width
-  set n_type width   = 10
+  set n_type width   = 5
   
   # p_type width     
-  set p_type width   = 15
+  set p_type width   = 5
 end
 
 subsection electrons
@@ -65,6 +71,9 @@ subsection electrons
   set mobility               = 30.0
 
   # Recombination rate/time of electrons [s]
+  set grain boundary recombination time     = 1e-6
+  
+  # Recombination rate/time of electrons for grain boundaries [s]
   set recombination time     = 1e-8
 
   # electron effective mass [fraction of free electron mass]
@@ -77,7 +86,10 @@ subsection holes
   set mobility               = 30.0
 
   # Recombination rate/time of holes [s]
-  set recombination time     = 1e-8
+  set recombination time     = 1e-6
+  
+  # Recombination rate/time of holes for grain boundaries [s]
+  set grain boundary recombination time     = 1e-8
 
   # hole effective mass [fraction of free electron mass] 0.9
   set hole effective mass = 0.2
@@ -109,6 +121,9 @@ subsection physical
   
   # defect level [in fraction of band gap - from 0 to 1]
   set defect energy level    	 = 0.5 
+  
+  # defect energy level on grain boundary [in fraction of band gap - from 0 to 1]
+  set grain boundary defect energy level    	 = 0.2 
 
   # Temperature of the device [K] 
   set temperature                = 300.0
@@ -128,6 +143,9 @@ subsection physical
   # the characteristic density by which the densities will be scaled in calculations 
   # will be the smaller value of n-type donor density and p-type acceptor density
   set p_type acceptor density    = 1.0e14
+  
+  # grain boundary defect density
+  set grain boundary defect density = 1.0e14
   
   # the characteristic length scale [cm]. Do not change the unit! 
   set characteristic length      = 1.0e-4
@@ -151,7 +169,10 @@ subsection physical
   set schottky bias              = 0.2
 
   # whether to have schottky contact. See Grid::make_Schottky_boundaries
-  set schottky status            = true
+  set schottky status            = false
+  
+  # whether to have grain boundary.
+  set grain boundary status            = true
 
   # semiconductor permittivity const []
   set semiconductor permittivity = 13.0

@@ -103,15 +103,23 @@ namespace ParameterSpace
 				Patterns::Double(0),
 				"scaled domain height in y coordinate");
 
-		prm.declare_entry("radius one", "0.5",
+		prm.declare_entry("top point x", "0.5",
 				Patterns::Double(0),
 				"top radius of wire");
 
-		prm.declare_entry("radius two", "0.5",
+		prm.declare_entry("top point y", "5.0",
+				Patterns::Double(0),
+				"top radius of wire");
+
+		prm.declare_entry("bottom point x", "1.0",
 				Patterns::Double(0),
 				"bottom radius of wire");
 
-		prm.declare_entry("boundary layer", "0.1",
+		prm.declare_entry("bottom point y", "0.0",
+				Patterns::Double(0),
+				"bottom radius of wire");
+
+		prm.declare_entry("grain boundary width", "0.1",
 				Patterns::Double(0),
 				"width of boundary layer");
 
@@ -136,6 +144,10 @@ namespace ParameterSpace
 				Patterns::Double(0),
 				"Recombination rate/time of electrons [s]");
 
+		prm.declare_entry("grain boundary recombination time", "5e-5",
+				Patterns::Double(0),
+				"Recombination rate/time of electrons [s]");
+
 		prm.declare_entry("electron effective mass", "0.2",
 				 Patterns::Double(0),
 				 "electron effective mass in conduction band [cm/s]");
@@ -153,6 +165,10 @@ namespace ParameterSpace
 		prm.declare_entry("recombination time", "5e-5",
 				Patterns::Double(0),
 				"Recombination rate/time of holes [s]");
+
+		prm.declare_entry("grain boundary recombination time", "5e-5",
+				Patterns::Double(0),
+				"Recombination time of holes [s]");
 
 		prm.declare_entry("hole effective mass", "0.2",
 				 Patterns::Double(0),
@@ -181,6 +197,10 @@ namespace ParameterSpace
 				Patterns::Double(0.0,1.0),
 				"defect level [in faction of band gap]");
 
+		prm.declare_entry("grain boundary defect energy level", "0.2",
+				Patterns::Double(0.0,1.0),
+				"grain boundary defect energy level [in faction of band gap]");
+
 		prm.declare_entry("temperature", "300.0",
 				Patterns::Double(0),
 				"temperature of the device [K]");
@@ -201,6 +221,10 @@ namespace ParameterSpace
 				Patterns::Bool(),
 				"whether to have schottky contact. See Grid::make_Schottky_boundaries");
 
+		prm.declare_entry("grain boundary status", "false",
+				Patterns::Bool(),
+				"whether to have grain boundary.");
+
 		prm.declare_entry("characteristic length", "1.0e-4",
 				Patterns::Double(0),
 				"the characteristic length scale [cm]");
@@ -220,6 +244,10 @@ namespace ParameterSpace
 		prm.declare_entry("p_type acceptor density", "1.0e15",
 				Patterns::Double(0),
 				"doping in p type region [cm^{-3}]");
+
+		prm.declare_entry("grain boundary defect density", "1.0e14",
+				Patterns::Double(0),
+				"defect density within grain boundary [cm^{-3}]");
 
 		prm.declare_entry("characteristic time steady state", "1.0e-12",
 				Patterns::Double(0),
