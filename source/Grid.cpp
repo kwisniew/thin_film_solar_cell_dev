@@ -696,7 +696,6 @@ namespace Grid_Maker
 						cell = triangulation.begin_active(),
 						endc = triangulation.end();
 		// loop over all the cells
-		std::cout << "jestem na interfejsie1" << std::endl;
 		for(; cell != endc; cell++)
 		{
 				if(cell->material_id() == p_type_id  )
@@ -704,43 +703,16 @@ namespace Grid_Maker
 					if(cell->neighbor(1)->material_id()== gb_id)
 					{
 						cell->face(1)->set_manifold_id(gb_border);
-						std::cout << "jestem na interfejsie2\n"
-								  << cell->neighbor(1)->material_id()
-								  << std::endl;
 					}
-					std::cout << "jestem na interfejsie4\n"
-							  << cell->neighbor(0)->state()
-							  << std::endl;
 					if(!cell->neighbor(0)->state())
 					{
 						if(cell->material_id() == p_type_id && (cell->neighbor(0)->material_id()== gb_id) )
 						{
-							std::cout << "jestem na interfejsie5\n"
-									  << cell->neighbor(0)->material_id()
-									  << std::endl;
 							cell->face(0)->set_manifold_id(gb_border);
 						}
 					}
-
 				}
-/*				std::cout << "jestem na interfejsie4\n"
-						  << cell->neighbor(0)->state()
-						  << std::endl;
-				if(cell->neighbor(0)->state())
-				{
-					if(cell->material_id() == p_type_id && (cell->neighbor(0)->material_id()== gb_id) )
-					{
-						std::cout << "jestem na interfejsie4\n"
-								  << cell->neighbor(0)->material_id()
-								  << std::endl;
-						cell->face(0)->set_manifold_id(gb_border);
-					}
-				}*/
-
 		} // for cell
-
-		std::cout << "jestem na interfejsie3" << std::endl;
-
 	}
 
 

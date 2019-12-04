@@ -101,7 +101,7 @@ namespace SOLARCELL
 									sim_params.scaled_n_type_acceptor_density,
 									sim_params.scaled_p_type_acceptor_density,
 									sim_params.scaled_n_type_donor_density,
-									sim_params.scaled_n_type_acceptor_density,
+									sim_params.scaled_p_type_acceptor_density,
 									sim_params.scaled_p_type_width,
 									sim_params.scaled_n_type_width,
 									sim_params.scaled_intrinsic_density);
@@ -110,7 +110,7 @@ namespace SOLARCELL
 									sim_params.scaled_n_type_acceptor_density,
 									sim_params.scaled_p_type_acceptor_density,
 									sim_params.scaled_n_type_donor_density,
-									sim_params.scaled_n_type_acceptor_density,
+									sim_params.scaled_p_type_donor_density,
 									sim_params.scaled_p_type_width,
 									sim_params.scaled_n_type_width,
 									sim_params.scaled_intrinsic_density);
@@ -479,36 +479,76 @@ namespace SOLARCELL
 				scratch.acceptor_doping_values,
 				dim); // calls the density values of the acceptor profile
 
-		// Loop over all the quadrature points in this cell
-		for(unsigned int q=0; q<n_q_points; q++)
+		if(cell->material_id()==gb_id)
 		{
-			// copy over the test functions
-			for(unsigned int k = 0; k<dofs_per_cell; k++)
-				scratch.psi_i_potential[k] = scratch.Poisson_fe_values[Potential].value(k,q);
-
-			// loop over the test function dofs for this cell
-			for(unsigned int i=0; i<dofs_per_cell; i++)
+			// Loop over all the quadrature points in this cell
+			for(unsigned int q=0; q<n_q_points; q++)
 			{
-				// i-th potential basis functions at the point q
-		
-				// get the local RHS values for this cell
-				// = -int_{Omega_{e}} (1/lambda^{2}) v	(N_{D} - N_{A}) - (n - p) d
-				data.local_rhs(i) += scratch.psi_i_potential[i] * //-psi_i_potential *
-						(
-						(scratch.donor_doping_values[q] 
-						- 
-						scratch.acceptor_doping_values[q])
-						+
-						(electron_hole_pair.carrier_1.charge_number *
-						scratch.old_carrier_1_density_values[q]	
-						+
-						electron_hole_pair.carrier_2.charge_number *
-						scratch.old_carrier_2_density_values[q])
-						) * scratch.Poisson_fe_values.JxW(q);
-				//std::cout<<scratch.donor_doping_values[q] <<"\n";
-			} // for i
-		} // for q
+				// copy over the test functions
+				for(unsigned int k = 0; k<dofs_per_cell; k++)
+					scratch.psi_i_potential[k] = scratch.Poisson_fe_values[Potential].value(k,q);
 
+				// loop over the test function dofs for this cell
+				for(unsigned int i=0; i<dofs_per_cell; i++)
+				{
+					// i-th potential basis functions at the point q
+
+					// get the local RHS values for this cell
+					// = -int_{Omega_{e}} (1/lambda^{2}) v	(N_{D} - N_{A}) - (n - p) d
+					data.local_rhs(i) += scratch.psi_i_potential[i] * //-psi_i_potential *
+							(
+							(scratch.donor_doping_values[q]
+							-
+							scratch.acceptor_doping_values[q]
+							-
+							sim_params.scaled_gb_defect_density*
+							(grain_boundary_occupancy(scratch.old_carrier_1_density_values[q],
+						  	  	     scratch.old_carrier_2_density_values[q],
+									 sim_params) )  )
+							+
+							(electron_hole_pair.carrier_1.charge_number *
+							scratch.old_carrier_1_density_values[q]
+							+
+							electron_hole_pair.carrier_2.charge_number *
+							scratch.old_carrier_2_density_values[q])
+							) * scratch.Poisson_fe_values.JxW(q);
+					//std::cout<<scratch.donor_doping_values[q] <<"\n";
+				} // for i
+			} // for q
+		}
+		else
+		{
+			// Loop over all the quadrature points in this cell
+			for(unsigned int q=0; q<n_q_points; q++)
+			{
+				// copy over the test functions
+				for(unsigned int k = 0; k<dofs_per_cell; k++)
+					scratch.psi_i_potential[k] = scratch.Poisson_fe_values[Potential].value(k,q);
+
+				// loop over the test function dofs for this cell
+				for(unsigned int i=0; i<dofs_per_cell; i++)
+				{
+					// i-th potential basis functions at the point q
+
+					// get the local RHS values for this cell
+					// = -int_{Omega_{e}} (1/lambda^{2}) v	(N_{D} - N_{A}) - (n - p) d
+					data.local_rhs(i) += scratch.psi_i_potential[i] * //-psi_i_potential *
+							(
+							(scratch.donor_doping_values[q]
+							-
+							scratch.acceptor_doping_values[q])
+							+
+							(electron_hole_pair.carrier_1.charge_number *
+							scratch.old_carrier_1_density_values[q]
+							+
+							electron_hole_pair.carrier_2.charge_number *
+							scratch.old_carrier_2_density_values[q])
+							) * scratch.Poisson_fe_values.JxW(q);
+					//std::cout<<scratch.donor_doping_values[q] <<"\n";
+				} // for i
+			} // for q
+		}
+		
 		// loop over all the faces of this cell to calculate the vector
 		// from the dirichlet boundary conditions if the face is on the 
 		// Dirichlet portion of the boundary
@@ -858,55 +898,111 @@ namespace SOLARCELL
 		const double inverse_perm		  =	1.0/sim_params.semiconductor_permittivity;
 		const double inverse_debye_length = 1.0/sim_params.scaled_debye_length;
 
-		// loop over all the quadrature points in this cell and compute body integrals
-		for(unsigned int q=0; q<n_q_points; q++)
+		if(cell->material_id()==gb_id)
 		{
-			// copy over the test functions
-			for(unsigned int k=0; k<dofs_per_cell; k++)
-				scratch.psi_i_density[k] = scratch.carrier_fe_values[Density].value(k,q);
-
-			for(unsigned int k=0; k<dofs_per_cell; k++)
-				scratch.psi_i_current[k] = scratch.carrier_fe_values[Current].value(k,q);
-
-			// loop over all the test function dofs and get the test functions
-			for(unsigned int i=0; i<dofs_per_cell; i++)
+			// loop over all the quadrature points in this cell and compute body integrals
+			for(unsigned int q=0; q<n_q_points; q++)
 			{
-				// contribution from RHS function + Drift
-				// int_{Omega} v * R dx
-				data.local_carrier_1_rhs(i) += ( 
-						(scratch.psi_i_density[i] * scratch.generation_values[q])
-						+
-						(scratch.psi_i_density[i] *
-						SRH_Recombination(scratch.old_carrier_1_density_values[q],
-										  scratch.old_carrier_2_density_values[q],
-										  sim_params))
-						+
-						electron_hole_pair.carrier_1.charge_number *
-				   	  	scratch.psi_i_current[i] *
-						inverse_perm *
-						inverse_debye_length *
-						scratch.electric_field_values[q] *
-						scratch.old_carrier_1_density_values[q]
-						) * scratch.carrier_fe_values.JxW(q);
+				// copy over the test functions
+				for(unsigned int k=0; k<dofs_per_cell; k++)
+					scratch.psi_i_density[k] = scratch.carrier_fe_values[Density].value(k,q);
 
-				data.local_carrier_2_rhs(i) += ( 
-						(scratch.psi_i_density[i] * scratch.generation_values[q])
-						+
-						(scratch.psi_i_density[i] *
-						SRH_Recombination(scratch.old_carrier_1_density_values[q],
-									      scratch.old_carrier_2_density_values[q],
-										  sim_params))
-		 			  	+
-					  	electron_hole_pair.carrier_2.charge_number *
-					  	scratch.psi_i_current[i] *
-					    inverse_perm *
-						inverse_debye_length *
-						scratch.electric_field_values[q] *
-						scratch.old_carrier_2_density_values[q]
-						) * scratch.carrier_fe_values.JxW(q);
+				for(unsigned int k=0; k<dofs_per_cell; k++)
+					scratch.psi_i_current[k] = scratch.carrier_fe_values[Current].value(k,q);
 
-			} // for i
-		}	// for q
+				// loop over all the test function dofs and get the test functions
+				for(unsigned int i=0; i<dofs_per_cell; i++)
+				{
+					// contribution from RHS function + Drift
+					// int_{Omega} v * R dx
+					data.local_carrier_1_rhs(i) += (
+							(scratch.psi_i_density[i] * scratch.generation_values[q])
+							+
+							(scratch.psi_i_density[i] *
+							grain_boundary_Recombination(scratch.old_carrier_1_density_values[q],
+											  	  	     scratch.old_carrier_2_density_values[q],
+														 sim_params))
+							+
+							electron_hole_pair.carrier_1.charge_number *
+					   	  	scratch.psi_i_current[i] *
+							inverse_perm *
+							inverse_debye_length *
+							scratch.electric_field_values[q] *
+							scratch.old_carrier_1_density_values[q]
+							) * scratch.carrier_fe_values.JxW(q);
+
+					data.local_carrier_2_rhs(i) += (
+							(scratch.psi_i_density[i] * scratch.generation_values[q])
+							+
+							(scratch.psi_i_density[i] *
+							grain_boundary_Recombination(scratch.old_carrier_1_density_values[q],
+														 scratch.old_carrier_2_density_values[q],
+														 sim_params))
+			 			  	+
+						  	electron_hole_pair.carrier_2.charge_number *
+						  	scratch.psi_i_current[i] *
+						    inverse_perm *
+							inverse_debye_length *
+							scratch.electric_field_values[q] *
+							scratch.old_carrier_2_density_values[q]
+							) * scratch.carrier_fe_values.JxW(q);
+
+				} // for i
+			}	// for q
+		}
+		else
+		{
+			// loop over all the quadrature points in this cell and compute body integrals
+			for(unsigned int q=0; q<n_q_points; q++)
+			{
+				// copy over the test functions
+				for(unsigned int k=0; k<dofs_per_cell; k++)
+					scratch.psi_i_density[k] = scratch.carrier_fe_values[Density].value(k,q);
+
+				for(unsigned int k=0; k<dofs_per_cell; k++)
+					scratch.psi_i_current[k] = scratch.carrier_fe_values[Current].value(k,q);
+
+				// loop over all the test function dofs and get the test functions
+				for(unsigned int i=0; i<dofs_per_cell; i++)
+				{
+					// contribution from RHS function + Drift
+					// int_{Omega} v * R dx
+					data.local_carrier_1_rhs(i) += (
+							(scratch.psi_i_density[i] * scratch.generation_values[q])
+							+
+							(scratch.psi_i_density[i] *
+							SRH_Recombination(scratch.old_carrier_1_density_values[q],
+											  scratch.old_carrier_2_density_values[q],
+											  sim_params))
+							+
+							electron_hole_pair.carrier_1.charge_number *
+					   	  	scratch.psi_i_current[i] *
+							inverse_perm *
+							inverse_debye_length *
+							scratch.electric_field_values[q] *
+							scratch.old_carrier_1_density_values[q]
+							) * scratch.carrier_fe_values.JxW(q);
+
+					data.local_carrier_2_rhs(i) += (
+							(scratch.psi_i_density[i] * scratch.generation_values[q])
+							+
+							(scratch.psi_i_density[i] *
+							SRH_Recombination(scratch.old_carrier_1_density_values[q],
+										      scratch.old_carrier_2_density_values[q],
+											  sim_params))
+			 			  	+
+						  	electron_hole_pair.carrier_2.charge_number *
+						  	scratch.psi_i_current[i] *
+						    inverse_perm *
+							inverse_debye_length *
+							scratch.electric_field_values[q] *
+							scratch.old_carrier_2_density_values[q]
+							) * scratch.carrier_fe_values.JxW(q);
+
+				} // for i
+			}	// for q
+		}
+
 		
 		// loop over all the faces of this cell and compute the contribution 
 		// from the boundary conditions
@@ -3741,7 +3837,7 @@ namespace SOLARCELL
 							  <<std::endl;
 					have_steady_state = calculate_one_IV_point(sim_params.scaled_applied_bias, ConverganceCheck, number_outputs, timer, true);
 					if(have_steady_state==0)
-						scale_time_steps(10,1,timer);
+						//scale_time_steps(10,1,timer);
 					++number_of_adjustment;
 				}
 				electron_hole_pair.print_dofs(sim_params.type_of_simulation);
@@ -4406,12 +4502,14 @@ namespace SOLARCELL
 	
 		// get the values of carrier_1 density
 		scratch.carrier_fe_values[Density].get_function_values(
-				electron_hole_pair.carrier_1.solution,															scratch.old_carrier_1_density_values);
+									electron_hole_pair.carrier_1.solution,
+									scratch.old_carrier_1_density_values);
 
 
 		// get the electric field values at the previous time step
 		scratch.Poisson_fe_values[ElectricField].get_function_values(
-					Poisson_object.solution,																	scratch.electric_field_values);
+									Poisson_object.solution,
+									scratch.electric_field_values);
 
 
 		double h = cell->diameter();
