@@ -11,7 +11,6 @@
 #include "CarrierPair.cpp"
 #include "Convergence.cpp"
 
-
 namespace SOLARCELL
 {
 	using namespace dealii;
@@ -101,7 +100,7 @@ namespace SOLARCELL
 									sim_params.scaled_n_type_acceptor_density,
 									sim_params.scaled_p_type_acceptor_density,
 									sim_params.scaled_n_type_donor_density,
-									sim_params.scaled_p_type_acceptor_density,
+									sim_params.scaled_p_type_donor_density,
 									sim_params.scaled_p_type_width,
 									sim_params.scaled_n_type_width,
 									sim_params.scaled_intrinsic_density);
@@ -386,33 +385,6 @@ namespace SOLARCELL
 				Assembly::Poisson::CopyData<dim>(Poisson_fe)
 				);
 		
-/*
-		if(full_system)
-		{
-			-------------------------------------------------------------
-			// This is the one coupled to the electrolyte
-			-------------------------------------------------------------
-			WorkStream::run(electrolyte_dof_handler.begin_active(),
-					electrolyte_dof_handler.end(),
-					std_cxx11::bind(&SOLARCELL::SolarCellProblem<dim>::
-							assemble_local_Poisson_rhs_for_electrolyte,
-							this, // this object
-							std_cxx11::_1,
-							std_cxx11::_2,
-							std_cxx11::_3),
-					std_cxx11::bind(&SOLARCELL::SolarCellProblem<dim>::
-							copy_local_to_global_Poisson_rhs,
-							this, // this object
-							std_cxx11::_1),
-					Assembly::AssemblyScratch<dim>(Poisson_fe,
-									carrier_fe,
-									QGauss<dim>(degree+2),
-									QGauss<dim-1>(degree+2)),
-					Assembly::Poisson::CopyData<dim>(Poisson_fe)
-					);
-
-		} // end if full_system
-*/
 	}
 
 	template <int dim>
@@ -495,14 +467,16 @@ namespace SOLARCELL
 
 					// get the local RHS values for this cell
 					// = -int_{Omega_{e}} (1/lambda^{2}) v	(N_{D} - N_{A}) - (n - p) d
+					// for acceptor: -gb_defect_density*occupancy
+					// for donor   : +gb_defect_density*(1-occupancy)
 					data.local_rhs(i) += scratch.psi_i_potential[i] * //-psi_i_potential *
 							(
 							(scratch.donor_doping_values[q]
 							-
 							scratch.acceptor_doping_values[q]
-							-
+							+
 							sim_params.scaled_gb_defect_density*
-							(grain_boundary_occupancy(scratch.old_carrier_1_density_values[q],
+							(1-grain_boundary_occupancy(scratch.old_carrier_1_density_values[q],
 						  	  	     scratch.old_carrier_2_density_values[q],
 									 sim_params) )  )
 							+
