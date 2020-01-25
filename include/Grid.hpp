@@ -141,7 +141,8 @@ namespace Grid_Maker
 				Dirichlet,
 				Neumann,
 				Schottky,
-				gb_border
+				gb_border,
+				Dirichlet_gb
 			};
 
 
@@ -171,6 +172,12 @@ namespace Grid_Maker
 			double scaled_p_type_width;
 			/// Set in constructor.			
 			double scaled_grain_boundary_width;
+
+			double scaled_p_type_depletion_width;
+
+			double scaled_n_type_depletion_width;
+
+			double gb_depletion_width;
 			/// Set in constructor.			
 			unsigned int n_global_refine;
 			/// Set in constructor.			
@@ -185,6 +192,11 @@ namespace Grid_Maker
 			bool steady_state;
 
 			bool grain_boundary_status;
+
+			bool join_gb_and_pn;
+
+			bool vertical_gb;
+			bool horizontal_gb;
 	
 	};
 
