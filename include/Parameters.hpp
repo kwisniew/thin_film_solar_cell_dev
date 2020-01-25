@@ -40,6 +40,7 @@ namespace ParameterSpace
 			bool 		 calculate_DLTS;
 			bool		 calculate_IV_curve;
 			bool		 calculate_CV_curve;
+			bool		 join_pn_gb;
 			std::string  type_of_simulation;
 			unsigned int n_global_refine;				
 			unsigned int n_local_refine;				
@@ -67,6 +68,7 @@ namespace ParameterSpace
 			double scaled_bottom_point_y;
 			double scaled_n_type_width;
 			double scaled_p_type_width;
+			double scaled_estimated_gb_depletion_width;
 
 
 			//electron
@@ -125,6 +127,8 @@ namespace ParameterSpace
 			double scaled_srh_electron_density;
 			double scaled_srh_hole_density;
 			double scaled_gb_defect_density;
+			double scaled_gb_electron_density_Dirichlet;
+			double scaled_gb_hole_density_Dirichlet;
 			double scaled_srh_electron_density_gb;
 			double scaled_srh_hole_density_gb;
 
@@ -132,6 +136,8 @@ namespace ParameterSpace
 			bool illum_or_dark;
 			bool insulated;
 			bool schottky_status;
+			bool horizontal_gb;
+			bool vertical_gb;
 			bool grain_boundary_status;
 	
 
@@ -181,131 +187,137 @@ namespace ParameterSpace
 
 				// read in the parameters
 				prm.enter_subsection("computational");
-				this->calculate_steady_state          = prm.get_bool("steady state");
-				this->calculate_equilibrium_state     = prm.get_bool("equilibrium state");
-				this->calculate_DLTS 				  = prm.get_bool("DLTS");
-				this->calculate_IV_curve			  = prm.get_bool("IV curve");
-				this->calculate_CV_curve			  = prm.get_bool("CV curve");
+				calculate_steady_state          = prm.get_bool("steady state");
+				calculate_equilibrium_state     = prm.get_bool("equilibrium state");
+				calculate_DLTS 				  = prm.get_bool("DLTS");
+				calculate_IV_curve			  = prm.get_bool("IV curve");
+				calculate_CV_curve			  = prm.get_bool("CV curve");
+				join_pn_gb							  = prm.get_bool("join grain boundary and junction");
 
-				this->n_global_refine = prm.get_integer("global refinements");
-				this->n_local_refine  = prm.get_integer("local refinements");
-				this->delta_t         = prm.get_double("time step size");
+				n_global_refine = prm.get_integer("global refinements");
+				n_local_refine  = prm.get_integer("local refinements");
+				delta_t         = prm.get_double("time step size");
 
-				this->t_end_steady_state          = prm.get_double("end time steady state");
-				this->t_end_equilibrium_state     = prm.get_double("end time equilibrium state");
-				this->t_end_DLTS = prm.get_double("end time DLTS");
+				t_end_steady_state          = prm.get_double("end time steady state");
+				t_end_equilibrium_state     = prm.get_double("end time equilibrium state");
+				t_end_DLTS = prm.get_double("end time DLTS");
 
-				this->t_end_2 = prm.get_double("end time 2");
-				this->time_stamps = prm.get_integer("time stamps");
-				this->restart_status            = prm.get_bool("restart status");
-				this->restart_from_steady_state = prm.get_bool("restart from steady state");
+				t_end_2 = prm.get_double("end time 2");
+				time_stamps = prm.get_integer("time stamps");
+				restart_status            = prm.get_bool("restart status");
+				restart_from_steady_state = prm.get_bool("restart from steady state");
 				prm.leave_subsection();
 
 				prm.enter_subsection("mesh");
-				this->scaled_domain_height = prm.get_double("mesh height");
-				this->scaled_top_point_x    = prm.get_double("top point x");
-				this->scaled_top_point_y    = prm.get_double("top point y");
-				this->scaled_bottom_point_x    = prm.get_double("bottom point x");
-				this->scaled_bottom_point_y    = prm.get_double("bottom point y");
-				this->scaled_grain_boundary_width= prm.get_double("grain boundary width");
-				this->scaled_n_type_width  = prm.get_double("n_type width");
-				this->scaled_p_type_width  = prm.get_double("p_type width");
+				scaled_domain_height = prm.get_double("mesh height");
+				scaled_top_point_x    = prm.get_double("top point x");
+				scaled_top_point_y    = prm.get_double("top point y");
+				scaled_bottom_point_x    = prm.get_double("bottom point x");
+				scaled_bottom_point_y    = prm.get_double("bottom point y");
+				scaled_grain_boundary_width= prm.get_double("grain boundary width");
+				scaled_n_type_width  = prm.get_double("n_type width");
+				scaled_p_type_width  = prm.get_double("p_type width");
+				scaled_estimated_gb_depletion_width = prm.get_double("grain boundary depletion width");
 				prm.leave_subsection();
 
 				prm.enter_subsection("electrons");
-				this->scaled_electron_mobility = prm.get_double("mobility");
-				this->scaled_electron_recombo_t = prm.get_double("recombination time");
+				scaled_electron_mobility = prm.get_double("mobility");
+				scaled_electron_recombo_t = prm.get_double("recombination time");
 				scaled_electron_recombo_t_gb = prm.get_double("grain boundary recombination time");
-				//this->scaled_electron_recombo_v = prm.get_double("recombination velocity");
-				this->electron_effective_mass   = prm.get_double("electron effective mass");
+				//scaled_electron_recombo_v = prm.get_double("recombination velocity");
+				electron_effective_mass   = prm.get_double("electron effective mass");
 				prm.leave_subsection();
 
 				prm.enter_subsection("holes");
-				this->scaled_hole_mobility = prm.get_double("mobility");
-				this->scaled_hole_recombo_t = prm.get_double("recombination time");
+				scaled_hole_mobility = prm.get_double("mobility");
+				scaled_hole_recombo_t = prm.get_double("recombination time");
 				scaled_hole_recombo_t_gb = prm.get_double("grain boundary recombination time");
-				//this->scaled_hole_recombo_v = prm.get_double("recombination velocity");
-				this->hole_effective_mass   = prm.get_double("hole effective mass");
+				//scaled_hole_recombo_v = prm.get_double("recombination velocity");
+				hole_effective_mass   = prm.get_double("hole effective mass");
 				prm.leave_subsection();
 
 				prm.enter_subsection("physical");
-				this->real_domain_height = prm.get_double("real domain height");
-				this->device_thickness   = prm.get_double("device thickness");
-				this->illum_or_dark = prm.get_bool("illumination status");
-				this->insulated = prm.get_bool("insulated");
-				this->schottky_status = prm.get_bool("schottky status");
-				this->grain_boundary_status = prm.get_bool("grain boundary status");
-				this->scaled_applied_bias = prm.get_double("applied bias");
-				this->band_gap = prm.get_double("band gap");
-				this->defect_energy = prm.get_double("defect energy level");
-				defect_energy_gb = prm.get_double("defect energy level");
-				this->temperature = prm.get_double("temperature");
-				this->scaled_schottky_bias = prm.get_double("schottky bias");
-				this->characteristic_length = prm.get_double("characteristic length");
+				real_domain_height = prm.get_double("real domain height");
+				device_thickness   = prm.get_double("device thickness");
+				illum_or_dark = prm.get_bool("illumination status");
+				insulated = prm.get_bool("insulated");
+				schottky_status = prm.get_bool("schottky status");
+				grain_boundary_status = prm.get_bool("grain boundary status");
+				vertical_gb   = prm.get_bool("vertical grain boundary");
+				horizontal_gb = prm.get_bool("horizontal grain boundary");
+				scaled_applied_bias = prm.get_double("applied bias");
+				band_gap = prm.get_double("band gap");
+				defect_energy = prm.get_double("defect energy level");
+				defect_energy_gb = prm.get_double("grain boundary defect energy level");
+				temperature = prm.get_double("temperature");
+				scaled_schottky_bias = prm.get_double("schottky bias");
+				characteristic_length = prm.get_double("characteristic length");
 
-				this->characteristic_time_steady_state          = prm.get_double("characteristic time steady state");
-				this->characteristic_time_equilibrium_state     = prm.get_double("characteristic time equilibrium state");
-				this->characteristic_time_DLTS = prm.get_double("characteristic time DLTS");
+				characteristic_time_steady_state          = prm.get_double("characteristic time steady state");
+				characteristic_time_equilibrium_state     = prm.get_double("characteristic time equilibrium state");
+				characteristic_time_DLTS = prm.get_double("characteristic time DLTS");
 
-				this->scaled_n_type_donor_density     = prm.get_double("n_type donor density");
-				this->scaled_n_type_acceptor_density  = prm.get_double("n_type acceptor density");
-				this->scaled_p_type_donor_density     = prm.get_double("p_type donor density");
-				this->scaled_p_type_acceptor_density  = prm.get_double("p_type acceptor density");
+				scaled_n_type_donor_density     = prm.get_double("n_type donor density");
+				scaled_n_type_acceptor_density  = prm.get_double("n_type acceptor density");
+				scaled_p_type_donor_density     = prm.get_double("p_type donor density");
+				scaled_p_type_acceptor_density  = prm.get_double("p_type acceptor density");
 				scaled_gb_defect_density = prm.get_double("grain boundary defect density");
-				this->scaled_photon_flux = prm.get_double("photon flux");
-				this->scaled_absorption_coeff = prm.get_double("absorption coefficient"); 
-				this->semiconductor_permittivity = prm.get_double("semiconductor permittivity");
+				scaled_gb_electron_density_Dirichlet  = prm.get_double("gb electron density on dirichlet");
+				scaled_gb_hole_density_Dirichlet      = prm.get_double("gb hole density on dirichlet");
+				scaled_photon_flux = prm.get_double("photon flux");
+				scaled_absorption_coeff = prm.get_double("absorption coefficient");
+				semiconductor_permittivity = prm.get_double("semiconductor permittivity");
 				prm.leave_subsection();
 
 				prm.enter_subsection("IV");
-				this->scaled_IV_min_V = prm.get_double("IV minimal voltage");
-				this->scaled_IV_max_V = prm.get_double("IV maximal voltage");
-				this->IV_n_of_data_points = prm.get_double("IV number of data points");
-				this->scaled_delta_V        = prm.get_double("delta V");
+				scaled_IV_min_V = prm.get_double("IV minimal voltage");
+				scaled_IV_max_V = prm.get_double("IV maximal voltage");
+				IV_n_of_data_points = prm.get_double("IV number of data points");
+				scaled_delta_V        = prm.get_double("delta V");
 				prm.leave_subsection();
 
 
 				std::cout << "SZEROKOSC GRANICY ZIAREN:   " << scaled_grain_boundary_width << "\n";
 				//TODO: NEED TO CHANGE IT AS SOON AS POSSIBLE
 				//it is for scaling of outputs values
-				this->mobility = this->scaled_electron_mobility;
+				mobility = scaled_electron_mobility;
 
 				/*----------------------------------------------------------------------*/
 				// 	Compute parameters
 				/*----------------------------------------------------------------------*/
 
 				std::cout <<std::endl;
-				if(this->calculate_steady_state  && !this->calculate_equilibrium_state && !this->calculate_DLTS)
+				if(calculate_steady_state  && !calculate_equilibrium_state && !calculate_DLTS)
 				{
 					std::cout << "STEADY STATE CALCULATION" <<std::endl;
 
 					type_of_simulation = "_steady_state";
-					this->characteristic_time = this->characteristic_time_steady_state;
-					this->t_end               = this->t_end_steady_state;
-					this->scaled_applied_bias = 0;
+					characteristic_time = characteristic_time_steady_state;
+					t_end               = t_end_steady_state;
+					scaled_applied_bias = 0;
 				}
-				else if(!this->calculate_steady_state  && this->calculate_equilibrium_state && !this->calculate_DLTS)
+				else if(!calculate_steady_state  && calculate_equilibrium_state && !calculate_DLTS)
 				{
 					std::cout << "EQUILIBRIUM STATE CALCULATION" <<std::endl;
 
 					type_of_simulation = "";
-					this->characteristic_time = this->characteristic_time_equilibrium_state;
-					this->t_end               = this->t_end_equilibrium_state;
+					characteristic_time = characteristic_time_equilibrium_state;
+					t_end               = t_end_equilibrium_state;
 				}
-				else if(!this->calculate_steady_state  && !this->calculate_equilibrium_state && this->calculate_DLTS)
+				else if(!calculate_steady_state  && !calculate_equilibrium_state && calculate_DLTS)
 				{
 					std::cout << "DLTS SIGNAL CALCULATION" <<std::endl;
 
 					type_of_simulation = "";
-					this->characteristic_time = this->characteristic_time_DLTS;
-					this->t_end               = this->t_end_DLTS;
+					characteristic_time = characteristic_time_DLTS;
+					t_end               = t_end_DLTS;
 				}
 				else
 				{
 					std::cout << "There need to be one and ONLY ONE type of SIMULATION AT THE SAME TIME!!! \n The steady state time will be used!" <<std::endl;
 					type_of_simulation = "steady_state";
-					this->characteristic_time = this->characteristic_time_steady_state;
-					this->t_end               = this->t_end_steady_state;
+					characteristic_time = characteristic_time_steady_state;
+					t_end               = t_end_steady_state;
 				}
 
 				if(restart_from_steady_state)
@@ -314,60 +326,66 @@ namespace ParameterSpace
 				}
 				else   type_of_restart = "";
 
+				if(scaled_gb_defect_density == 0)
+				{
+					scaled_electron_recombo_t_gb = scaled_electron_recombo_t;
+					scaled_hole_recombo_t_gb     = scaled_hole_recombo_t;
+				}
+
 				std::cout 	<< std::endl
 							<< "Parameters:    "
 							<< std::endl;
 
 
-				this->thermal_voltage = PhysicalConstants::boltzman_constant*temperature/PhysicalConstants::electron_charge;
-				std::cout << "thermal voltage:    " << this->thermal_voltage << std::endl;
+				thermal_voltage = PhysicalConstants::boltzman_constant*temperature/PhysicalConstants::electron_charge;
+				std::cout << "thermal voltage:    " << thermal_voltage << std::endl;
 
 				//calculate intrinsic density [m^3]:
-				this->Nc_effective_dos = 2*pow(2*M_PI*PhysicalConstants::free_electron_mass*this->electron_effective_mass
-												*PhysicalConstants::boltzman_constant*this->temperature
+				Nc_effective_dos = 2*pow(2*M_PI*PhysicalConstants::free_electron_mass*electron_effective_mass
+												*PhysicalConstants::boltzman_constant*temperature
 												/(PhysicalConstants::planck_constant*PhysicalConstants::planck_constant)
 											  ,1.5);
 
-				std::cout << "Nc [cm^-3]:    " << this->Nc_effective_dos*1.0e-6 << std::endl;
+				std::cout << "Nc [cm^-3]:    " << Nc_effective_dos*1.0e-6 << std::endl;
 				//[m^3]
-				this->Nv_effective_dos = 2*pow(2*M_PI*PhysicalConstants::free_electron_mass*this->hole_effective_mass
-												*PhysicalConstants::boltzman_constant*this->temperature
+				Nv_effective_dos = 2*pow(2*M_PI*PhysicalConstants::free_electron_mass*hole_effective_mass
+												*PhysicalConstants::boltzman_constant*temperature
 												/(PhysicalConstants::planck_constant*PhysicalConstants::planck_constant)
 											  ,1.5);
 
-				std::cout << "Nv [cm^-3]:    " << this->Nv_effective_dos*1.0e-6 << std::endl;
+				std::cout << "Nv [cm^-3]:    " << Nv_effective_dos*1.0e-6 << std::endl;
 
 				//band gap is multiplied by electron charge to convert eV [eV] to Joules [J].
 				//[m^3]
-				this->scaled_intrinsic_density = sqrt(this->Nv_effective_dos*this->Nc_effective_dos)
-												*std::exp(-this->band_gap*PhysicalConstants::electron_charge
-														  /(2*PhysicalConstants::boltzman_constant*this->temperature));
+				scaled_intrinsic_density = sqrt(Nv_effective_dos*Nc_effective_dos)
+												*std::exp(-band_gap*PhysicalConstants::electron_charge
+														  /(2*PhysicalConstants::boltzman_constant*temperature));
 
 				//change intrinsic density to [cm^-3]
-				this->scaled_intrinsic_density *= 1.0e-6;
+				scaled_intrinsic_density *= 1.0e-6;
 
 				std::cout << "Przeskalowana ni do centymetrów:   "
-						  << this->scaled_intrinsic_density
+						  << scaled_intrinsic_density
 						  << "cm^-3"
 						  << std::endl;
 
 				//calculate build in bias (not scaled yet):
 				//Note: all densities (n_type_doping, p_type_doping and intrinsic_density)
 				//      need to be "unscaled" and in [cm^-3]
-				if(this->scaled_n_type_donor_density > 0 && this->scaled_p_type_acceptor_density > 0)
+				if(scaled_n_type_donor_density > 0 && scaled_p_type_acceptor_density > 0)
 				{
-					this->scaled_built_in_bias =  this->thermal_voltage
-												 *log(this->scaled_n_type_donor_density*this->scaled_p_type_acceptor_density
-													  /(this->scaled_intrinsic_density*this->scaled_intrinsic_density));
+					scaled_built_in_bias =  thermal_voltage
+												 *log(scaled_n_type_donor_density*scaled_p_type_acceptor_density
+													  /(scaled_intrinsic_density*scaled_intrinsic_density));
 				}
 				/*else if(schottky_status==true)
-					this->scaled_built_in_bias = -scaled_schottky_bias;*/
+					scaled_built_in_bias = -scaled_schottky_bias;*/
 				else
-					this->scaled_built_in_bias = 0;
+					scaled_built_in_bias = 0;
 
 
 				std::cout << "Potencjał wbudowany:   "
-						  << this->scaled_built_in_bias
+						  << scaled_built_in_bias
 						  << "[V]"
 						  << std::endl;
 
@@ -378,18 +396,18 @@ namespace ParameterSpace
 				scaled_schottky_hole_density     = 0.5*(-p_type_resultant_doping + std::sqrt(p_type_resultant_doping*p_type_resultant_doping + 4*scaled_intrinsic_density*scaled_intrinsic_density));
 				scaled_schottky_electron_density = 0.5*( p_type_resultant_doping + std::sqrt(p_type_resultant_doping*p_type_resultant_doping + 4*scaled_intrinsic_density*scaled_intrinsic_density));
 
-				scaled_schottky_hole_density    *= std::exp( -(this->scaled_schottky_bias)
-					 	 	 	 	 	 	 	 	 	 	  /this->thermal_voltage);
+				scaled_schottky_hole_density    *= std::exp( -(scaled_schottky_bias)
+					 	 	 	 	 	 	 	 	 	 	  /thermal_voltage);
 
-				scaled_schottky_electron_density*= std::exp( (this->scaled_schottky_bias)
-									 	 	 	 	 	 	 /this->thermal_voltage);
+				scaled_schottky_electron_density*= std::exp( (scaled_schottky_bias)
+									 	 	 	 	 	 	 /thermal_voltage);
 
 				std::cout << "schottky_electron_density:   "
-						  << this->scaled_schottky_electron_density
+						  << scaled_schottky_electron_density
 						  << "cm^-3"
 						  << std::endl
 						  << "schottky_hole_density:       "
-						  << this->scaled_schottky_hole_density
+						  << scaled_schottky_hole_density
 						  << "cm^-3"
 						  << std::endl;
 
@@ -397,64 +415,64 @@ namespace ParameterSpace
 				//Initial condition depends on depletion width,
 				//in case when Vapp > Vbi other initial value need to be impose eg. very low free carrier density at the beginning
 				// depletion width will be in [cm] since dopings and permittivity ~ [cm]
-				if(this->scaled_n_type_donor_density > 0)
+				if(scaled_n_type_donor_density > 0)
 				{
-					this->scaled_n_type_depletion_width = sqrt(2*PhysicalConstants::vacuum_permittivity*this->semiconductor_permittivity
-																*this->scaled_p_type_acceptor_density*(this->scaled_built_in_bias - this->scaled_applied_bias)
+					scaled_n_type_depletion_width = sqrt(2*PhysicalConstants::vacuum_permittivity*semiconductor_permittivity
+																*scaled_p_type_acceptor_density*(scaled_built_in_bias - scaled_applied_bias)
 																/
-																(PhysicalConstants::electron_charge*this->scaled_n_type_donor_density
-																* (this->scaled_n_type_donor_density + this->scaled_p_type_acceptor_density)));
+																(PhysicalConstants::electron_charge*scaled_n_type_donor_density
+																* (scaled_n_type_donor_density + scaled_p_type_acceptor_density)));
 				}
 				else
-					this->scaled_n_type_depletion_width = 0.0;
+					scaled_n_type_depletion_width = 0.0;
 
-				if(this->scaled_p_type_acceptor_density > 0)
+				if(scaled_p_type_acceptor_density > 0)
 				{
-					this->scaled_p_type_depletion_width = sqrt(2*PhysicalConstants::vacuum_permittivity*this->semiconductor_permittivity
-																*this->scaled_n_type_donor_density*(this->scaled_built_in_bias - this->scaled_applied_bias)
+					scaled_p_type_depletion_width = sqrt(2*PhysicalConstants::vacuum_permittivity*semiconductor_permittivity
+																*scaled_n_type_donor_density*(scaled_built_in_bias - scaled_applied_bias)
 																/
-																(PhysicalConstants::electron_charge*this->scaled_p_type_acceptor_density
-																* (this->scaled_n_type_donor_density + this->scaled_p_type_acceptor_density)));
+																(PhysicalConstants::electron_charge*scaled_p_type_acceptor_density
+																* (scaled_n_type_donor_density + scaled_p_type_acceptor_density)));
 				}
 				else
-					this->scaled_p_type_depletion_width = 0.0;
+					scaled_p_type_depletion_width = 0.0;
 
-				this->scaled_p_type_schottky_dwidth = sqrt(2*PhysicalConstants::vacuum_permittivity*this->semiconductor_permittivity
-															*(this->scaled_schottky_bias)
+				scaled_p_type_schottky_dwidth = sqrt(2*PhysicalConstants::vacuum_permittivity*semiconductor_permittivity
+															*(scaled_schottky_bias)
 															/
-															(PhysicalConstants::electron_charge*this->scaled_p_type_acceptor_density));
+															(PhysicalConstants::electron_charge*scaled_p_type_acceptor_density));
 
 				std::cout << "scaled_n_type_depletion_width:   "
-						  << this->scaled_n_type_depletion_width*10000
+						  << scaled_n_type_depletion_width*10000
 						  << "um"
 						  << std::endl
 						  << "scaled_p_type_depletion_width:   "
-						  << this->scaled_p_type_depletion_width*10000
+						  << scaled_p_type_depletion_width*10000
 						  << "um"
 						  << std::endl
 						  << "scaled_p_type_schottky_dwidth:   "
-						  << this->scaled_p_type_schottky_dwidth*10000
+						  << scaled_p_type_schottky_dwidth*10000
 						  << "um"
 						  << std::endl;
 
 				//defect energy in [eV]:
-				this->defect_energy *= this->band_gap;
+				defect_energy *= band_gap;
 				//defect energy on grain boundary
-				this->defect_energy_gb *= this->band_gap;
+				defect_energy_gb *= band_gap;
 
 				//defect energy is eV, so we need to change them to [J] by multiplying it by e
 				// see eg. p.105 Selberherr  (srh_electron_density=n1)
 				//[m^3]
-				this->scaled_srh_electron_density = Nc_effective_dos
-											*std::exp(-this->defect_energy*PhysicalConstants::electron_charge
-													  /(PhysicalConstants::boltzman_constant*this->temperature));
+				scaled_srh_electron_density = Nc_effective_dos
+											*std::exp(-defect_energy*PhysicalConstants::electron_charge
+													  /(PhysicalConstants::boltzman_constant*temperature));
 				//[cm^3]
 				scaled_srh_electron_density *= 1.0e-6;
 
 				//[m^3]
-				this->scaled_srh_hole_density = Nv_effective_dos
-										*std::exp( (this->defect_energy - this->band_gap)*PhysicalConstants::electron_charge
-												  /(PhysicalConstants::boltzman_constant*this->temperature));
+				scaled_srh_hole_density = Nv_effective_dos
+										*std::exp( (defect_energy - band_gap)*PhysicalConstants::electron_charge
+												  /(PhysicalConstants::boltzman_constant*temperature));
 				//[cm^3]
 				scaled_srh_hole_density *= 1.0e-6;
 
@@ -463,26 +481,40 @@ namespace ParameterSpace
 				// electron and hole density as if fermi level was equal defects energy levels on grain boundary
 				// the same as for srh_hole/electron_density
 				//[m^3]
-				this->scaled_srh_electron_density_gb = Nc_effective_dos
-											*std::exp(-this->defect_energy_gb*PhysicalConstants::electron_charge
-													  /(PhysicalConstants::boltzman_constant*this->temperature));
+				scaled_srh_electron_density_gb = Nc_effective_dos
+											*std::exp(-defect_energy_gb*PhysicalConstants::electron_charge
+													  /(PhysicalConstants::boltzman_constant*temperature));
 				//[cm^3]
 				scaled_srh_electron_density_gb *= 1.0e-6;
 
 				//[m^3]
-				this->scaled_srh_hole_density_gb = Nv_effective_dos
-										*std::exp( (this->defect_energy_gb - this->band_gap)*PhysicalConstants::electron_charge
-												  /(PhysicalConstants::boltzman_constant*this->temperature));
+				scaled_srh_hole_density_gb = Nv_effective_dos
+										*std::exp( (defect_energy_gb - band_gap)*PhysicalConstants::electron_charge
+												  /(PhysicalConstants::boltzman_constant*temperature));
 				//[cm^3]
 				scaled_srh_hole_density_gb *= 1.0e-6;
 
+				if(scaled_gb_defect_density == 0)
+				{
+					scaled_srh_electron_density_gb = scaled_srh_electron_density;
+					scaled_srh_hole_density_gb     = scaled_srh_hole_density;
+				}
+
 
 				std::cout << "srh_electron_density:   "
-						  << this->scaled_srh_electron_density
+						  << scaled_srh_electron_density
 						  << "cm^-3"
 						  << std::endl
 						  << "srh_hole_density:       "
-						  << this->scaled_srh_hole_density
+						  << scaled_srh_hole_density
+						  << "cm^-3"
+						  << std::endl
+						  << "srh_grain_boundary_elec_density:   "
+						  << scaled_srh_electron_density_gb
+						  << "cm^-3"
+						  << std::endl
+						  << "srh_grain_boundary_hole_density:   "
+						  << scaled_srh_hole_density_gb
 						  << "cm^-3"
 						  << std::endl;
 
@@ -509,83 +541,85 @@ namespace ParameterSpace
 				/*----------------------------------------------------------------------*/
 
 
-				this->characteristic_denisty =
+				characteristic_denisty =
 				// MAX(a, b) == ((a > b) ? a : b)
-				(this->scaled_p_type_acceptor_density < this->scaled_n_type_donor_density ? this->scaled_p_type_acceptor_density : this->scaled_n_type_donor_density);
+				(scaled_p_type_acceptor_density < scaled_n_type_donor_density ? scaled_p_type_acceptor_density : scaled_n_type_donor_density);
 				if(characteristic_denisty == 0)
 					characteristic_denisty = scaled_p_type_acceptor_density;
 
-				this->scaled_n_type_donor_density      /= this->characteristic_denisty;
-				this->scaled_n_type_acceptor_density   /= this->characteristic_denisty;
-				this->scaled_p_type_donor_density      /= this->characteristic_denisty;
-				this->scaled_p_type_acceptor_density   /= this->characteristic_denisty;
-				this->scaled_intrinsic_density         /= this->characteristic_denisty;
-				scaled_gb_defect_density               /= characteristic_denisty;
-				this->scaled_schottky_electron_density /= this->characteristic_denisty;
-				this->scaled_schottky_hole_density     /= this->characteristic_denisty;
-				this->scaled_srh_electron_density      /= this->characteristic_denisty;
-				this->scaled_srh_electron_density_gb   /= this->characteristic_denisty;
-				this->scaled_srh_hole_density		   /= this->characteristic_denisty;
-				this->scaled_srh_hole_density_gb	   /= this->characteristic_denisty;
+				scaled_n_type_donor_density      /= characteristic_denisty;
+				scaled_n_type_acceptor_density   /= characteristic_denisty;
+				scaled_p_type_donor_density      /= characteristic_denisty;
+				scaled_p_type_acceptor_density   /= characteristic_denisty;
+				scaled_intrinsic_density         /= characteristic_denisty;
+				scaled_gb_defect_density         /= characteristic_denisty;
+				scaled_schottky_electron_density /= characteristic_denisty;
+				scaled_schottky_hole_density     /= characteristic_denisty;
+				scaled_srh_electron_density      /= characteristic_denisty;
+				scaled_srh_electron_density_gb   /= characteristic_denisty;
+				scaled_srh_hole_density		     /= characteristic_denisty;
+				scaled_srh_hole_density_gb	   	 /= characteristic_denisty;
+				scaled_gb_electron_density_Dirichlet /= characteristic_denisty;
+				scaled_gb_hole_density_Dirichlet     /= characteristic_denisty;
 
 				//CHRACTERISTIC LENGTH MUST BE IN CM!
-				this->scaled_n_type_depletion_width /= (this->characteristic_length);
-				this->scaled_p_type_depletion_width /= (this->characteristic_length);
-				this->scaled_p_type_schottky_dwidth /= (this->characteristic_length);
+				scaled_n_type_depletion_width /= (characteristic_length);
+				scaled_p_type_depletion_width /= (characteristic_length);
+				scaled_p_type_schottky_dwidth /= (characteristic_length);
 
 
-				this->scaled_electron_recombo_t    /= this->characteristic_time;
-				this->scaled_electron_recombo_t_gb /= this->characteristic_time;
-				this->scaled_hole_recombo_t        /= this->characteristic_time;
-				this->scaled_hole_recombo_t_gb     /= this->characteristic_time;
+				scaled_electron_recombo_t    /= characteristic_time;
+				scaled_electron_recombo_t_gb /= characteristic_time;
+				scaled_hole_recombo_t        /= characteristic_time;
+				scaled_hole_recombo_t_gb     /= characteristic_time;
 
-				this->scaled_electron_schottky_recombo_v *= (this->characteristic_time /
-								this->characteristic_length);
+				scaled_electron_schottky_recombo_v *= (characteristic_time /
+								characteristic_length);
 
-				this->scaled_hole_schottky_recombo_v *= (this->characteristic_time /
-								this->characteristic_length);
+				scaled_hole_schottky_recombo_v *= (characteristic_time /
+								characteristic_length);
 
-				this->scaled_photon_flux *= (this->characteristic_time /
-							     this->characteristic_denisty);
+				scaled_photon_flux *= (characteristic_time /
+							     characteristic_denisty);
 
-				this->scaled_absorption_coeff *= this->characteristic_length;
+				scaled_absorption_coeff *= characteristic_length;
 
 				// DONT INCLUDE THE MATERIAL DIELECTRIC IN THE DEBYE LENGTH
-				this->scaled_debye_length = 
-						(this->thermal_voltage *
+				scaled_debye_length =
+						(thermal_voltage *
 						PhysicalConstants::vacuum_permittivity) /
-//						this->material_permittivity) /
+//						material_permittivity) /
 						(PhysicalConstants::electron_charge * 
-						this->characteristic_denisty * 
-						this->characteristic_length *
-						this->characteristic_length);
+						characteristic_denisty *
+						characteristic_length *
+						characteristic_length);
 
 				std::cout << "Debye length (dimensonless):   "
-						  << this->scaled_debye_length
+						  << scaled_debye_length
 						  << std::endl;
 
-				double mobility_scale = (this->characteristic_time *
-						this->thermal_voltage) /
-						(this->characteristic_length *
-						this->characteristic_length);
+				double mobility_scale = (characteristic_time *
+						thermal_voltage) /
+						(characteristic_length *
+						characteristic_length);
 
-				this->scaled_electron_mobility *= mobility_scale;
-				this->scaled_hole_mobility *= mobility_scale;
+				scaled_electron_mobility *= mobility_scale;
+				scaled_hole_mobility *= mobility_scale;
 
-				this->scaled_applied_bias  /= this->thermal_voltage;
-				this->scaled_built_in_bias /= this->thermal_voltage;
-				this->scaled_schottky_bias /= this->thermal_voltage;
-				this->scaled_IV_max_V      /= this->thermal_voltage;
-				this->scaled_IV_min_V      /= this->thermal_voltage;
-				this->scaled_delta_V              /= this->thermal_voltage;
+				scaled_applied_bias  /= thermal_voltage;
+				scaled_built_in_bias /= thermal_voltage;
+				scaled_schottky_bias /= thermal_voltage;
+				scaled_IV_max_V      /= thermal_voltage;
+				scaled_IV_min_V      /= thermal_voltage;
+				scaled_delta_V              /= thermal_voltage;
 
 
-				this->rescale_current = (PhysicalConstants::electron_charge 
-							* this->characteristic_denisty 
-							* this->characteristic_length)
-							/ this->characteristic_time;
+				rescale_current = (PhysicalConstants::electron_charge
+							* characteristic_denisty
+							* characteristic_length)
+							/ characteristic_time;
 
-				this->charge_scaling_factor =   real_domain_height*device_thickness*characteristic_length*
+				charge_scaling_factor =   real_domain_height*device_thickness*characteristic_length*
 												characteristic_denisty*PhysicalConstants::electron_charge
 											   /scaled_domain_height;
 
@@ -595,28 +629,28 @@ namespace ParameterSpace
 							<< std::endl;
 /*
 				std::cout << "debeye length = " 
-					<< this->scaled_debeye_length 
+					<< scaled_debeye_length
 					<< std::endl;
 				std::cout << "semiconductor perm = "
-					<< this->semiconductor_permittivity
+					<< semiconductor_permittivity
 					<< std::endl;
 				std::cout << "scaled electron mobility = " 
-					<< this->scaled_electron_mobility 
+					<< scaled_electron_mobility
 					<< std::endl;
 				std::cout << "scaled hole mobility = " 
-					<< this->scaled_hole_mobility 
+					<< scaled_hole_mobility
 					<< std::endl;
 				std::cout << "built in bias = " 
-					<< this->scaled_built_in_bias 
+					<< scaled_built_in_bias
 					<< std::endl;
 				std::cout << "rescale current = "
-					<< this->rescale_current
+					<< rescale_current
 					<< std::endl;
 				std::cout << "photon flux = " 
-					<< this->scaled_photon_flux
+					<< scaled_photon_flux
 					<< std::endl;
 				std::cout << "absorption coeff = "
-					<< this->scaled_absorption_coeff 
+					<< scaled_absorption_coeff
 					<< std::endl;
 */
 

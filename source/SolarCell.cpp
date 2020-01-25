@@ -114,6 +114,9 @@ namespace SOLARCELL
 									sim_params.scaled_n_type_width,
 									sim_params.scaled_intrinsic_density);
 
+		electron_density_bc_gb.set_values(sim_params.scaled_gb_electron_density_Dirichlet);
+		hole_density_bc_gb.set_values(sim_params.scaled_gb_hole_density_Dirichlet);
+
 		//function the same as donors
 		schottky_p_type_electrons_eq.set_values(
 									0.0,
@@ -477,8 +480,8 @@ namespace SOLARCELL
 							+
 							sim_params.scaled_gb_defect_density*
 							(1-grain_boundary_occupancy(scratch.old_carrier_1_density_values[q],
-						  	  	     scratch.old_carrier_2_density_values[q],
-									 sim_params) )  )
+														scratch.old_carrier_2_density_values[q],
+														sim_params)))
 							+
 							(electron_hole_pair.carrier_1.charge_number *
 							scratch.old_carrier_1_density_values[q]
@@ -489,6 +492,10 @@ namespace SOLARCELL
 					//std::cout<<scratch.donor_doping_values[q] <<"\n";
 				} // for i
 			} // for q
+			/*std::cout << "occupancy:   "
+					  << sim_params.scaled_gb_defect_density
+					  << std::endl
+					  << std::endl;*/
 		}
 		else
 		{
@@ -1047,6 +1054,60 @@ namespace SOLARCELL
 								   scratch.carrier_fe_face_values.JxW(q);				
 						} // for i
 					}	// for q
+				} // end Dirichlet
+				else if(face->boundary_id() == Dirichlet_gb)
+				{
+					// Get the doping profile values for the boundary conditions
+					electron_density_bc_gb.value_list(
+								scratch.carrier_fe_face_values.get_quadrature_points(),
+								scratch.carrier_1_bc_values,
+								dim); // calls the density values of the donor profile
+								     // not the current ones
+					hole_density_bc_gb.value_list(
+								scratch.carrier_fe_face_values.get_quadrature_points(),
+								scratch.carrier_2_bc_values,
+								dim); // calls the density values of the donor profile
+								     // not the current ones
+					// copy over normal vectors
+					for(unsigned int k=0; k<n_face_q_points; k++)
+						scratch.normals[k] = scratch.carrier_fe_face_values.normal_vector(k);
+
+					// loop over all the quadrature points on this face
+					for(unsigned int q=0; q<n_face_q_points; q++)
+					{
+						// copy over the test functions
+						for(unsigned int k=0; k<dofs_per_cell; k++)
+						{
+							scratch.psi_i_density[k] =
+								scratch.carrier_fe_face_values[Density].value(k,q);
+						}
+						for(unsigned int k=0; k<dofs_per_cell; k++)
+						{
+							scratch.psi_i_current[k] =
+								 scratch.carrier_fe_face_values[Current].value(k,q);
+						}
+						// loop over all the test function dofs on this face
+						for(unsigned int i=0; i<dofs_per_cell; i++)
+						{
+						// int_{\Gamma_{D}} ( -p^{-} n^{-} + penalty/h * v^{-}) * u_{D} ds
+							data.local_carrier_1_rhs(i) +=
+								    (-1.0 * scratch.psi_i_current[i] *
+								    scratch.normals[q]
+								    +
+								    (penalty/h) * scratch.psi_i_density[i]) *
+								    scratch.carrier_1_bc_values[q] *
+								    scratch.carrier_fe_face_values.JxW(q);
+
+							data.local_carrier_2_rhs(i) +=
+								   (-1.0 * scratch.psi_i_current[i] *
+								   scratch.normals[q]
+								   +
+								   (penalty/h) * scratch.psi_i_density[i]) *
+								   scratch.carrier_2_bc_values[q] *
+								   scratch.carrier_fe_face_values.JxW(q);
+						} // for i
+					}	// for q
+					//std::cout<<"SPRAWDZAM BC!!!!   " << scratch.carrier_2_bc_values[0] << "   el:   " <<  scratch.carrier_1_bc_values[1] << std::endl;
 				} // end Dirichlet
 				else if(face->boundary_id() == Schottky)
 				{
@@ -2128,6 +2189,13 @@ namespace SOLARCELL
 					start_time_of_next_cap_measur     =  50*delta_t;
 					time_of_cap_measur                =  50*delta_t;
 
+					std::ofstream DLTS_data;
+					DLTS_data.open("DLTS.txt", std::ios::out | std::ios::app);
+					DLTS_data << "\nNew delta t:\n"
+							  << delta_t
+							  << "\n";
+					DLTS_data.close();
+
 					solution_carrier1_2 = electron_hole_pair.carrier_1.solution;
 					solution_carrier2_2 = electron_hole_pair.carrier_2.solution;
 					solution_carrier1_1 = solution_carrier1_0;
@@ -2430,6 +2498,7 @@ namespace SOLARCELL
 			}
 		} // end while
 
+		calculate_capacitance(sim_params.scaled_applied_bias,transient_time,time_of_cap_measur,1e4,timer);
 		std::cout<< "End transient_time:           " << transient_time            << std::endl;
 		return steady_state;
 
@@ -2913,11 +2982,15 @@ namespace SOLARCELL
 				  << charge_before_dV << "\t"
 				  << total_charge << "\t"
 				  << (total_charge - charge_before_dV)*sim_params.charge_scaling_factor/
-					 (sim_params.scaled_delta_V*sim_params.thermal_voltage);
-		std::pair voltage_part(potential_department());
-		DLTS_data << "\t Part_on_Schottky:   " << voltage_part.first *sim_params.thermal_voltage
-				  << "   "
-				  << "Part_on_PN_junct:   " << voltage*sim_params.thermal_voltage - voltage_part.second*sim_params.thermal_voltage;
+					 (sim_params.scaled_delta_V*sim_params.thermal_voltage) << "\t"
+				  <<  total_current;
+		if(sim_params.schottky_status)
+		{
+			std::pair voltage_part(potential_department());
+			DLTS_data << "\t Part_on_Schottky:   " << voltage_part.first *sim_params.thermal_voltage
+					  << "   "
+					  << "Part_on_PN_junct:   " << voltage*sim_params.thermal_voltage - voltage_part.second*sim_params.thermal_voltage;
+		}
 		DLTS_data.close();
 		return steady_state;
 
@@ -3667,12 +3740,10 @@ namespace SOLARCELL
 	
 		// make the triangulations
 		Grid_Maker::Grid<dim> grid_maker(sim_params);
-
 		// make the grids and set the boundary conditions
 		grid_maker.make_grids(semiconductor_triangulation,
 							  Poisson_triangulation
 							  );
-
 		grid_maker.print_grid(Poisson_triangulation,"Grid.eps");
 		grid_maker.print_grid(semiconductor_triangulation,"Semi.eps");
 
@@ -3692,7 +3763,7 @@ namespace SOLARCELL
 		print_sim_info();
 
 		// dont remove
-		electron_hole_pair.penalty = 1.0e4;
+		electron_hole_pair.penalty = 1.0/*e4*/;
 	
 		
 		// assemble the global matrices
@@ -3736,16 +3807,69 @@ namespace SOLARCELL
 
 			if (last_run.is_open())
 			{
-			last_run >> last_run_number;
-			std::cout<< "Next output file index will be: " <<last_run_number + 1 << std::endl;
-			last_run.close();
+				last_run >> last_run_number;
+				std::cout<< "Next output file index will be: " <<last_run_number + 1 << std::endl;
+				last_run.close();
 			}
 			else
 			{
 				std::cout << "UNABLE TO OPEN THE FILE. \n New outputs fill start from index 1!\n";
 				last_run_number=1;
 			}
-			electron_hole_pair.read_dofs(sim_params.type_of_restart);
+			if(sim_params.join_pn_gb)
+			{
+				electron_hole_pair.read_dofs(sim_params.type_of_restart);
+				Vector<double> solution_electron_gb(electron_hole_pair.carrier_1.solution);
+				Vector<double> solution_hole_gb(electron_hole_pair.carrier_2.solution);
+				std::string dof_name_1 = electron_hole_pair.carrier_1.name;
+				dof_name_1 += sim_params.type_of_restart;
+				dof_name_1 += "_gb.dofs";
+				std::string dof_name_2 = electron_hole_pair.carrier_2.name;
+				dof_name_2 += sim_params.type_of_restart;
+				dof_name_2 += "_gb.dofs";
+				std::ifstream reader(dof_name_1.c_str());
+				solution_electron_gb.block_read(reader);
+				reader.close();
+				reader.open(dof_name_2.c_str());
+				solution_hole_gb.block_read(reader);
+				reader.close();
+
+				/*std::cout << solution_electron_gb.size() << std::endl;
+				std::cout << electron_hole_pair.carrier_1.solution.size() << std::endl;*/
+
+				std::vector<types::global_dof_index> dofs_per_component(dim+1);
+				DoFTools::count_dofs_per_component(semiconductor_dof_handler, dofs_per_component);
+				const unsigned int n_density = dofs_per_component[dim];
+
+				for(unsigned i=n_density; i<solution_electron_gb.size();i++)
+				{
+					/*std::cout<< electron_hole_pair.carrier_1.solution[i] << "   " << solution_electron_gb[i] << ";   "
+				    	     << electron_hole_pair.carrier_2.solution[i] << "   " << solution_hole_gb[i]
+							 << std::endl;*/
+				    electron_hole_pair.carrier_1.solution =
+				    		(electron_hole_pair.carrier_1.solution[i] > solution_electron_gb[i])
+				    				? electron_hole_pair.carrier_1.solution[i] : solution_electron_gb[i];
+
+				    electron_hole_pair.carrier_2.solution =
+							(electron_hole_pair.carrier_2.solution[i] < solution_hole_gb[i])
+									? electron_hole_pair.carrier_2.solution[i] : solution_hole_gb[i];
+
+
+				}
+				Threads::TaskGroup<void> task_group;
+					task_group += Threads::new_task(&LDG_System::
+									LDG<dim>::output_rescaled_results,
+									LDG_Assembler,
+									semiconductor_dof_handler,
+									electron_hole_pair,
+									sim_params,
+									time_step_number,
+									"sprawdzenie");
+
+					task_group.join_all();
+			}
+			else
+				electron_hole_pair.read_dofs(sim_params.type_of_restart);
 		}
 		else // use defined initial condition functions
 		{
@@ -3811,7 +3935,7 @@ namespace SOLARCELL
 							  <<std::endl;
 					have_steady_state = calculate_one_IV_point(sim_params.scaled_applied_bias, ConverganceCheck, number_outputs, timer, true);
 					if(have_steady_state==0)
-						//scale_time_steps(10,1,timer);
+						scale_time_steps(10,1,timer);
 					++number_of_adjustment;
 				}
 				electron_hole_pair.print_dofs(sim_params.type_of_simulation);

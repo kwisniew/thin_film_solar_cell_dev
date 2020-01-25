@@ -4,11 +4,16 @@ subsection computational
   #type of simulation: (i)  converge to steady state - without bias, (ii) converge to eq. state - with bias, 
   #                    (iii)small signal response: add small voltage increment 
   # NOTE: one and only one of the below conditions must be true!
-  set steady state          = false
+  set steady state          = true
   set equilibrium state     = false
   set DLTS 					= false
-  set IV curve				= true
+  set IV curve				= false
   set CV curve				= false
+  
+  #sometimes is quicker (or "safer") to calculate grain boundary and pn junction separately
+  #before we simulate them together - if it is a case we need to adequately join solutions 
+  #from those two previous simulations. NOTE: both calculation (for gb and pn) must be performed on the same grid! 
+  set join grain boundary and junction  = false
   
   # if restarting, the end of last run is used as start for this one
   # if restarting from steady state, the end of last run of steady state is used as start for this one
@@ -19,14 +24,14 @@ subsection computational
   # time at the end of a simulation (in terms of characteristic time) 1000
   set end time steady state          = 1000
   set end time equilibrium state     = 1000
-  set end time DLTS = 1000
+  set end time DLTS 				 = 1000
 
   # 2nd end time (in terms of characteristic time) 
-  # for restarting if the simulation hasn't converged by end of previous time
+  # for restarting if the simulation hasn't converged by end of previous time (depreciated)
   set end time 2         = 2e3
 
   # number of global refinements
-  set global refinements = 3
+  set global refinements = 4
 
   # number of local refinements in predefined critical areas
   set local refinements  = 1
@@ -47,23 +52,32 @@ subsection mesh
   # scaled domain height in y coordinate
   set mesh height    = 5.0
 
+  #NOTE: if grain boundary is horizontal "bottom" means left domain border and 
+  #      in this nomenclature "up" will lead towards right domain border that is:
+  #      bottom point will be on left contact (lets say between p-type and metallic contact)
+  #      top point will be most commonly on border between p-type and n-type material
+  
   # x coordinate of top point of grain boundary
-  set top point x    = 1.0
+  set top point x    = 4.0
   
   # y coordinate of top point of grain boundary
-  set top point y    = 5.0
+  set top point y    = 2.5
 
-  # x coordinate of bottom radius of wire
-  set bottom point x     = 2.0
+  # x coordinate of bottom point of grain boundary
+  set bottom point x     = 4.0
   
-  # y coordinate of bottom radius of wire
-  set bottom point y     = 0.0
+  # y coordinate of bottom point of grain boundary
+  set bottom point y     = 2.5
 
   # n-type width
-  set n_type width   = 5
+  set n_type width   = 6.0
   
-  # p_type width     
-  set p_type width   = 5
+  # p_type width  // for horizontal gb 14   
+  set p_type width   = 6.0
+  
+  # grain boundary depletion width - estimated for the purpose of mesh refinement
+  set grain boundary depletion width = 1.0
+  
 end
 
 subsection electrons
@@ -71,10 +85,10 @@ subsection electrons
   set mobility               = 30.0
 
   # Recombination rate/time of electrons [s]
-  set grain boundary recombination time     = 1e-6
-  
+  set recombination time     = 1e-6
+
   # Recombination rate/time of electrons for grain boundaries [s]
-  set recombination time     = 1e-8
+  set grain boundary recombination time     = 1e-8
 
   # electron effective mass [fraction of free electron mass]
   set electron effective mass = 0.2
@@ -100,10 +114,10 @@ end
 subsection physical
   # real domain height [cm]
   # NOTE: we calculate planar current flow in a device so when you look
-  # at the device the "height" is in fact width of a device, additionally 
+  # at the device e.g. in paraview the "height" is in fact width of a device, additionally 
   # this width should be approx. 0.5cm which is to big for simulation
-  # if we use e.g. 5um as a width then we well need to scale global variable
-  # by a factor of 1000
+  # if we use e.g. 5um as a width then we will need to scale global variable
+  # by a factor of 1000 (what we do)
   set real domain height         = 0.5  
   
   # device thickness   [cm]
@@ -114,7 +128,7 @@ subsection physical
 
   # the applied bias [v]
   # NOTE: if type of calculation will be "steady state" then applied bias will be always 0! 
-  set applied bias               = 0.0
+  set applied bias               = 0.4
 
   # band gap in semiconductor [eV]
   set band gap                   = 1.0
@@ -123,7 +137,7 @@ subsection physical
   set defect energy level    	 = 0.5 
   
   # defect energy level on grain boundary [in fraction of band gap - from 0 to 1]
-  set grain boundary defect energy level    	 = 0.2 
+  set grain boundary defect energy level    	 = 0.5
 
   # Temperature of the device [K] 
   set temperature                = 300.0
@@ -131,10 +145,10 @@ subsection physical
   # scaled n type donor density [cm^{-3}]
   # the characteristic density by which the densities will be scaled in calculations 
   # will be the smaller value of n-type donor density and p-type acceptor density //1.0e14
-  set n_type donor density     = 1.0e14
+  set n_type donor density     = 0.0
   
   # scaled n type acceptor density [cm^{-3}] //0.0
-  set n_type acceptor density     = 0.0
+  set n_type acceptor density     = 1.0e14
 
   # scaled p type donor density [cm^{-3}]
   set p_type donor density        = 0.0
@@ -144,16 +158,24 @@ subsection physical
   # will be the smaller value of n-type donor density and p-type acceptor density
   set p_type acceptor density    = 1.0e14
   
-  # grain boundary defect density
+  # grain boundary defect density //2.0e15
   set grain boundary defect density = 1.0e14
+  
+  # electron density on grain boundary on Dirichlet boundary condition
+  # that is: electron density on ohmic contact between back contact (left side of the device in paraview) and grain boundary
+  set gb electron density on dirichlet = 679.014254507332e6
+  
+  # hole density on grain boundary on Dirichlet boundary condition
+  # that is: hole density on ohmic contact between back electrode (left side of the device in paraview) and grain boundary
+  set gb hole density on dirichlet     = 940.8318812455003e9
   
   # the characteristic length scale [cm]. Do not change the unit! 
   set characteristic length      = 1.0e-4
 
   # the characteristic time scale [s]
-  set characteristic time steady state          = 1.0e-11
-  set characteristic time equilibrium state     = 1.0e-11
-  set characteristic time DLTS = 1.0e-10 
+  set characteristic time steady state          = 1.0e-10
+  set characteristic time equilibrium state     = 1.0e-10
+  set characteristic time DLTS 					= 1.0e-12 
 
   # true means that the cell is illuminated, false means its not.
   set illumination status        = false
@@ -172,7 +194,14 @@ subsection physical
   set schottky status            = false
   
   # whether to have grain boundary.
-  set grain boundary status            = true
+  set grain boundary status      = true
+
+  #NOTE: grain boundary can be vertical or horizontal, it cannot be both!
+  # whether grain boundary is in vertical orientation (perpendicular to current flow).
+  set vertical grain boundary    = false
+  
+  # whether grain boundary is in horizontal orientation (parallel to current flow).
+  set horizontal grain boundary  = true
 
   # semiconductor permittivity const []
   set semiconductor permittivity = 13.0

@@ -219,4 +219,46 @@ class Doping_profile_donors : public Function<dim>
 			double scaled_p_type_hole_bc;
 	};
 
+
+	template<int dim>
+	class LDG_Dirichlet_electron_density_bc_gb : public Function<dim>
+	{
+		public:
+			/** \brief Default constructor. */
+			LDG_Dirichlet_electron_density_bc_gb() : Function<dim>(dim+1)
+			{}
+			virtual ~LDG_Dirichlet_electron_density_bc_gb(){}
+
+			void set_values(const double & electron_bc);
+
+
+			/** \brief Returns value of \f$\rho_{r}^{\infty}\f$ at point p.*/
+			virtual double value(const Point<dim> & p,
+					     const unsigned int component=0) const;
+
+		private:
+			double scaled_electron_bc;
+	};
+
+
+	template<int dim>
+	class LDG_Dirichlet_hole_density_bc_gb : public Function<dim>
+	{
+		public:
+			/** \brief Default constructor. */
+			LDG_Dirichlet_hole_density_bc_gb() : Function<dim>(dim+1)
+			{}
+			virtual ~LDG_Dirichlet_hole_density_bc_gb(){}
+
+			void set_values(const double & scaled_hole_bc_precalculated);
+
+
+			/** \brief Returns value of \f$\rho_{r}^{\infty}\f$ at point p.*/
+			virtual double value(const Point<dim> & p,
+					     const unsigned int component=0) const;
+
+		private:
+			double scaled_hole_bc;
+	};
+
 #endif

@@ -363,7 +363,10 @@ namespace SOLARCELL
 				/// Neumann boundary id set in Grid_Maker::Grid.
 				Neumann,
 				/// Shottky boundary id set in Grid_Maker::Grid.
-				Schottky
+				Schottky,
+				gb_border,
+				Dirichlet_gb
+
 			};
 
 			enum
@@ -468,6 +471,9 @@ namespace SOLARCELL
 
 			LDG_Dirichlet_electron_density_bc<dim>  electron_density_bc;
 			LDG_Dirichlet_hole_density_bc<dim>		hole_density_bc;
+
+			LDG_Dirichlet_electron_density_bc_gb<dim>  electron_density_bc_gb;
+			LDG_Dirichlet_hole_density_bc_gb<dim>		hole_density_bc_gb;
 
 			/*-------------------------------------------------------------*/
 			/* The potential functions					*/

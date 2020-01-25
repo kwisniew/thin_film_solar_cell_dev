@@ -52,6 +52,10 @@ namespace ParameterSpace
 				Patterns::Bool(),
 				"whether to calculate an CV curve");
 
+		prm.declare_entry("join grain boundary and junction", "false",
+				Patterns::Bool(),
+				"whether to join solutions from pn and grain boundary calculations");
+
 		prm.declare_entry("global refinements", "4",
 				 Patterns::Integer(0,10),
 				 "number of global refinements");
@@ -130,6 +134,11 @@ namespace ParameterSpace
 		prm.declare_entry("p_type width", "4.0",
 						Patterns::Double(0),
 						"width of p type layer");
+
+		prm.declare_entry("grain boundary depletion width", "1.0",
+						Patterns::Double(0),
+						"estimated grain boundary depletion width (probably by try and error process) "
+						"- for the purpose of mesh refinement");
 
 		prm.leave_subsection();
 
@@ -225,6 +234,14 @@ namespace ParameterSpace
 				Patterns::Bool(),
 				"whether to have grain boundary.");
 
+		prm.declare_entry("vertical grain boundary", "true",
+				Patterns::Bool(),
+				"whether grain boundary is vertical (perpendicular to the current flow)");
+
+		prm.declare_entry("horizontal grain boundary", "false",
+				Patterns::Bool(),
+				"whether grain boundary is horizontal (parallel to current flow)");
+
 		prm.declare_entry("characteristic length", "1.0e-4",
 				Patterns::Double(0),
 				"the characteristic length scale [cm]");
@@ -248,6 +265,15 @@ namespace ParameterSpace
 		prm.declare_entry("grain boundary defect density", "1.0e14",
 				Patterns::Double(0),
 				"defect density within grain boundary [cm^{-3}]");
+
+		prm.declare_entry("gb electron density on dirichlet", "1.0e10",
+				Patterns::Double(0),
+				"electron density on ohmic contact between back contact (left side of the device in paraview) and grain boundary [cm^{-3}]");
+
+		prm.declare_entry("gb hole density on dirichlet", "1.0e10",
+				Patterns::Double(0),
+				"hole density on ohmic contact between back electrode (left side of the device in paraview) and grain boundary [cm^{-3}]");
+
 
 		prm.declare_entry("characteristic time steady state", "1.0e-12",
 				Patterns::Double(0),

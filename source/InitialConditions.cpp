@@ -352,3 +352,84 @@
 
 
 	}
+
+
+	template <int dim>
+	double
+	LDG_Dirichlet_electron_density_bc_gb<dim>::
+	value(const Point<dim> &p,
+		  const unsigned int component) const
+	{
+			// dim+1 components
+		if(component < dim)
+		{
+			// set the components of the current initially to zero
+			return ZeroFunction<dim>(dim+1).value(p, component);
+		}
+		else //(component == dim)
+		{
+			if(p[0] > 1e-10 )
+			{
+				std::cerr << "Dirichlet condition on grain boundary can be only on the left contact! That is: x coordinate must equal to 0";
+				return -1;
+			}
+			else
+			{
+				return scaled_electron_bc;
+
+			}
+		}
+	}
+
+	template <int dim>
+	void
+	LDG_Dirichlet_electron_density_bc_gb<dim>::
+	set_values( const double & scaled_electron_bc_precalculated)
+	{
+		scaled_electron_bc = scaled_electron_bc_precalculated;
+		std::cout << "electrons on a left contact with grain boundary:   "
+				  << scaled_electron_bc
+				  << std::endl;
+
+
+	}
+
+	template <int dim>
+	double
+	LDG_Dirichlet_hole_density_bc_gb<dim>::
+	value(const Point<dim> &p,
+		  const unsigned int component) const
+	{
+			// dim+1 components
+		if(component < dim)
+		{
+			// set the components of the current initially to zero
+			return ZeroFunction<dim>(dim+1).value(p, component);
+		}
+		else //(component == dim)
+		{
+			if(p[0] > 1e-10 )
+			{
+				std::cerr << "Dirichlet condition on grain boundary can be only on the left contact! That is: x coordinate must equal to 0";
+				return -1;
+			}
+
+			else
+				return scaled_hole_bc;
+		}
+	}
+
+
+	template <int dim>
+	void
+	LDG_Dirichlet_hole_density_bc_gb<dim>::
+	set_values( const double & scaled_hole_bc_precalculated)
+	{
+		scaled_hole_bc = scaled_hole_bc_precalculated;
+		std::cout << "hole on a left contact with grain boundary:   "
+				  << scaled_hole_bc
+				  << std::endl;
+
+
+	}
+
