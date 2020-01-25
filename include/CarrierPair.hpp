@@ -123,7 +123,9 @@ namespace ChargeCarrierSpace
 				PN_Interface,
 				Dirichlet,
 				Neumann,
-				Schottky
+				Schottky,
+				gb_border,
+				Dirichlet_gb
 			};
 
 	};

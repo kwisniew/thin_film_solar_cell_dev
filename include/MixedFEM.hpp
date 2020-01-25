@@ -220,7 +220,9 @@ namespace MixedPoisson
 				/// Marker for cells's face to be on the Neumann boundary.
 				Neumann,
 				/// Markert for cells' face to be on the Schottky boundary.
-				Schottky
+				Schottky,
+				gb_border,
+				Dirichlet_gb
 			};
 
 
