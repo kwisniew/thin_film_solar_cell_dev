@@ -331,6 +331,11 @@ namespace ParameterSpace
 					scaled_electron_recombo_t_gb = scaled_electron_recombo_t;
 					scaled_hole_recombo_t_gb     = scaled_hole_recombo_t;
 				}
+				if(!grain_boundary_status)
+				{
+					vertical_gb= false;
+					horizontal_gb=false;
+				}
 
 				std::cout 	<< std::endl
 							<< "Parameters:    "

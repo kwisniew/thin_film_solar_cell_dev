@@ -1,12 +1,13 @@
 # The list of a Parameters
 # ---------------------
 subsection computational
-  #type of simulation: (i)  converge to steady state - without bias, (ii) converge to eq. state - with bias, 
-  #                    (iii)small signal response: add small voltage increment 
-  # NOTE: one and only one of the below conditions must be true!
-  set steady state          = true
+  #type of simulation: (i)  converge to steady state - without bias, (ii) converge to eq. state - with bias,
+  #				 	   (iii)calculate capacitance transient DLTS, (iv) calculate bunch of calculation to cover some range of voltages - IV curve
+  #                    (iii)small signal response: add small voltage increment - CV curve (if "true" together with IV curve this will generate CV curve)
+  # NOTE: one and only one of the first three positions below can be true!
+  set steady state          = false
   set equilibrium state     = false
-  set DLTS 					= false
+  set DLTS 					= true 
   set IV curve				= false
   set CV curve				= false
   
@@ -18,17 +19,13 @@ subsection computational
   # if restarting, the end of last run is used as start for this one
   # if restarting from steady state, the end of last run of steady state is used as start for this one
   # NOTE: if "restart status" will be FALSE the "restart from steady state" will be ignored  
-  set restart status            = false
+  set restart status            = true
   set restart from steady state = false
 
   # time at the end of a simulation (in terms of characteristic time) 1000
   set end time steady state          = 1000
   set end time equilibrium state     = 1000
   set end time DLTS 				 = 1000
-
-  # 2nd end time (in terms of characteristic time) 
-  # for restarting if the simulation hasn't converged by end of previous time (depreciated)
-  set end time 2         = 2e3
 
   # number of global refinements
   set global refinements = 4
@@ -47,7 +44,7 @@ end
 subsection mesh
 #in units of characteristic length (see: subsection physical) [um]
   # width of boundary layer
-  set grain boundary width = 0.1
+  set grain boundary width = 0.2
 
   # scaled domain height in y coordinate
   set mesh height    = 5.0
@@ -61,19 +58,19 @@ subsection mesh
   set top point x    = 4.0
   
   # y coordinate of top point of grain boundary
-  set top point y    = 2.5
+  set top point y    = 5.0
 
   # x coordinate of bottom point of grain boundary
   set bottom point x     = 4.0
   
   # y coordinate of bottom point of grain boundary
-  set bottom point y     = 2.5
+  set bottom point y     = 0.0
 
   # n-type width
   set n_type width   = 6.0
   
   # p_type width  // for horizontal gb 14   
-  set p_type width   = 6.0
+  set p_type width   = 14.0
   
   # grain boundary depletion width - estimated for the purpose of mesh refinement
   set grain boundary depletion width = 1.0
@@ -127,8 +124,8 @@ subsection physical
   set absorption coefficient     = 1.74974e5
 
   # the applied bias [v]
-  # NOTE: if type of calculation will be "steady state" then applied bias will be always 0! 
-  set applied bias               = 0.4
+  # NOTE: if type of calculation will be "steady state" then applied bias will be always 0! //-0.4
+  set applied bias               = 0.25
 
   # band gap in semiconductor [eV]
   set band gap                   = 1.0
@@ -145,10 +142,10 @@ subsection physical
   # scaled n type donor density [cm^{-3}]
   # the characteristic density by which the densities will be scaled in calculations 
   # will be the smaller value of n-type donor density and p-type acceptor density //1.0e14
-  set n_type donor density     = 0.0
+  set n_type donor density     = 1.0e14
   
   # scaled n type acceptor density [cm^{-3}] //0.0
-  set n_type acceptor density     = 1.0e14
+  set n_type acceptor density     = 0.0
 
   # scaled p type donor density [cm^{-3}]
   set p_type donor density        = 0.0
@@ -159,15 +156,15 @@ subsection physical
   set p_type acceptor density    = 1.0e14
   
   # grain boundary defect density //2.0e15
-  set grain boundary defect density = 1.0e14
+  set grain boundary defect density = 2.0e15
   
-  # electron density on grain boundary on Dirichlet boundary condition
+  # electron density on grain boundary on Dirichlet boundary condition [cm^{-3}] //679.014254507332e6 for Ngb=1e14
   # that is: electron density on ohmic contact between back contact (left side of the device in paraview) and grain boundary
-  set gb electron density on dirichlet = 679.014254507332e6
+  set gb electron density on dirichlet = 638.2975961336481e9
   
-  # hole density on grain boundary on Dirichlet boundary condition
+  # hole density on grain boundary on Dirichlet boundary condition [cm^{-3}] //940.8318812455003e9 for Ngb=1e14
   # that is: hole density on ohmic contact between back electrode (left side of the device in paraview) and grain boundary
-  set gb hole density on dirichlet     = 940.8318812455003e9
+  set gb hole density on dirichlet     = 999.0366428444466e6
   
   # the characteristic length scale [cm]. Do not change the unit! 
   set characteristic length      = 1.0e-4
@@ -175,7 +172,7 @@ subsection physical
   # the characteristic time scale [s]
   set characteristic time steady state          = 1.0e-10
   set characteristic time equilibrium state     = 1.0e-10
-  set characteristic time DLTS 					= 1.0e-12 
+  set characteristic time DLTS 					= 1.0e-11 
 
   # true means that the cell is illuminated, false means its not.
   set illumination status        = false
@@ -197,11 +194,14 @@ subsection physical
   set grain boundary status      = true
 
   #NOTE: grain boundary can be vertical or horizontal, it cannot be both!
+  #      if grain boundary status == false, vertical grain boundary will be false too!!
   # whether grain boundary is in vertical orientation (perpendicular to current flow).
-  set vertical grain boundary    = false
+  set vertical grain boundary    = true
   
+  #NOTE: grain boundary can be vertical or horizontal, it cannot be both!
+  #      if grain boundary status == false, horizontal grain boundary will be false too!!
   # whether grain boundary is in horizontal orientation (parallel to current flow).
-  set horizontal grain boundary  = true
+  set horizontal grain boundary  = false
 
   # semiconductor permittivity const []
   set semiconductor permittivity = 13.0
@@ -209,13 +209,13 @@ end
   
 subsection IV
   # IV curve will be calculated from minimum to maximum potential establish by user
-  # The lowest voltage value on IV curve [V]
-  set IV minimal voltage    = -1.0
+  # The lowest voltage value on IV curve [V] //-1.0
+  set IV minimal voltage    = 0.2
 
-  # The biggest voltage value on IV curve [V]
+  # The biggest voltage value on IV curve [V] //1.0
   set IV maximal voltage    = 1.0
 
-  # number of points on the curve (without 0V point).
+  # number of points on the curve (without 0V point). //80
   set IV number of data points = 80
   
   # small voltage increment for capacitance calculations

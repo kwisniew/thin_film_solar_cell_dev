@@ -153,7 +153,8 @@ namespace Grid_Maker
 				gb_id,
 				elec_boundary_layer_id,
 				n_type_id,
-				p_type_id
+				p_type_id,
+				n_type_gb_id
 			};
 
 			/// Set in constructor.			

@@ -193,7 +193,7 @@ namespace LDG_System
 				scratch.carrier_fe_face_values.reinit(cell, face_no);
 
 				// construct the dirichlet matrix
-				if(face->boundary_id() == Dirichlet)
+				if(face->boundary_id() == Dirichlet || face->boundary_id() == Dirichlet_gb)
 				{
 					// loop over alll the quadrature points of this face
 					for(unsigned int q=0; q<n_face_q_points; q++)
@@ -273,7 +273,10 @@ namespace LDG_System
 					} // end q
 				} // end Neumann
 				else
+				{
 					Assert(false, ExcNotImplemented() ); // no other boundary terms
+					std::cerr << "Thes is not such a boundary id!!!" << std::endl;
+				}
 			} //if on boundary
 
 		} // for face_no

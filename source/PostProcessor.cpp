@@ -219,7 +219,7 @@ evaluate_vector_field
 
 
 	const unsigned int n_quadrature_points = inputs.solution_values.size();
-	if(computed_quantities.size() != n_quadrature_points) std::cout << "Wielkosci sie nie zgadzaja!\n";
+	if(computed_quantities.size() != n_quadrature_points) std::cerr << "Wielkosci sie nie zgadzaja!\n";
 	Assert(computed_quantities.size() == n_quadrature_points, ExcInternalError());
 
 	for(unsigned int q=0; q<n_quadrature_points; q++)

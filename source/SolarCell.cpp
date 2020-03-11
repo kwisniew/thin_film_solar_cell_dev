@@ -545,7 +545,7 @@ namespace SOLARCELL
 			// biases
 			if(face->at_boundary())
 			{
-				if(face->boundary_id() == Dirichlet)
+				if(face->boundary_id() == Dirichlet || face->boundary_id() == Dirichlet_gb)
 				{	
 					//std::cout<< "Dirichlet!" <<std::endl;
 					// get the values of the shape functions at this boundary face
@@ -1176,7 +1176,11 @@ namespace SOLARCELL
 					// NOTHIN TO DO IF INSULATING
 				}
 				else
+				{
 					Assert(false, ExcNotImplemented() );
+					std::cerr << "Thes is not such a boundary id!!!" << std::endl;
+				}
+
 			} // end at boundary
 		} // end for face_no
 	} // end assemble_local_semiconductor_rhs
@@ -1377,6 +1381,8 @@ namespace SOLARCELL
 		double old_charge = calculate_uncompensated_charge();
 		std::cout << "Zero_time_current:   "
 				  << old_current
+				  << "\nZero time charge:   "
+				  << old_charge
 				  <<"\n";
 
 		/*print_results(13);*/
@@ -1903,11 +1909,15 @@ namespace SOLARCELL
 					}
 					if(steady_state == 1)
 					{
-						std::pair voltage_part(potential_department());
-						IV_data << "Part on Schottky:   " << voltage_part.first *sim_params.thermal_voltage
-								<< "   "
-								<< "Part on PN junct:   " << voltage*sim_params.thermal_voltage - voltage_part.second*sim_params.thermal_voltage-voltage
-								<< std::endl;
+						if(sim_params.schottky_status)
+						{
+							std::pair voltage_part(potential_department());
+							IV_data << "Part on Schottky:   " << voltage_part.first *sim_params.thermal_voltage
+									<< "   "
+									<< "Part on PN junct:   " << voltage*sim_params.thermal_voltage - voltage_part.second*sim_params.thermal_voltage-voltage
+									<< std::endl;
+						}
+
 					}
 					IV_data << voltage*sim_params.thermal_voltage
 							 << "\t"
@@ -1943,11 +1953,15 @@ namespace SOLARCELL
 					}
 					if(steady_state == 1)
 					{
-						std::pair voltage_part(potential_department());
-						IV_data << "Part on Schottky:   " << voltage_part.first *sim_params.thermal_voltage
-								<< "   "
-								<< "Part on PN junct:   " << voltage*sim_params.thermal_voltage - voltage_part.second*sim_params.thermal_voltage
-								<< std::endl;
+						if(sim_params.schottky_status)
+						{
+							std::pair voltage_part(potential_department());
+							IV_data << "Part on Schottky:   " << voltage_part.first *sim_params.thermal_voltage
+									<< "   "
+									<< "Part on PN junct:   " << voltage*sim_params.thermal_voltage - voltage_part.second*sim_params.thermal_voltage
+									<< std::endl;
+						}
+
 					}
 					IV_data  << voltage*sim_params.thermal_voltage
 							 << "\t"
@@ -2049,6 +2063,7 @@ namespace SOLARCELL
 	    double start_time_of_next_cap_measur     =  50*delta_t;
 	    double time_of_cap_measur                =  50*delta_t;
 	    double old_delta_t = delta_t;
+	    double max_delta_t_for_cap_measur = delta_t;
 	    double charge_after_cap_measur = old_charge;
 
 		std::ofstream DLTS_data;
@@ -2070,8 +2085,11 @@ namespace SOLARCELL
 			   && std::abs(charge_after_cap_measur - total_charge)>delta_Q)
 			{
 				print_results(step_number);
+				/*electron_hole_pair.print_dofs("DLTS" + std::to_string(sim_params.scaled_applied_bias*sim_params.thermal_voltage)
+											 +"time" + std::to_string(transient_time));*/
 				electron_hole_pair.print_dofs(sim_params.type_of_simulation);
 				old_delta_t = delta_t;
+				if(delta_t>max_delta_t_for_cap_measur) delta_t = max_delta_t_for_cap_measur;
 				calculate_capacitance(sim_params.scaled_applied_bias,transient_time,time_of_cap_measur,1e4,timer);
 				electron_hole_pair.read_dofs(sim_params.type_of_simulation);
 				scale_time_steps(old_delta_t/delta_t,1,timer);
@@ -2102,7 +2120,9 @@ namespace SOLARCELL
 				steady_state= -1;
 				return steady_state;
 			}
-
+			/*
+			 * Print out current values
+			 */
 			if(step_number%100 == 1)
 			{
 				std::cout << "\nStep number:   "
@@ -2130,13 +2150,23 @@ namespace SOLARCELL
 						 << "\n";
 			}
 
-
+			/*
+			 * We are checking if current do not change more than 90% from previous step
+			 */
 			if(step_number==1)
 			{
 				if(   !( (total_current > (0.1*old_current) && total_current < (1.9*old_current))
 														   ||
 					     (total_current < (0.1*old_current) && total_current > (1.9*old_current)) )
-				  )
+
+															&&
+
+					  !( (total_charge > (0.95*old_charge) && total_charge < (1.05*old_charge))
+														   ||
+						 (total_charge < (0.95*old_charge) && total_charge > (1.05*old_charge)) )
+
+
+				)
 				{
 					if(number_of_rescaling>1)
 					{
@@ -2188,6 +2218,7 @@ namespace SOLARCELL
 					capacitance_measurements_interval = 250*delta_t;
 					start_time_of_next_cap_measur     =  50*delta_t;
 					time_of_cap_measur                =  50*delta_t;
+					max_delta_t_for_cap_measur		  = delta_t;
 
 					std::ofstream DLTS_data;
 					DLTS_data.open("DLTS.txt", std::ios::out | std::ios::app);
@@ -3731,7 +3762,6 @@ namespace SOLARCELL
 	SolarCellProblem<dim>::
 	run_full_system()
 	{
-
 		TimerOutput	timer(std::cout,
 					TimerOutput::summary,
 					TimerOutput::wall_times);
@@ -3749,11 +3779,15 @@ namespace SOLARCELL
 
 		timer.leave_subsection("Make Grids");
 
+
 		// allocate the memory
 		timer.enter_subsection("Allocate Memory");
 		setup_dofs();
 		joint_dof_handler.distribute_dofs(joint_fe);
 		timer.leave_subsection("Allocate Memory");
+
+		electron_hole_pair.read_dofs("");
+		print_results(668);
 
 		
 		timer.enter_subsection("Build Mappings");
@@ -3869,7 +3903,11 @@ namespace SOLARCELL
 					task_group.join_all();
 			}
 			else
+			{
+				std::cout<< "Reading dofs! Type of restart:   " <<sim_params.type_of_restart << std::endl;
 				electron_hole_pair.read_dofs(sim_params.type_of_restart);
+				//print_results(667);
+			}
 		}
 		else // use defined initial condition functions
 		{
@@ -3927,7 +3965,7 @@ namespace SOLARCELL
 
 				unsigned int number_of_adjustment=0;
 				have_steady_state = 0;
-				while(have_steady_state==0 && number_of_adjustment < 5)
+				while(have_steady_state==0 && number_of_adjustment < 50)
 				{
 					std::cout << "Number of adjustments:  "
 							  << number_of_adjustment
@@ -3952,7 +3990,7 @@ namespace SOLARCELL
 				double total_charge =calculate_uncompensated_charge();
 				char steady_state_flag= 0;
 				unsigned int number_of_adjustment = 0;
-				while(steady_state_flag==0 && number_of_adjustment < 5)
+				while(steady_state_flag==0 && number_of_adjustment < 50)
 				{
 					std::cout << "CV!!! Number of adjustments:  "
 							  << number_of_adjustment
@@ -4004,7 +4042,7 @@ namespace SOLARCELL
 			calculate_DLTS(sim_params.scaled_applied_bias,0.01,1e6,timer/*,10*/);
 			electron_hole_pair.print_dofs("DLTS" + std::to_string(sim_params.scaled_applied_bias*sim_params.thermal_voltage));
 		}
-		else if(sim_params.calculate_IV_curve && sim_params.restart_from_steady_state)
+		else if(sim_params.calculate_IV_curve /*&& sim_params.restart_from_steady_state*/)
 		/*
 		 *
 		 *
@@ -4294,49 +4332,32 @@ namespace SOLARCELL
 			// We will add catch_up_V (right now 0.1V) to the steady_state_voltage until we achieved V_min
 			else
 			{
-				double dV = 0.1/sim_params.thermal_voltage;
-				double catch_up_V = 0.1/sim_params.thermal_voltage;
-				while(catch_up_V < V_min)
+				if(!(sim_params.grain_boundary_status && sim_params.vertical_gb))
 				{
-					calculate_one_IV_point(catch_up_V, ConverganceCheck, number_outputs/*, timeStamps*/, timer,false);
-					if(!ConverganceCheck.sanity_check())
+					std::cout << "'Catch up' untill min voltage!!!" << std::endl;
+					double dV = 0.1/sim_params.thermal_voltage;
+					double catch_up_V = 0.1/sim_params.thermal_voltage;
+					while(catch_up_V < V_min)
 					{
-						std::cout << "SIMULATION CRASH! LAST TIME STEP:  "
-								  << time_step_number
-								  << "\nABORTING..."
-								  <<std::endl;
-						break;
+						calculate_one_IV_point(catch_up_V, ConverganceCheck, number_outputs/*, timeStamps*/, timer,false);
+						if(!ConverganceCheck.sanity_check())
+						{
+							std::cout << "SIMULATION CRASH! LAST TIME STEP:  "
+									  << time_step_number
+									  << "\nABORTING..."
+									  <<std::endl;
+							break;
+						}
+						catch_up_V += dV;
 					}
-					catch_up_V += dV;
 				}
+
 				for(double voltage = V_min; voltage <= V_max; voltage+=voltage_step)
 				{
-					/*calculate_one_IV_point(voltage, ConverganceCheck, number_outputs, timeStamps, timer, true);
-					if(!ConverganceCheck.sanity_check())
-					{
-						std::cout << "SIMULATION CRASH! LAST TIME STEP:  "
-								  << time_step_number
-								  << "\nABORTING..."
-								  <<std::endl;
-						break;
-					}
-					if(sim_params.calculate_CV_curve)
-					{
-						total_charge =calculate_uncompensated_charge();
-						calculate_one_IV_point(voltage+sim_params.scaled_delta_V, ConverganceCheck, number_outputs, timeStamps, timer,false);
-						std::ofstream CV_data;
-						CV_data.open("CV_data.txt", std::ios_base::app);
-						CV_data  << voltage*sim_params.thermal_voltage
-								 << "\t"
-								 << ((calculate_uncompensated_charge() - total_charge)*sim_params.characteristic_denisty*PhysicalConstants::electron_charge)/
-									 (sim_params.scaled_delta_V*sim_params.thermal_voltage)
-								 << "\n";
-						CV_data.close();
-					} // end if CV curve*/
 					number_of_adjustment=0;
 					steady_state_flag = 0;
 					scale_time_steps(steady_state_delta_t/delta_t,1,timer);
-					while(steady_state_flag==0 && number_of_adjustment < 10)
+					while(steady_state_flag==0 && number_of_adjustment < 100)
 					{
 						std::cout << "Number f adjustments:  "
 								  << number_of_adjustment
@@ -4381,9 +4402,11 @@ namespace SOLARCELL
 						total_charge =calculate_uncompensated_charge();
 						steady_state_flag= 0;
 						number_of_adjustment = 0;
-						while(steady_state_flag==0 && number_of_adjustment < 5)
+						while(steady_state_flag==0 && number_of_adjustment < 100)
 						{
 							steady_state_flag = calculate_one_IV_point(voltage+sim_params.scaled_delta_V, ConverganceCheck, number_outputs, timer, false);
+							if(steady_state_flag==0)
+								scale_time_steps(10,1,timer);
 							++number_of_adjustment;
 						}
 

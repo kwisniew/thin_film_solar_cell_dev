@@ -33,6 +33,8 @@ namespace ChargeCarrierSpace
 		DoFRenumbering::component_wise(dof_handler);
 		unsigned int n_dofs = dof_handler.n_dofs();
 
+		std::cout<<"Liczba stopni swobody:   " << n_dofs << "\n";
+
 		DynamicSparsityPattern carrier_system_dsp(n_dofs,n_dofs);
 
 		// allocate memory for [0 , 0 ; 0 , M ]

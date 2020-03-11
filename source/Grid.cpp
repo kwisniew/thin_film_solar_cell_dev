@@ -25,7 +25,7 @@ namespace Grid_Maker
 		n_local_refine		= sim_params.n_local_refine;
 		insulated		= sim_params.insulated;
 		schottky		= sim_params.schottky_status;
-		steady_state     = false/*sim_params.calculate_steady_state*/;
+		steady_state     = /*false*/sim_params.calculate_steady_state;
 		grain_boundary_status = sim_params.grain_boundary_status;
 		scaled_p_type_depletion_width = sim_params.scaled_p_type_depletion_width;
 		scaled_n_type_depletion_width = sim_params.scaled_n_type_depletion_width;
@@ -192,6 +192,17 @@ namespace Grid_Maker
 		mark_interface_boundaries(Poisson_triang);
 		mark_interface_boundaries(semiconductor_triang);
 
+		// I assumed that we should refine all area in depletion region plus some space for debaye-tails
+		// so the rough estimate is should be: depletion_width_on_one_side + 0.5
+		// NOTE: If I will use two different meshes for Poisson and Continuity Equations, there
+	    //       will be better way to optimize if (e.g. in continuity the area near to pn-interface is very boring)
+		double distance_from_interface_refinement = 2.6+0.5;
+		std::cout<<"THE GRID WILL REFINE LOCALLY FROM: (PN_INTERFACE +/- "
+				 << distance_from_interface_refinement
+				 << ")    Go to Grid --> make_grids if you want to change it!!!"
+				 << "\n";
+
+
 		//semiconductor
 		for(unsigned int refine_num=0; refine_num < n_local_refine; refine_num++)
 		{
@@ -208,11 +219,11 @@ namespace Grid_Maker
 						face_no++)
 				{
 					/*double depletion_width=scaled_n_type_depletion_width;*/
-					if(join_gb_and_pn)
-					{
-						scaled_n_type_depletion_width = 1.86;
-						scaled_p_type_depletion_width = 1.86;
-					}
+					/*if(join_gb_and_pn)
+					{*/
+						/*scaled_n_type_depletion_width = 1.86;
+						scaled_p_type_depletion_width = 1.86;*/
+					/*}*/
 					if
 					(
 						cell->face(face_no)->boundary_id() == Schottky  ||
@@ -220,7 +231,8 @@ namespace Grid_Maker
 						//cell->face(face_no)->manifold_id() == PN_Interface ||
 						/*std::fabs( cell->face(face_no)->center()[0] - scaled_p_type_width - depletion_widthscaled_p_type_depletion_width) < 0.5 ||
 						std::fabs( cell->face(face_no)->center()[0] - scaled_p_type_width + depletion_widthscaled_n_type_depletion_width) < 0.5*/
-						std::fabs( cell->face(face_no)->center()[0] - scaled_p_type_width) < scaled_n_type_depletion_width + 0.5
+						std::fabs( cell->face(face_no)->center()[0] - scaled_p_type_width) < distance_from_interface_refinement
+																		/*(scaled_n_type_depletion_width + 0.5)*/
 					)
 					{
 						cell->set_refine_flag(/*RefinementCase<dim>::cut_x*/);
@@ -246,19 +258,20 @@ namespace Grid_Maker
 						face_no < GeometryInfo<dim>::faces_per_cell;
 						face_no++)
 				{
-					if(join_gb_and_pn)
-					{
-						scaled_n_type_depletion_width = 1.86;
-						scaled_p_type_depletion_width = 1.86;
-					}
+					/*if(join_gb_and_pn)
+					{*/
+						/*scaled_n_type_depletion_width = 1.86;
+						scaled_p_type_depletion_width = 1.86;*/
+					/*}*/
 					if
 					(
-							cell->face(face_no)->boundary_id() == Schottky  ||
-							cell->face(face_no)->manifold_id() == gb_border ||
-							//cell->face(face_no)->manifold_id() == PN_Interface ||
-							/*std::fabs( cell->face(face_no)->center()[0] - scaled_p_type_width - depletion_widthscaled_p_type_depletion_width) < 0.5 ||
-							std::fabs( cell->face(face_no)->center()[0] - scaled_p_type_width + depletion_widthscaled_n_type_depletion_width) < 0.5*/
-							std::fabs( cell->face(face_no)->center()[0] - scaled_p_type_width) < scaled_n_type_depletion_width + 0.5
+						cell->face(face_no)->boundary_id() == Schottky  ||
+						cell->face(face_no)->manifold_id() == gb_border ||
+						//cell->face(face_no)->manifold_id() == PN_Interface ||
+						/*std::fabs( cell->face(face_no)->center()[0] - scaled_p_type_width - depletion_widthscaled_p_type_depletion_width) < 0.5 ||
+						std::fabs( cell->face(face_no)->center()[0] - scaled_p_type_width + depletion_widthscaled_n_type_depletion_width) < 0.5*/
+						std::fabs( cell->face(face_no)->center()[0] - scaled_p_type_width) < distance_from_interface_refinement
+																		/*(scaled_n_type_depletion_width + 0.5)*/
 					)
 					{
 							cell->set_refine_flag(/*RefinementCase<dim>::cut_x*/);
@@ -269,6 +282,28 @@ namespace Grid_Maker
 
 			Poisson_triang.execute_coarsening_and_refinement();
 		}
+
+
+		typename Triangulation<dim>::active_cell_iterator
+								cell_sem = semiconductor_triang.begin_active(),
+								endc_sem = semiconductor_triang.end();
+
+		typename Triangulation<dim>::active_cell_iterator
+								cell_poi = Poisson_triang.begin_active();
+
+		// loop over all the cells
+		for(; cell_sem != endc_sem; cell_sem++,cell_poi++)
+		{
+			if(cell_sem->material_id() == n_type_gb_id)
+			{
+				cell_sem->set_material_id(n_type_id);
+				cell_poi->set_material_id(n_type_id);
+			}
+
+
+		} // for cell
+
+
 
 	} // make grids
 
@@ -762,10 +797,10 @@ namespace Grid_Maker
 			// n-type layer vertices
 			static const Point<2> vertices_4[]
 				= {
-				Point<2>(scaled_p_type_width                      , 0),
-				Point<2>(scaled_p_type_width + scaled_n_type_width, 0),
-				Point<2>(scaled_p_type_width                      , scaled_domain_height),
-				Point<2>(scaled_p_type_width + scaled_n_type_width, scaled_domain_height)
+						Point<2>(scaled_p_type_width                    	, 0),
+						Point<2>(scaled_p_type_width + scaled_n_type_width  , 0),
+						Point<2>(scaled_p_type_width					  	, scaled_top_point_y),
+						Point<2>(scaled_p_type_width + scaled_n_type_width  , scaled_top_point_y)
 				};
 
 			const unsigned int n_vertices_4 = sizeof(vertices_4)/sizeof(vertices_4[0]);
@@ -795,6 +830,78 @@ namespace Grid_Maker
 				cells_4[i].material_id = n_type_id;
 			}
 
+			// n-type layer vertices
+			static const Point<2> vertices_5[]
+				= {
+					Point<2>(scaled_p_type_width                   	  , scaled_top_point_y),
+					Point<2>(scaled_p_type_width + scaled_n_type_width, scaled_top_point_y),
+					Point<2>(scaled_p_type_width                      , scaled_top_point_y + scaled_grain_boundary_width),
+					Point<2>(scaled_p_type_width + scaled_n_type_width, scaled_top_point_y + scaled_grain_boundary_width)
+				  };
+
+			const unsigned int n_vertices_5 = sizeof(vertices_5)/sizeof(vertices_5[0]);
+
+			// create the vector of points from array of points in a strange way... but it works:
+			const std::vector<Point<dim>> vertices_list_5(&vertices_5[0],
+									  &vertices_5[n_vertices_5]);
+
+			// creating by hand the numbers describing the cell vertices, it is of course one cell but it can be more
+			static const int cell_vertices_5[][GeometryInfo<dim>::vertices_per_cell]
+				= {  {0,1,2,3} };
+
+			//checking how many entries was created above (eg. only one array {0,1,2,3} or two, three?)
+			const unsigned int n_cells_5 = sizeof(cell_vertices_5)/sizeof(cell_vertices_5[0]);
+
+			// n type layer
+			std::vector<CellData<dim> > cells_5(n_cells_5, CellData<dim>() );
+
+			for(unsigned int i=0; i<n_cells_5; i++)
+			{
+				for(unsigned int j=0;
+						j<GeometryInfo<dim>::vertices_per_cell;
+						j++)
+				{
+					cells_5[i].vertices[j] = cell_vertices_5[i][j];
+				}
+				cells_5[i].material_id = n_type_gb_id;
+			}
+
+			// n-type layer vertices
+			static const Point<2> vertices_6[]
+				= {
+					Point<2>(scaled_p_type_width                     , scaled_top_point_y + scaled_grain_boundary_width),
+					Point<2>(scaled_p_type_width+ scaled_n_type_width, scaled_top_point_y + scaled_grain_boundary_width),
+					Point<2>(scaled_p_type_width                     , scaled_domain_height),
+					Point<2>(scaled_p_type_width+ scaled_n_type_width, scaled_domain_height)
+				  };
+
+			const unsigned int n_vertices_6 = sizeof(vertices_6)/sizeof(vertices_6[0]);
+
+			// create the vector of points from array of points in a strange way... but it works:
+			const std::vector<Point<dim>> vertices_list_6(&vertices_6[0],
+									  &vertices_6[n_vertices_6]);
+
+			// creating by hand the numbers describing the cell vertices, it is of course one cell but it can be more
+			static const int cell_vertices_6[][GeometryInfo<dim>::vertices_per_cell]
+				= {  {0,1,2,3} };
+
+			//checking how many entries was created above (eg. only one array {0,1,2,3} or two, three?)
+			const unsigned int n_cells_6 = sizeof(cell_vertices_6)/sizeof(cell_vertices_6[0]);
+
+			// n type layer
+			std::vector<CellData<dim> > cells_6(n_cells_6, CellData<dim>() );
+
+			for(unsigned int i=0; i<n_cells_6; i++)
+			{
+				for(unsigned int j=0;
+						j<GeometryInfo<dim>::vertices_per_cell;
+						j++)
+				{
+					cells_6[i].vertices[j] = cell_vertices_6[i][j];
+				}
+				cells_6[i].material_id = n_type_id;
+			}
+			
 			// create a temporary p type layer triangulation
 			Triangulation<dim>	temp_p_type_down_triangulation;
 			temp_p_type_down_triangulation.create_triangulation(vertices_list_1,
@@ -812,9 +919,19 @@ namespace Grid_Maker
 																 cells_3,
 																 SubCellData());
 
-			Triangulation<dim>	temp_n_type_triangulation;
-			temp_n_type_triangulation.create_triangulation(vertices_list_4,
+			Triangulation<dim>	temp_n_type_down_triangulation;
+			temp_n_type_down_triangulation.create_triangulation(vertices_list_4,
 														   cells_4,
+														   SubCellData());
+
+			Triangulation<dim>	temp_n_type_gb_triangulation;
+			temp_n_type_gb_triangulation.create_triangulation(vertices_list_5,
+														   cells_5,
+														   SubCellData());
+
+			Triangulation<dim>	temp_n_type_up_triangulation;
+			temp_n_type_up_triangulation.create_triangulation(vertices_list_6,
+														   cells_6,
 														   SubCellData());
 
 			GridGenerator::merge_triangulations(
@@ -827,7 +944,15 @@ namespace Grid_Maker
 							triangulation);
 
 			GridGenerator::merge_triangulations(triangulation,
-							temp_n_type_triangulation,
+							temp_n_type_down_triangulation,
+							triangulation);
+
+			GridGenerator::merge_triangulations(triangulation,
+							temp_n_type_gb_triangulation,
+							triangulation);
+
+			GridGenerator::merge_triangulations(triangulation,
+							temp_n_type_up_triangulation,
 							triangulation);
 
 
@@ -930,10 +1055,12 @@ namespace Grid_Maker
 					//during steady state no Electric filed and no current will be on the right side of the domain
 					if(steady_state)
 					{
-						if((cell->face(face_no)->center()[0] == scaled_p_type_width+scaled_n_type_width))
+						//I hope that if I applied no voltage no current will flow through the device, but it is simply not true
+						//if we work with densities not quasiFermi energies - we don't know when we will have steady state appriori
+						/*if((cell->face(face_no)->center()[0] == scaled_p_type_width+scaled_n_type_width))
 						{
 							cell->face(face_no)->set_boundary_id(Neumann);
-						}
+						}*/
 					} //end if steady
 				} // end if on boundary
 			} // for face_no
